@@ -31,11 +31,13 @@ optional-dependencies.dev = [
   "twine>=4.0.2",
 ]
 optional-dependencies.doc = [
+  "anndata",
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
   "ipython",
   "myst-nb>=1.1",
   "pandas",
+  "scanpy",
   # Until pybtex >0.23.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=4",
@@ -45,6 +47,7 @@ optional-dependencies.doc = [
   "sphinx-tabs",
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
+  "torch",
 ]
 optional-dependencies.test = [
   "coverage",

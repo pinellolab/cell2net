@@ -19,7 +19,7 @@ class SeqEncoder(nn.Module):
 
     def __init__(
         self,
-        seq_len: int = 512,
+        seq_length: int = 512,
         n_channels: int = 4,
         n_filters: int = 30,
         kernel_size: int = 5,
@@ -27,7 +27,7 @@ class SeqEncoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.seq_len = seq_len
+        self.seq_length = seq_length
         self.n_channels = n_channels
         self.n_filters = n_filters
         self.kernel_size = kernel_size
@@ -105,8 +105,8 @@ class SeqEncoder(nn.Module):
 class Cell2Net(nn.Module):
     def __init__(
         self,
-        n_peaks: int = 20,
-        seq_len: int = 512,
+        n_peaks: int,
+        seq_lengths: list[int],
         n_channels: int = 4,
         n_filters: int = 30,
         kernel_size: int = 5,
@@ -119,12 +119,12 @@ class Cell2Net(nn.Module):
         self.n_filters = n_filters
         self.kernel_size = kernel_size
         self.n_dims = n_dims
-        self.seq_len = seq_len
+        self.seq_lengths = seq_lengths
 
         self.seq_encoders = nn.ModuleList([])
-        for _ in range(self.n_peaks):
+        for i in range(self.n_peaks):
             encoder = SeqEncoder(
-                seq_len=seq_len,
+                seq_length=seq_lengths[i],
                 n_channels=self.n_channels,
                 n_filters=self.n_filters,
                 kernel_size=self.kernel_size,
@@ -160,17 +160,3 @@ class Cell2Net(nn.Module):
         x = self.fc(x)
 
         return x
-
-
-if __name__ == "__main__":
-    # generate dummy data
-    bs, n_peaks, seq_len = 128, 20, 256
-
-    peak_seq = torch.rand(bs, n_peaks, seq_len, 4)
-    atac = torch.rand(bs, n_peaks)
-
-    model = Cell2Net(seq_len=seq_len)
-
-    pred = model(peak_seq, atac)
-
-    print(pred)

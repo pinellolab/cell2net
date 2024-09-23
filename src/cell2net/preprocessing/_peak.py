@@ -51,7 +51,6 @@ def peak_to_gene(
     down_stream: int = 500_000,
     delimiter: str = "-",
     ref_fasta: str = "",
-    use_veriable_gene=True,
 ):
     # Check if can find TSS coordinates in adata_rna
     assert "gene_tss_coord" in adata_rna.uns, "Cannot find gene TSS coordinates"

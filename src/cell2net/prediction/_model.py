@@ -1,4 +1,5 @@
 import torch
+from lightning import LightningModule
 from torch import nn
 
 
@@ -61,7 +62,7 @@ class SeqEncoder(nn.Module):
         # compute final output length after convolution layers
         self.len1 = (
             _compute_output_size(
-                length_in=self.seq_len,
+                length_in=self.seq_length,
                 kernel_size=self.kernel_size,
                 stride=1,
                 padding=0,
@@ -102,7 +103,7 @@ class SeqEncoder(nn.Module):
         return x
 
 
-class Cell2Net(nn.Module):
+class Cell2Net(LightningModule):
     def __init__(
         self,
         n_peaks: int,

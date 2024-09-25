@@ -1,163 +1,165 @@
-import torch
-from lightning import LightningModule
-from torch import nn
+import re
+from typing import Literal
+
+import pandas as pd
+import pysam
+from anndata import AnnData
+
+from ._base import BaseModelClass
+from ._module import Peaks2GeneExpression
 
 
-# https://stackoverflow.com/questions/62162576/calculating-shape-of-conv1d-layer-in-pytorch
-def _compute_output_size(length_in, kernel_size, stride=1, padding=0, dilation=1):
-    return (length_in + 2 * padding - dilation * (kernel_size - 1) - 1) // stride + 1
-
-
-class SeqEncoder(nn.Module):
-    """
-    A CNN-based sequence encoder.
-
-    Parameters
-    ----------
-    seq_len : int
-        sequence length
-    """
-
+class Cell2Net(BaseModelClass):
     def __init__(
         self,
-        seq_length: int = 512,
+        adata_rna: AnnData,
+        adata_atac: AnnData,
+        peak_to_gene: pd.DataFrame,
+        fasta: pysam.FastaFile,
         n_channels: int = 4,
         n_filters: int = 30,
         kernel_size: int = 5,
         n_dims: int = 16,
     ) -> None:
-        super().__init__()
+        # super().__init__()
 
-        self.seq_length = seq_length
-        self.n_channels = n_channels
-        self.n_filters = n_filters
-        self.kernel_size = kernel_size
+        self.adata_rna = adata_rna
+        self.adata_atac = adata_atac
+        self.peak_to_gene = peak_to_gene
+        self.fasta = fasta
 
-        self.conv1 = nn.Sequential(
-            nn.Conv1d(
-                self.n_channels,
-                self.n_filters,
-                dilation=1,
-                kernel_size=self.kernel_size,
-            ),
-            nn.ReLU(inplace=True),
-            nn.MaxPool1d(2),
-            nn.Dropout(0.25),
-        )
+        # All genes that will be predicted
+        self.genes = peak_to_gene["gene"].unique().tolist()
 
-        self.conv2 = nn.Sequential(
-            nn.Conv1d(self.n_filters, self.n_filters, dilation=2, kernel_size=self.kernel_size),
-            nn.ReLU(inplace=True),
-            nn.MaxPool1d(2),
-            nn.Dropout(0.25),
-        )
-
-        self.conv3 = nn.Sequential(
-            nn.Conv1d(self.n_filters, self.n_filters, dilation=4, kernel_size=self.kernel_size),
-            nn.ReLU(inplace=True),
-            nn.MaxPool1d(2),
-            nn.Dropout(0.25),
-        )
-
-        # compute final output length after convolution layers
-        self.len1 = (
-            _compute_output_size(
-                length_in=self.seq_length,
-                kernel_size=self.kernel_size,
-                stride=1,
-                padding=0,
-                dilation=1,
-            )
-            // 2
-        )
-        self.len2 = (
-            _compute_output_size(
-                length_in=self.len1,
-                kernel_size=self.kernel_size,
-                stride=1,
-                padding=0,
-                dilation=2,
-            )
-            // 2
-        )
-        self.len3 = (
-            _compute_output_size(
-                length_in=self.len2,
-                kernel_size=self.kernel_size,
-                stride=1,
-                padding=0,
-                dilation=4,
-            )
-            // 2
-        )
-
-        self.fc = nn.Sequential(nn.Flatten(), nn.Linear(self.len3 * self.n_filters, n_dims))
-
-    def forward(self, x):
-        x = x.permute(0, 2, 1)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.fc(x)
-
-        return x
-
-
-class Cell2Net(LightningModule):
-    def __init__(
-        self,
-        n_peaks: int,
-        seq_lengths: list[int],
-        n_channels: int = 4,
-        n_filters: int = 30,
-        kernel_size: int = 5,
-        n_dims: int = 16,
-    ) -> None:
-        super().__init__()
-
-        self.n_peaks = n_peaks
         self.n_channels = n_channels
         self.n_filters = n_filters
         self.kernel_size = kernel_size
         self.n_dims = n_dims
-        self.seq_lengths = seq_lengths
 
-        self.seq_encoders = nn.ModuleList([])
-        for i in range(self.n_peaks):
-            encoder = SeqEncoder(
-                seq_length=seq_lengths[i],
-                n_channels=self.n_channels,
-                n_filters=self.n_filters,
-                kernel_size=self.kernel_size,
-                n_dims=self.n_dims,
-            )
+    def build(self, gene: str):
+        assert gene in self.genes, f"Cannot find gene {gene}!"
 
-            self.seq_encoders.append(encoder)
+        # get gene and peaks
+        self.gene = gene
+        self.peak_to_gene_subset = self.peak_to_gene[self.peak_to_gene["gene"] == gene]
+        self.peaks = self.peak_to_gene_subset["peak"].values.tolist()
 
-        self.fc = nn.Sequential(
-            nn.Linear(self.n_peaks * (self.n_dims + 1), 32),
-            nn.ReLU(),
-            nn.BatchNorm1d(32),
-            nn.Dropout(0.5),
-            nn.Linear(32, 1),
+        self.peak_list = []
+        self.peak_lengths = []
+
+        for peak in self.peaks:
+            peak = re.split("-", peak)
+            chrom, start, end = peak[0], int(peak[1]), int(peak[2])
+            seq = self.fasta.fetch(chrom, start, end).upper()
+            self.peak_list.append(seq)
+            self.peak_lengths.append(len(seq))
+
+        self.n_peaks = len(self.peak_list)
+
+        self.module = Peaks2GeneExpression(
+            peak_list=self.peak_list,
+            peak_lengths=self.peak_lengths,
+            n_filters=self.n_filters,
+            n_channels=self.n_channels,
+            n_dims=self.n_dims,
         )
 
-    def forward(self, peak_seq, atac):
-        assert (
-            peak_seq.shape[1] == self.n_peaks
-        ), f"Input size is incorrect, found {peak_seq.shape[1]} peaks, expected {self.n_peaks} peaks!"
+        self._model_summary_string = f"gene_name: {self.gene}, " f"n_peaks: {self.n_peaks} "
 
-        # embed peak sequence
-        x = []
-        for i in range(self.n_peaks):
-            _peak_seq = peak_seq[:, i, :, :]
-            x.append(self.seq_encoders[i](_peak_seq))
+        self.is_train = False
 
-        # concat sequence embeddings
-        x = torch.concat(x, dim=1)
+        # split the data
 
-        # concat peak accessibility
-        x = torch.concat([x, atac], dim=1)
-        x = self.fc(x)
+    def _make_data_loader(self):
+        return NotImplementedError
 
-        return x
+        # self.rna_data = torch.from_numpy(
+        #     np.array(self.adata_rna[:, gene].X.todense()).reshape(-1)
+        # )
+        # self.atac_data = torch.from_numpy(
+        #     np.array(self.adata_atac[:, self.peaks].X.todense())
+        # )
+
+        # # split train and validation
+        # n_cells = self.atac_data.shape[0]
+        # idx = list(range(n_cells))
+        # np.random.shuffle(idx)
+        # self.train_idx = idx[: int(len(idx) * self.train_size)]
+        # self.valid_idx = idx[int(len(idx) * self.train_size) :]
+
+        # self.train_dl = get_dataloader(
+        #     seq_list=self.seq_list,
+        #     atac=self.atac_data[self.train_idx],
+        #     rna=self.rna_data[self.train_idx],
+        #     batch_size=128,
+        #     drop_last=True,
+        #     shuffle=True,
+        #     train=True,
+        # )
+
+        # self.valid_dl = get_dataloader(
+        #     seq_list=self.seq_list,
+        #     atac=self.atac_data[self.valid_idx],
+        #     rna=self.rna_data[self.valid_idx],
+        #     batch_size=128,
+        #     drop_last=False,
+        #     shuffle=False,
+        #     train=True,
+        # )
+
+    def train(
+        self,
+        max_epochs: int = 20,
+        optimizer: Literal["Adam", "AdamW"] = "Adam",
+        lr: float = 3e-4,
+        weight_decay: float = 1e-4,
+        reduce_lr_on_plateau: bool = True,
+        lr_factor: float = 0.5,
+        lr_patience: int = 5,
+        lr_threshold: float = 0.0,
+        lr_scheduler_metric: str = "validation_loss",
+        lr_min: float = 1e-5,
+        accelerator: str = "auto",
+        devices: int | list[int] | str = "auto",
+        train_size: float = 0.9,
+        validation_size: float | None = None,
+        train_indices: list | None = None,
+        validation_indices: list | None = None,
+        test_indices: list | None = None,
+        shuffle_set_split: bool = True,
+        batch_size: int = 128,
+        eps: float = 1e-08,
+        early_stopping: bool = True,
+        early_stopping_patience: int = 10,
+        save_best: bool = True,
+        check_val_every_n_epoch: int | None = None,
+        datasplitter_kwargs: dict | None = None,
+        # plan_kwargs: dict | None = None,
+    ):
+        """Trains the model"""
+        # training_plan = TrainingPlan(
+        #     self.module,
+        #     optimizer=optimizer,
+        #     lr=lr,
+        #     weight_decay=weight_decay,
+        #     reduce_lr_on_plateau=reduce_lr_on_plateau,
+        #     lr_factor=lr_factor,
+        #     lr_patience=lr_patience,
+        #     lr_threshold=lr_threshold,
+        #     lr_scheduler_metric=lr_scheduler_metric,
+        #     lr_min=lr_min,
+        # )
+
+        return NotImplementedError
+
+        # runner = TrainRunner(
+        #     self,
+        #     max_epochs=max_epochs,
+        #     training_plan=training_plan,
+        #     data_splitter=datamodule,
+        #     accelerator=accelerator,
+        #     devices=devices,
+        #     **trainer_kwargs,
+        # )
+
+        # return runner()

@@ -11,8 +11,8 @@
         // Dependency management
         "ninoseki.vscode-mogami",
         // Linting and formatting
-        "editorconfig.editorconfig",
-        "charliermarsh.ruff",
-        "esbenp.prettier-vscode",
+        // "editorconfig.editorconfig",
+        // "charliermarsh.ruff",
+        // "esbenp.prettier-vscode",
     ],
 }

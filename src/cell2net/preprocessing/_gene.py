@@ -1,21 +1,29 @@
 import gzip
 
 import pandas as pd
-from anndata import AnnData
+from mudata import MuData
 
 
-def get_gene_tss_coord(adata: AnnData, gene_gtf: str, feature_type: str = "gene") -> None:
+def add_gene_tss_coord(
+    mdata: MuData,
+    gene_gtf: str,
+    feature_type: str = "gene",
+    mod_names: str = "rna",
+) -> None:
     """
-    Extract the TSS coordinates for each gene, and extend it by window size.
+    Extract the TSS coordinates for each gene.
 
     Parameters
     ----------
-    adata : AnnData
-        Input anndata object containing gene expression
+    mdata : MuData
+        Input MuData object containing gene expression
     gene_gtf : str
         GTF file including gene annotation, which should have 9 columns.
     feature_type : str
     """
+    assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
+    adata = mdata[mod_names]
+
     if gene_gtf.endswith(".gz"):
         file_handle = gzip.open(gene_gtf, "rt")
     else:
@@ -60,7 +68,6 @@ def get_gene_tss_coord(adata: AnnData, gene_gtf: str, feature_type: str = "gene"
     # Convert gene_info into a DataFrame for easier manipulation
     df = pd.DataFrame(gene_info, columns=["chrom", "gene_name", "strand", "tss"])
     df = df.drop_duplicates(["gene_name"], keep="first")
-
     adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)]
 
     return None

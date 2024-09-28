@@ -5,19 +5,18 @@ import pandas as pd
 import pyfaidx
 import pyranges as pr
 import pyranges.genomicfeatures as gf
-import pysam
-from anndata import AnnData
 from mudata import MuData
+from pysam import FastaFile
 
 
-def add_peak_seq(data: AnnData | MuData, genome_file: str, delimiter="-"):
+def add_peak_seq(mdata: MuData, ref_fasta: str, delimiter="-", mod_name: str = "atac"):
     """Add the DNA sequence of each peak to data object.
 
     Parameters
     ----------
     data : Union[AnnData, MuData]
         AnnData object with peak counts or MuData object with 'atac' modality.
-    genome_file : str
+    ref_fasta : str
         Filename of genome reference
     delimiter : str, optional
         Delimiter that separates peaks, by default "-"
@@ -26,33 +25,34 @@ def add_peak_seq(data: AnnData | MuData, genome_file: str, delimiter="-"):
     -------
     Update `data`
     """
-    if isinstance(data, AnnData):
-        adata = data
-    elif isinstance(data, MuData) and "atac" in data.mod:
-        adata = data.mod["atac"]
-    else:
-        raise TypeError("Expected AnnData or MuData object with 'atac' modality")
+    assert mod_name in mdata.mod_names, f"Cannot find modality: {mod_name}"
+    adata = mdata[mod_name]
 
-    fasta = pysam.Fastafile(genome_file)
-    adata.uns["peak_seq"] = [None] * adata.n_vars
-
+    fasta = FastaFile(filename=ref_fasta)
+    peaks, seqs = [], []
     for i in range(adata.n_vars):
         peak = re.split(delimiter, adata.var_names[i])
         chrom, start, end = peak[0], int(peak[1]), int(peak[2])
-        adata.uns["peak_seq"][i] = fasta.fetch(chrom, start, end).upper()
+        peaks.append(peak)
+        seqs.append(fasta.fetch(chrom, start, end).upper())
 
+    adata.uns["peak_seq"] = pd.DataFrame(data={"peak": peaks, "seq": seqs})
     return None
 
 
-def peak_to_gene(
-    adata_rna: AnnData | MuData,
-    adata_atac: AnnData | MuData,
+def add_peak_to_gene(
+    mdata: MuData,
+    rna_mod: str = "rna",
+    atac_mod: str = "atac",
     up_stream: int = 500_000,
     down_stream: int = 500_000,
     delimiter: str = "-",
     ref_fasta: str = "",
 ):
     # Check if can find TSS coordinates in adata_rna
+    adata_rna = mdata[rna_mod]
+    adata_atac = mdata[atac_mod]
+
     assert "gene_tss_coord" in adata_rna.uns, "Cannot find gene TSS coordinates"
 
     logging.info("Fetch gene coordinates")
@@ -108,5 +108,6 @@ def peak_to_gene(
         df.columns = ["gene", "peak", "distance"]
         df_list.append(df)
 
-    df = pd.concat(df_list)
-    return df
+    mdata.uns["peak_to_gene"] = pd.concat(df_list).reset_index(drop=True)
+
+    return None

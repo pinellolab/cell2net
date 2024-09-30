@@ -24,7 +24,9 @@ def one_hot_encode(seq):
     allowed = set("ACTGN")
     if not set(seq).issubset(allowed):
         invalid = set(seq) - allowed
-        raise ValueError(f"Sequence contains chars not in allowed DNA alphabet (ACGTN): {invalid}")
+        raise ValueError(
+            f"Sequence contains chars not in allowed DNA alphabet (ACGTN): {invalid}"
+        )
 
     # Dictionary returning one-hot encoding for each nucleotide
     nuc_d = {
@@ -76,29 +78,27 @@ def _assign_mdata_uuid(mdata: MuData, overwrite: bool = False) -> None:
 
 def get_mudata_attribute(
     mdata: MuData,
+    mod_key: str,
     attr_name: str,
-    attr_key: str | None,
-    mod_key: str | None = None,
+    attr_key: str,
 ) -> np.ndarray | pd.DataFrame:
     """Returns the requested data from a given MuData object."""
     if mod_key is not None:
-        if isinstance(mdata, MuData):
-            raise ValueError(f"Cannot access modality {mod_key} on an AnnData object.")
         if mod_key not in mdata.mod:
             raise ValueError(f"{mod_key} is not a valid modality in mdata.mod.")
         adata = mdata.mod[mod_key]
 
-    mdata_attr = getattr(mdata, attr_name)
+    adata_attr = getattr(adata, attr_name)
     if attr_key is None:
-        field = mdata_attr
-    elif isinstance(mdata_attr, pd.DataFrame):
-        if attr_key not in mdata_attr.columns:
+        field = adata_attr
+    elif isinstance(adata_attr, pd.DataFrame):
+        if attr_key not in adata_attr.columns:
             raise ValueError(f"{attr_key} is not a valid column in adata.{attr_name}.")
-        field = mdata_attr.loc[:, attr_key]
+        field = adata_attr.loc[:, attr_key]
     else:
-        if attr_key not in mdata_attr.keys():
+        if attr_key not in adata_attr.keys():
             raise ValueError(f"{attr_key} is not a valid key in adata.{attr_name}.")
-        field = mdata_attr[attr_key]
+        field = adata_attr[attr_key]
 
     if isinstance(field, pd.Series):
         field = field.to_numpy().reshape(-1, 1)

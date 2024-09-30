@@ -1,20 +1,15 @@
 from typing import Literal
 
 from mudata import MuData
-from scvi.data.fields import (
-    CategoricalObsField,
-    LayerField,
-)
+from scvi.data.fields import CategoricalObsField, MuDataLayerField
 
-from cell2net.prediction.data import MuDataManager
+from cell2net.prediction.data import MuDataLoader, MuDataManager
 from cell2net.prediction.module import Peaks2GeneExpression
 
 from ._base import BaseModelClass
 
 
 class Cell2Net(BaseModelClass):
-    _module_cls = Peaks2GeneExpression
-
     def __init__(
         self,
         mdata: MuData,
@@ -63,14 +58,13 @@ class Cell2Net(BaseModelClass):
             n_dims=self.n_dims,
         )
 
-        self._model_summary_string = f"gene_name: {self.gene}, " f"n_peaks: {self.n_peaks} "
+        self._model_summary_string = (
+            f"gene_name: {self.gene}, " f"n_peaks: {self.n_peaks} "
+        )
 
         self.is_train = False
 
         # split the data
-
-    # def _make_data_loader(self):
-    #    return NotImplementedError
 
     # self.rna_data = torch.from_numpy(
     #     np.array(self.adata_rna[:, gene].X.todense()).reshape(-1)
@@ -109,7 +103,7 @@ class Cell2Net(BaseModelClass):
     def train(
         self,
         max_epochs: int = 20,
-        optimizer: Literal["Adam", "AdamW"] = "Adam",
+        optimizer_name: Literal["Adam", "AdamW"] = "Adam",
         lr: float = 3e-4,
         weight_decay: float = 1e-4,
         reduce_lr_on_plateau: bool = True,
@@ -136,6 +130,14 @@ class Cell2Net(BaseModelClass):
         # plan_kwargs: dict | None = None,
     ):
         """Trains the model"""
+        mdata_manager = MuDataManager()
+
+        train_dl = MuDataLoader(mdata_manager=mdata_manager, indices=train_indices)
+        valid_dl = MuDataLoader(mdata_manager=mdata_manager, indices=validation_indices)
+        test_dl = MuDataLoader(mdata_manager=mdata_manager, indices=test_indices)
+
+        # optimizer =
+
         # training_plan = TrainingPlan(
         #     self.module,
         #     optimizer=optimizer,
@@ -169,17 +171,37 @@ class Cell2Net(BaseModelClass):
         mdata: MuData,
         batch_key: str | None = None,
         labels_key: str | None = None,
-        layer: str | None = None,
+        rna_layer: str | None = None,
+        atac_layer: str | None = None,
+        rna_mod: str = "rna",
+        atac_mod: str = "atac",
         **kwargs,
     ):
         setup_method_args = cls._get_setup_method_args(**locals())
 
+        # which data is used in model training
         mudata_fields = [
-            LayerField("X", layer, is_count_data=True),
+            MuDataLayerField(
+                registry_key="rna",
+                mod_key=rna_mod,
+                layer=rna_layer,
+                is_count_data=True,
+                mod_required=True,
+            ),
+            MuDataLayerField(
+                registry_key="atac",
+                mod_key=atac_mod,
+                layer=atac_layer,
+                is_count_data=True,
+                mod_required=True,
+            ),
             CategoricalObsField("batch", batch_key),
+            CategoricalObsField("label", labels_key),
         ]
 
-        mdata_manager = MuDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
+        mdata_manager = MuDataManager(
+            fields=mudata_fields, setup_method_args=setup_method_args
+        )
 
         mdata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(mdata_manager)

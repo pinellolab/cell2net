@@ -9,8 +9,6 @@ import torch
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
-from scvi.con
-
 # avoid circular imports for type annotation.
 if TYPE_CHECKING:
     from ._manager import MuDataManager
@@ -83,7 +81,7 @@ class MuTorchDataset(Dataset):
         """Dictionary of data tensors.
 
         First time this is accessed, data is fetched from the underlying
-        :class:`~anndata.AnnData` object. Subsequent accesses will return the
+        :class:`~mudata.MuData` object. Subsequent accesses will return the
         cached dictionary.
         """
         if not hasattr(self, "_data"):
@@ -114,7 +112,7 @@ class MuTorchDataset(Dataset):
         if isinstance(indexes, int):
             indexes = [indexes]  # force batched single observations
 
-        if self.adata_manager.adata.isbacked and isinstance(indexes, list | np.ndarray):
+        if self.mdata_manager.mdata.isbacked and isinstance(indexes, list | np.ndarray):
             # need to sort indexes for h5py datasets
             indexes = np.sort(indexes)
 

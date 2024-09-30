@@ -33,7 +33,7 @@ def add_peak_seq(mdata: MuData, ref_fasta: str, delimiter="-", mod_name: str = "
     for i in range(adata.n_vars):
         peak = re.split(delimiter, adata.var_names[i])
         chrom, start, end = peak[0], int(peak[1]), int(peak[2])
-        peaks.append(peak)
+        peaks.append(adata.var_names[i])
         seqs.append(fasta.fetch(chrom, start, end).upper())
 
     adata.uns["peak_seq"] = pd.DataFrame(data={"peak": peaks, "seq": seqs})
@@ -76,7 +76,9 @@ def add_peak_to_gene(
     gr_genes = gf.genome_bounds(gr_genes, chromsizes=pyf, clip=True)
 
     logging.info("Overlaping peaks with genes")
-    adata_atac.var[["chrom", "start", "end"]] = adata_atac.var["peaks"].str.split(delimiter, expand=True)
+    adata_atac.var[["chrom", "start", "end"]] = adata_atac.var["peaks"].str.split(
+        delimiter, expand=True
+    )
 
     df_peaks = pd.DataFrame(
         data={

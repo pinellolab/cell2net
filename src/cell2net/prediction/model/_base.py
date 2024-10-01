@@ -5,14 +5,47 @@ import torch
 from mudata import MuData
 
 from cell2net.prediction.data import MuDataManager
+from cell2net.prediction.data._constants import (
+    _MODEL_NAME_KEY,
+    _SETUP_ARGS_KEY,
+    _SETUP_METHOD_NAME,
+)
 
-# from ._constants import SAVE_KEYS
+from ._constants import SAVE_KEYS
+
+_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "mdata", "kwargs"}
 
 
-class BaseModelClass(metaclass=ABCMeta):
+class BaseModelMetaClass(ABCMeta):
+    """Metaclass for :class:`~scvi.model.base.BaseModelClass`.
+
+    Constructs model class-specific mappings for :class:`~scvi.data.AnnDataManager` instances.
+    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to
+    :class:`~scvi.data.AnnDataManager` instances.
+
+    This mapping is populated everytime ``cls.setup_anndata()`` is called.
+    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID:
+    :class:`~scvi.data.AnnDataManager` mappings.
+    These :class:`~scvi.data.AnnDataManager` instances are tied to a single model instance and
+    populated either
+    during model initialization or after running ``self._validate_anndata()``.
+    """
+
+    @abstractmethod
+    def __init__(cls, name, bases, dct):
+        cls._setup_mdata_manager_store: dict[str, type[MuDataManager]] = (
+            {}
+        )  # Maps adata id to AnnDataManager instances.
+        cls._per_instance_manager_store: dict[str, dict[str, type[MuDataManager]]] = (
+            {}
+        )  # Maps model instance id to AnnDataManager mappings.
+        super().__init__(name, bases, dct)
+
+
+class BaseModelClass(metaclass=BaseModelMetaClass):
     def __init__(
         self,
-        mdata: MuData | None = None,
+        mdata: MuData,
     ) -> None:
         self.module = None
         self._mdata = mdata
@@ -24,7 +57,7 @@ class BaseModelClass(metaclass=ABCMeta):
         self.history_ = None
 
     @property
-    def mdata(self) -> MuData | None:
+    def mdata(self) -> MuData:
         """Data attached to model instance."""
         return self._mdata
 
@@ -32,9 +65,9 @@ class BaseModelClass(metaclass=ABCMeta):
     def mdata(self, mdata: MuData):
         if mdata is None:
             raise ValueError("mdata cannot be None.")
-        # self._validate_mudata(mdata)
+        self._validate_mudata(mdata)
         self._mdata = mdata
-        # self._adata_manager = self.get_mudata_manager(mdata, required=True)
+        # self._mdata_manager = self.get_mudata_manager(mdata, required=True)
         # self.registry_ = self._adata_manager.registry
         # self.summary_stats = self._adata_manager.summary_stats
 
@@ -156,7 +189,7 @@ class BaseModelClass(metaclass=ABCMeta):
         :class:`~scvi.data.AnnDataManager`.
         """
         mdata_id = mudata_manager.adata_uuid
-        cls._setup_adata_manager_store[mdata_id] = mudata_manager
+        cls._setup_mdata_manager_store[mdata_id] = mudata_manager
 
     # def load(
     #     self,

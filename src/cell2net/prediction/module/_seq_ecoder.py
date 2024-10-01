@@ -54,14 +54,18 @@ class SeqEncoder(nn.Module):
         )
 
         self.conv2 = nn.Sequential(
-            nn.Conv1d(self.n_filters, self.n_filters, dilation=2, kernel_size=self.kernel_size),
+            nn.Conv1d(
+                self.n_filters, self.n_filters, dilation=2, kernel_size=self.kernel_size
+            ),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(2),
             nn.Dropout(dropout_rate),
         )
 
         self.conv3 = nn.Sequential(
-            nn.Conv1d(self.n_filters, self.n_filters, dilation=4, kernel_size=self.kernel_size),
+            nn.Conv1d(
+                self.n_filters, self.n_filters, dilation=4, kernel_size=self.kernel_size
+            ),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(2),
             nn.Dropout(dropout_rate),
@@ -99,7 +103,9 @@ class SeqEncoder(nn.Module):
             // 2
         )
 
-        self.fc = nn.Sequential(nn.Flatten(), nn.Linear(self.len3 * self.n_filters, n_dims))
+        self.fc = nn.Sequential(
+            nn.Flatten(), nn.Linear(self.len3 * self.n_filters, n_dims)
+        )
 
     def forward(self, x):
         x = x.permute(0, 2, 1)

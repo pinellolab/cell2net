@@ -58,33 +58,3 @@ class MuDataLoader(DataLoader):
         self.kwargs.update({"sampler": sampler})
 
         super().__init__(self.dataset, **self.kwargs)
-
-
-# def get_dataloader(
-#     seq_list: list,
-#     atac: torch.Tensor,
-#     rna: torch.Tensor,
-#     batch_size: int = 128,
-#     num_workers: int = 8,
-#     drop_last: bool = False,
-#     shuffle: bool = True,
-#     train: bool = True,
-# ):
-#     dataset = MultiOmeDataSet(
-#         seq_list=seq_list,
-#         atac=atac,
-#         rna=rna,
-#         train=train,
-#     )
-
-#     dataloader = DataLoader(
-#         dataset=dataset,
-#         batch_size=batch_size,
-#         num_workers=num_workers,
-#         pin_memory=True,
-#         shuffle=shuffle,
-#         drop_last=drop_last,
-#         persistent_workers=True,
-#     )
-
-#     return dataloader

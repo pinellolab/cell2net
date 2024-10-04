@@ -39,6 +39,8 @@ optional-dependencies.doc = [
   "pandas",
   "pyranges",
   "scanpy",
+  "pyranges",
+  "pyfaidx",
   # Until pybtex >0.23.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=4",

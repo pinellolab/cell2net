@@ -6,14 +6,15 @@ import h5py
 import numpy as np
 import pandas as pd
 import torch
+from mudata import MuData
 from scipy.sparse import issparse
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 # avoid circular imports for type annotation.
 if TYPE_CHECKING:
     from ._manager import MuDataManager
 
-from ._utils import registry_key_to_default_dtype
+from ._utils import encode_seq, registry_key_to_default_dtype
 
 
 class MuTorchDataset(Dataset):
@@ -144,8 +145,69 @@ class MuTorchDataset(Dataset):
 
         return data_map
 
-    # def __getitem__(self, idx):
-    #     if self.train:
-    #         return (self.peak_seq, self.atac[idx], self.rna[idx])
-    #     else:
-    #         return (self.peak_seq, self.atac[idx])
+
+class MuTorchDatasetSimple(Dataset):
+    def __init__(
+        self,
+        mdata: MuData,
+        train: bool = True,
+    ) -> None:
+        super().__init__()
+
+        self.mdata = mdata
+        self.adata_rna = mdata["rna"]
+        self.adata_atac = mdata["atac"]
+
+        self.train = train
+        self.len = self.mdata.n_obs
+        self.peak_seqs = self.mdata["atac"].var["dna_sequence"].values.tolist()
+
+        # convert seq to one-hot encoding
+        self.peak_seqs = encode_seq(self.peak_seqs)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        data = {}
+        if self.train:
+            data["atac"] = np.array(
+                self.adata_atac[idx].layers["counts"].todense()
+            ).reshape(-1)
+            data["rna"] = np.array(
+                self.adata_rna[idx].layers["counts"].todense()
+            ).reshape(-1)
+            data["dna"] = self.peak_seqs
+        else:
+            data["atac"] = np.array(
+                self.adata_atac[idx].layers["counts"].todense()
+            ).reshape(-1)
+            data["dna"] = self.peak_seqs
+
+        return data
+
+
+def get_dataloader(
+    mdata: MuData,
+    batch_size: int = 128,
+    num_workers: int = 8,
+    drop_last: bool = False,
+    shuffle: bool = True,
+    train: bool = True,
+):
+    dataset = MuTorchDatasetSimple(
+        mdata=mdata,
+        train=train,
+    )
+
+    dataloader = DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=True,
+        shuffle=shuffle,
+        drop_last=drop_last,
+        persistent_workers=True,
+    )
+
+    return dataloader

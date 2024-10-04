@@ -22,15 +22,15 @@ def _seq_to_code(seq):
 
     # Dictionary returning one-hot encoding for each nucleotide
     nuc_d = {
-        "A": 0,
-        "C": 1,
-        "G": 2,
-        "T": 3,
-        "N": -1,
+        "A": [1, 0, 0, 0],
+        "C": [0, 1, 0, 0],
+        "G": [0, 0, 1, 0],
+        "T": [0, 0, 0, 1],
+        "N": [0, 0, 0, 0],
     }
 
     # Create array from nucleotide sequence
-    vec = np.array([nuc_d[x] for x in seq])
+    vec = np.array([nuc_d[x] for x in seq], dtype=np.int8)
 
     return vec
 
@@ -96,6 +96,42 @@ def add_peaks(
     return None
 
 
+def add_dna_sequence_v2(
+    mdata: MuData,
+    ref_fasta: str,
+    mod_name: str = "atac",
+    chr_var_key: str = "chr",
+    start_var_key: str = "start",
+    end_var_key: str = "end",
+    obsm_key: str = "dna_one_hot",
+):
+
+    assert mod_name in mdata.mod_names, f"Cannot find modality: {mod_name}"
+    adata = mdata[mod_name]
+
+    fasta = FastaFile(filename=ref_fasta)
+    df = adata.var[[chr_var_key, start_var_key, end_var_key]]
+
+    data = np.empty(shape=(adata.n_obs, adata.n_vars, 4, 256), dtype=np.int8)
+
+    # Loop for each chromosome
+    for i, (chrom, start, end) in enumerate(
+        zip(
+            df[chr_var_key],
+            df[start_var_key],
+            df[end_var_key],
+            strict=False,
+        )
+    ):
+
+        seq = fasta.fetch(chrom, start, end).upper()
+        data[:, i] = _seq_to_code(seq=seq)
+
+    adata.obsm[obsm_key] = data
+
+    return None
+
+
 def add_dna_sequence(
     mdata: MuData,
     ref_fasta: str,
@@ -103,8 +139,7 @@ def add_dna_sequence(
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
-    sequence_varm_key: str = "dna_sequence",
-    code_varm_key: str = "dna_code",
+    sequence_var_key: str = "dna_sequence",
 ) -> None:
     """Add the DNA sequence of each peak to data object.
 
@@ -127,7 +162,7 @@ def add_dna_sequence(
     fasta = FastaFile(filename=ref_fasta)
     df = adata.var[[chr_var_key, start_var_key, end_var_key]]
 
-    seqs, codes = [], []
+    seqs = []
     # Loop for each chromosome
     for chrom, start, end in tqdm(
         zip(
@@ -137,42 +172,10 @@ def add_dna_sequence(
             strict=False,
         )
     ):
+        seqs.append(fasta.fetch(chrom, start, end).upper())
 
-        seq = fasta.fetch(chrom, start, end).upper()
-        seqs.append(seq)
-        codes.append(_seq_to_code(seq=seq))
+    adata.var[sequence_var_key] = seqs
 
-    codes = np.stack(codes)
-
-    adata.var[sequence_varm_key] = seqs
-    adata.varm[code_varm_key] = codes
-
-    # for chrom in tqdm(chroms):
-    #     chrom_df = df[df[chr_var_key] == chrom]
-
-    #     seqs = []
-    #     for chrom, start, end in zip(
-    #         chrom_df[chr_var_key],
-    #         chrom_df[start_var_key],
-    #         chrom_df[end_var_key],
-    #         strict=False,
-    #     ):
-    #         seq = fasta.fetch(chrom, start, end).upper()
-    #         seqs.append(list(seq))
-
-    #     assert len(seqs) == len(chrom_df)
-    #     seq_dfs.append(pd.DataFrame(seqs, index=chrom_df.index))
-
-    #     # peaks.append(adata.var_names[i])
-    #     # seqs.append(fasta.fetch(chrom, start, end).upper())
-
-    # sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
-    # adata.var[sequence_varm_key] =
-
-    # adata.varm[sequence_varm_key] = sequence_df
-    # adata.varm[code_varm_key] = sequence_df.map(_one_hot_encode)
-
-    # adata.uns["peak_seq"] = pd.DataFrame(data={"peak": peaks, "seq": seqs})
     return None
 
 

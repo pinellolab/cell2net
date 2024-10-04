@@ -6,7 +6,8 @@ import numpy as np
 import torch
 from scvi import settings
 
-from cell2net.prediction.data import MuDataLoader, MuDataManager
+from ._dataloader import MuDataLoader
+from ._manager import MuDataManager
 
 
 def validate_data_split(

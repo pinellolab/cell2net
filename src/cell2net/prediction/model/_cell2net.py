@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 import torch
@@ -7,8 +9,10 @@ from torch.optim.adam import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from cell2net.prediction.data import MuTorchDatasetSimple
+from cell2net.prediction.data import MuTorchDataset
 from cell2net.prediction.module import PeaksTF2GeneExpression
+
+from ._constants import SAVE_KEYS
 
 
 class Cell2Net:
@@ -119,6 +123,30 @@ class Cell2Net:
 
         return valid_loss
 
+    def _get_dataloader(
+        self,
+        idx,
+        batch_size: int,
+        num_workers: int,
+        pin_memory: bool = True,
+        shuffle: bool = True,
+        drop_last: bool = True,
+        persistent_workers: bool = True,
+    ) -> DataLoader:
+        dataset = MuTorchDataset(mdata=self.mdata[idx])  # type: ignore
+
+        dataloader = DataLoader(
+            dataset=dataset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            shuffle=shuffle,
+            drop_last=drop_last,
+            persistent_workers=persistent_workers,
+        )
+
+        return dataloader
+
     def train(
         self,
         train_size: float | None = 0.8,
@@ -143,27 +171,22 @@ class Cell2Net:
                 random_state=random_state,
             )
 
-        self.train_ds = MuTorchDatasetSimple(mdata=self.mdata[train_idx])  # type: ignore
-        self.valid_ds = MuTorchDatasetSimple(mdata=self.mdata[valid_idx])  # type: ignore
-
-        self.train_dl = DataLoader(
-            dataset=self.train_ds,
+        self.train_dl = self._get_dataloader(
+            train_idx,
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
             shuffle=True,
             drop_last=True,
-            persistent_workers=True,
         )
 
-        self.valid_dl = DataLoader(
-            dataset=self.train_ds,
+        self.valid_dl = self._get_dataloader(
+            train_idx,
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
             shuffle=False,
             drop_last=False,
-            persistent_workers=True,
         )
 
         self.device = torch.device(device_name)
@@ -190,10 +213,9 @@ class Cell2Net:
             # save model if find a better validation score
             if valid_loss < self.best_score:
                 self.best_score = valid_loss
-                self.best_module = {
-                    "state_dict": self.module.state_dict(),
+                self.best_model = {
+                    SAVE_KEYS.MODEL_STATE_DICT_KEY: self.module.state_dict(),
                 }
-                # torch.save(state, args.model_path)
 
         self.history = pd.DataFrame(
             data={
@@ -202,5 +224,33 @@ class Cell2Net:
                 "valid_loss": valid_losses,
             }
         )
+
+        return None
+
+    def save(self, dir_path: str) -> None:
+        """Save the state of the model"""
+        model_save_path = os.path.join(dir_path, f"{self.gene}")
+
+        # save the model state dict and the trainer state dict only
+        torch.save(self.best_model, model_save_path)
+
+        return None
+
+    def load(self, dir_path: str) -> None:
+        """Instantiate a model from the saved output."""
+        model_path = os.path.join(dir_path, f"{self.gene}")
+
+        state_dict = torch.load(model_path, weights_only=True)
+
+        self.module = PeaksTF2GeneExpression(
+            n_peaks=self.n_peaks,
+            peak_len=256,
+            n_tfs=self.n_tfs,
+            n_filters=self.n_filters,
+            n_channels=self.n_channels,
+            n_dims=self.n_dims,
+        )
+
+        self.module.load_state_dict(state_dict[SAVE_KEYS.MODEL_STATE_DICT_KEY])
 
         return None

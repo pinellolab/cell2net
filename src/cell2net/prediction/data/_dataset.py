@@ -150,41 +150,41 @@ class MuTorchDatasetSimple(Dataset):
     def __init__(
         self,
         mdata: MuData,
+        rna_mod: str = "rna",
+        atac_mod: str = "atac",
         train: bool = True,
     ) -> None:
         super().__init__()
 
         self.mdata = mdata
-        self.adata_rna = mdata["rna"]
-        self.adata_atac = mdata["atac"]
-
-        self.train = train
-        self.len = self.mdata.n_obs
-        self.peak_seqs = self.mdata["atac"].var["dna_sequence"].values.tolist()
+        self.rna = np.array(mdata[rna_mod].layers["counts"].todense()).reshape(-1)  # type: ignore
+        self.atac = np.array(mdata[atac_mod].layers["counts"].todense())  # type: ignore
+        self.tf = np.array(mdata[rna_mod].obsm["tf"].todense())  # type: ignore
 
         # convert seq to one-hot encoding
+        self.peak_seqs = self.mdata[atac_mod].var["dna_sequence"].values.tolist()
         self.peak_seqs = encode_seq(self.peak_seqs)
+
+        self.train = train
+
+        self.len = self.mdata.n_obs
 
     def __len__(self):
         return self.len
 
     def __getitem__(self, idx):
-        data = {}
+        data_map = {}
         if self.train:
-            data["atac"] = np.array(
-                self.adata_atac[idx].layers["counts"].todense()
-            ).reshape(-1)
-            data["rna"] = np.array(
-                self.adata_rna[idx].layers["counts"].todense()
-            ).reshape(-1)
-            data["dna"] = self.peak_seqs
+            data_map["atac"] = self.atac[idx]
+            data_map["rna"] = self.rna[idx]
+            data_map["dna"] = self.peak_seqs
+            data_map["tf"] = self.tf[idx]
         else:
-            data["atac"] = np.array(
-                self.adata_atac[idx].layers["counts"].todense()
-            ).reshape(-1)
-            data["dna"] = self.peak_seqs
+            data_map["atac"] = self.atac[idx]
+            data_map["dna"] = self.peak_seqs
+            data_map["tf"] = self.tf[idx]
 
-        return data
+        return data_map
 
 
 def get_dataloader(

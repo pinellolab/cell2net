@@ -1,7 +1,6 @@
 import logging
 import re
 
-import numpy as np
 import pandas as pd
 import pyfaidx
 import pyranges as pr
@@ -9,30 +8,6 @@ import pyranges.genomicfeatures as gf
 from mudata import MuData
 from pysam import FastaFile
 from tqdm import tqdm
-
-
-def _seq_to_code(seq):
-    # Make sure seq has only allowed bases
-    allowed = set("ACTGN")
-    if not set(seq).issubset(allowed):
-        invalid = set(seq) - allowed
-        raise ValueError(
-            f"Sequence contains chars not in allowed DNA alphabet (ACGTN): {invalid}"
-        )
-
-    # Dictionary returning one-hot encoding for each nucleotide
-    nuc_d = {
-        "A": [1, 0, 0, 0],
-        "C": [0, 1, 0, 0],
-        "G": [0, 0, 1, 0],
-        "T": [0, 0, 0, 1],
-        "N": [0, 0, 0, 0],
-    }
-
-    # Create array from nucleotide sequence
-    vec = np.array([nuc_d[x] for x in seq], dtype=np.int8)
-
-    return vec
 
 
 def add_peaks(
@@ -96,42 +71,6 @@ def add_peaks(
     return None
 
 
-def add_dna_sequence_v2(
-    mdata: MuData,
-    ref_fasta: str,
-    mod_name: str = "atac",
-    chr_var_key: str = "chr",
-    start_var_key: str = "start",
-    end_var_key: str = "end",
-    obsm_key: str = "dna_one_hot",
-):
-
-    assert mod_name in mdata.mod_names, f"Cannot find modality: {mod_name}"
-    adata = mdata[mod_name]
-
-    fasta = FastaFile(filename=ref_fasta)
-    df = adata.var[[chr_var_key, start_var_key, end_var_key]]
-
-    data = np.empty(shape=(adata.n_obs, adata.n_vars, 4, 256), dtype=np.int8)
-
-    # Loop for each chromosome
-    for i, (chrom, start, end) in enumerate(
-        zip(
-            df[chr_var_key],
-            df[start_var_key],
-            df[end_var_key],
-            strict=False,
-        )
-    ):
-
-        seq = fasta.fetch(chrom, start, end).upper()
-        data[:, i] = _seq_to_code(seq=seq)
-
-    adata.obsm[obsm_key] = data
-
-    return None
-
-
 def add_dna_sequence(
     mdata: MuData,
     ref_fasta: str,
@@ -179,7 +118,7 @@ def add_dna_sequence(
     return None
 
 
-def add_peak_to_gene(
+def peak_to_gene(
     mdata: MuData,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
@@ -189,7 +128,43 @@ def add_peak_to_gene(
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
-):
+    highly_variable: bool = True,
+    genes: list[str] | None = None,
+    inplace: bool = True,
+) -> pd.DataFrame | None:
+    """
+    For each gene, identify its associated peaks limited by up and downstream.
+
+    Parameters
+    ----------
+    mdata : MuData
+        Input data object, should at least containing two modalities
+    rna_mod : str, optional
+        Name of RNA modality in mdata, by default "rna"
+    atac_mod : str, optional
+        Name of ATAC modality in mdata, by default "atac"
+    up_stream : int, optional
+        Distance of upstream of TSS to find associated peaks, by default 500_000
+    down_stream : int, optional
+        Distance of downstream of TSS to find associated peaks, by default 500_000
+    ref_fasta : str, optional
+        _description_, by default ""
+    chr_var_key : str, optional
+        Column name in mdata[atac_mod].var to get the chromosome of peaks, by default "chr"
+    start_var_key : str, optional
+        Column name in mdata[atac_mod].var to get the start position of peaks, by default "start"
+    end_var_key : str, optional
+        Column name in mdata[atac_mod].var to get the end position of peaks, by default "end"
+    highly_variable : bool, optional
+        Whether or not to only use highly variable genes, by default True
+    genes : list[str] | None, optional
+        _description_, by default None
+
+    Returns
+    -------
+    _type_
+        Update mdata
+    """
     # Check if can find TSS coordinates in adata_rna
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]
@@ -198,8 +173,6 @@ def add_peak_to_gene(
 
     logging.info("Fetch gene coordinates")
     df_tss = adata_rna.uns["gene_tss_coord"]
-
-    df_tss = adata_rna.uns["gene_tss_coord"]
     df_tss["Start"] = df_tss["tss"] - 1
     df_tss["End"] = df_tss["tss"]
     df_tss["Score"] = 0
@@ -207,6 +180,14 @@ def add_peak_to_gene(
     df_tss["Strand"] = df_tss["strand"]
     df_tss["Chromosome"] = df_tss["chrom"]
     df_tss = df_tss[["Chromosome", "Start", "End", "Name", "Score", "Strand", "tss"]]
+
+    if highly_variable:
+        logging.info("Using highly variable genes")
+        df = adata_rna.var[adata_rna.var["highly_variable"]]
+        df_tss = df_tss[df_tss["Name"].isin(df["genes"])]
+
+    if genes is not None:
+        df_tss = df_tss[df_tss["Name"].isin(genes)]
 
     gr_genes = pr.from_dict(df_tss)
     gr_genes = gr_genes.extend({"5": up_stream})
@@ -246,6 +227,8 @@ def add_peak_to_gene(
         df.columns = ["gene", "peak", "distance"]
         df_list.append(df)
 
-    mdata.uns["peak_to_gene"] = pd.concat(df_list).reset_index(drop=True)
-
-    return None
+    df_res = pd.concat(df_list).reset_index(drop=True)
+    if inplace:
+        mdata.uns["peak_to_gene"] = df_res
+    else:
+        return df_res

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from mudata import MuData
+from scipy import stats
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
 from torch.utils.data import DataLoader
@@ -25,14 +26,12 @@ class Cell2Net:
         n_channels: int = 4,
         n_filters: int = 30,
         kernel_size: int = 5,
-        n_dims: int = 16,
+        n_dims: int = 4,
     ):
         super().__init__()
         self.gene = gene
 
-        self.peak_to_gene = mdata.uns["peak_to_gene"][
-            mdata.uns["peak_to_gene"]["gene"] == gene
-        ]
+        self.peak_to_gene = mdata.uns["peak_to_gene"][mdata.uns["peak_to_gene"]["gene"] == gene]
         self.n_peaks = len(self.peak_to_gene)
         assert self.n_peaks > 0, print("Cannot find any associated peaks!")
 
@@ -72,6 +71,7 @@ class Cell2Net:
             f"n_tfs: {self.n_tfs}, "
             f"n_filters: {self.n_filters}, "
             f"n_channels: {self.n_channels}, "
+            f"kernel_size: {self.kernel_size}, "
             f"n_dims: {self.n_dims}"
         )
 
@@ -150,8 +150,8 @@ class Cell2Net:
     def train(
         self,
         train_size: float | None = 0.8,
-        train_idx: list[int] | None = None,
-        valid_idx: list[int] | None = None,
+        train_idx: list[int] | list[str] | None = None,
+        valid_idx: list[int] | list[str] | None = None,
         batch_size: int = 128,
         num_workers: int = 4,
         max_epochs: int = 20,
@@ -161,15 +161,18 @@ class Cell2Net:
         weight_decay: float = 1e-04,
         **kwargs,
     ) -> None:
-        if train_size is not None and (train_idx is not None or valid_idx is not None):
-            raise ValueError("Only one of train_size or train_idx can be provided.")
+        if train_idx and valid_idx:
+            print("Using provided index for training and validation")
 
-        if train_size is not None:
+        elif train_size:
+            print(f"Split dataset for training and validation; training size is {train_size}")
             train_idx, valid_idx = train_test_split(
                 self.mdata.obs_names,
                 train_size=train_size,
                 random_state=random_state,
             )
+        else:
+            raise ValueError("Please provide train_size or index")
 
         self.train_dl = self._get_dataloader(
             train_idx,
@@ -194,9 +197,7 @@ class Cell2Net:
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
-        self.optimizer = Adam(
-            self.module.parameters(), lr=lr, weight_decay=weight_decay
-        )
+        self.optimizer = Adam(self.module.parameters(), lr=lr, weight_decay=weight_decay)
 
         self.best_score = np.inf
         self.history = pd.DataFrame(columns=["epoch", "train_loss", "valid_loss"])
@@ -225,21 +226,66 @@ class Cell2Net:
             }
         )
 
+        self.is_train = True
+
         return None
+
+    def test(
+        self,
+        test_idx: list[int] | list[str] | None = None,
+        batch_size: int = 128,
+        num_workers: int = 4,
+        device_name: str = "cuda",
+    ) -> np.float32:
+        self.device = torch.device(device_name)
+        self.module = self.module.to(self.device)
+        self.module.eval()
+
+        # if test_idx is None, use all cells for testing
+        if test_idx is None:
+            test_idx = self.mdata.obs_names  # type: ignore
+
+        self.test_dl = self._get_dataloader(
+            test_idx,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=True,
+            shuffle=False,
+            drop_last=False,
+        )
+
+        rna_true, rna_pred = [], []
+        for data in self.test_dl:
+            # get data
+            atac = data["atac"].to(self.device)
+            dna = data["dna"].to(self.device)
+            tf_exp = data["tf"].to(self.device)
+
+            pred = self.module(dna, atac, tf_exp).detach().cpu().view(-1)
+
+            rna = data["rna"]
+            rna_true.append(rna)
+            rna_pred.append(pred)
+
+        rna_true = torch.concat(rna_true).numpy()
+        rna_pred = torch.concat(rna_pred).numpy()
+
+        corr, _ = stats.spearmanr(rna_true, rna_pred)
+
+        return corr  # type: ignore
 
     def save(self, dir_path: str) -> None:
         """Save the state of the model"""
-        model_save_path = os.path.join(dir_path, f"{self.gene}")
+        model_save_path = os.path.join(dir_path, f"{self.gene}.pt")
 
-        # save the model state dict and the trainer state dict only
+        # save the model state dict
         torch.save(self.best_model, model_save_path)
 
         return None
 
     def load(self, dir_path: str) -> None:
         """Instantiate a model from the saved output."""
-        model_path = os.path.join(dir_path, f"{self.gene}")
-
+        model_path = os.path.join(dir_path, f"{self.gene}.pt")
         state_dict = torch.load(model_path, weights_only=True)
 
         self.module = PeaksTF2GeneExpression(

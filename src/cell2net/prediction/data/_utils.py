@@ -16,9 +16,7 @@ def one_hot_encode(seq):
     allowed = set("ACTGN")
     if not set(seq).issubset(allowed):
         invalid = set(seq) - allowed
-        raise ValueError(
-            f"Sequence contains chars not in allowed DNA alphabet (ACGTN): {invalid}"
-        )
+        raise ValueError(f"Sequence contains chars not in allowed DNA alphabet (ACGTN): {invalid}")
 
     # Dictionary returning one-hot encoding for each nucleotide
     nuc_d = {

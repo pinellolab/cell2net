@@ -130,6 +130,7 @@ def peak_to_gene(
     end_var_key: str = "end",
     highly_variable: bool = True,
     genes: list[str] | None = None,
+    min_n_peaks: int = 1,
     inplace: bool = True,
 ) -> pd.DataFrame | None:
     """
@@ -158,7 +159,11 @@ def peak_to_gene(
     highly_variable : bool, optional
         Whether or not to only use highly variable genes, by default True
     genes : list[str] | None, optional
-        _description_, by default None
+        Filter peak-to-gene list using these genes, by default None. If None, no filtering is performed
+    min_n_peaks: int, optional
+        Minimum number of associated peaks. Default: 1
+    inplace: bool, optional
+        If set, add the results to mdata, otherwise return the dataframe. Default: True
 
     Returns
     -------
@@ -227,8 +232,15 @@ def peak_to_gene(
         df.columns = ["gene", "peak", "distance"]
         df_list.append(df)
 
-    df_res = pd.concat(df_list).reset_index(drop=True)
+    df = pd.concat(df_list).reset_index(drop=True)
+
+    # Remove genes with number of associated peaks less than min_n_peaks
+    grouped_df = df.groupby("gene").count()
+    grouped_df = grouped_df[grouped_df["peak"] > min_n_peaks]
+
+    df = df[df["gene"].isin(grouped_df.index)]
+
     if inplace:
-        mdata.uns["peak_to_gene"] = df_res
+        mdata.uns["peak_to_gene"] = df
     else:
-        return df_res
+        return df

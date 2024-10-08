@@ -146,8 +146,8 @@ class Cell2Net:
         persistent_workers: bool = True,
     ) -> DataLoader:
         dataset = MuTorchDataset(
-            mdata=self.mdata[idx],
-            covariates=self.covariates,  # type: ignore
+            mdata=self.mdata[idx], # type: ignore
+            covariates=self.covariates,
         )
 
         dataloader = DataLoader(

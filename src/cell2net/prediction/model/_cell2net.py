@@ -1,5 +1,6 @@
 import os
 
+import mudata as md
 import numpy as np
 import pandas as pd
 import torch
@@ -11,7 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from cell2net.prediction.data import MuTorchDataset
-from cell2net.prediction.module import PeaksTF2GeneExpression
+from cell2net.prediction.module import PeaksTF2GeneExpressionPoisson
 
 from ._constants import SAVE_KEYS
 
@@ -31,7 +32,9 @@ class Cell2Net:
         super().__init__()
         self.gene = gene
 
-        self.peak_to_gene = mdata.uns["peak_to_gene"][mdata.uns["peak_to_gene"]["gene"] == gene]
+        self.peak_to_gene = mdata.uns["peak_to_gene"][
+            mdata.uns["peak_to_gene"]["gene"] == gene
+        ]
         self.n_peaks = len(self.peak_to_gene)
         assert self.n_peaks > 0, print("Cannot find any associated peaks!")
 
@@ -56,7 +59,7 @@ class Cell2Net:
         self.kernel_size = kernel_size
         self.n_dims = n_dims
 
-        self.module = PeaksTF2GeneExpression(
+        self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
             peak_len=256,
             n_tfs=self.n_tfs,
@@ -165,7 +168,9 @@ class Cell2Net:
             print("Using provided index for training and validation")
 
         elif train_size:
-            print(f"Split dataset for training and validation; training size is {train_size}")
+            print(
+                f"Split dataset for training and validation; training size is {train_size}"
+            )
             train_idx, valid_idx = train_test_split(
                 self.mdata.obs_names,
                 train_size=train_size,
@@ -197,7 +202,9 @@ class Cell2Net:
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
-        self.optimizer = Adam(self.module.parameters(), lr=lr, weight_decay=weight_decay)
+        self.optimizer = Adam(
+            self.module.parameters(), lr=lr, weight_decay=weight_decay
+        )
 
         self.best_score = np.inf
         self.history = pd.DataFrame(columns=["epoch", "train_loss", "valid_loss"])
@@ -274,21 +281,24 @@ class Cell2Net:
 
         return corr  # type: ignore
 
-    def save(self, dir_path: str) -> None:
+    def save(self, dir_path: str, save_mdata: bool = False) -> None:
         """Save the state of the model"""
         model_save_path = os.path.join(dir_path, f"{self.gene}.pt")
 
         # save the model state dict
         torch.save(self.best_model, model_save_path)
 
+        if save_mdata:
+            self.mdata.write_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu"))
+
         return None
 
-    def load(self, dir_path: str) -> None:
+    def load(self, dir_path: str, load_mdata: bool = False) -> None:
         """Instantiate a model from the saved output."""
         model_path = os.path.join(dir_path, f"{self.gene}.pt")
         state_dict = torch.load(model_path, weights_only=True)
 
-        self.module = PeaksTF2GeneExpression(
+        self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
             peak_len=256,
             n_tfs=self.n_tfs,
@@ -298,5 +308,8 @@ class Cell2Net:
         )
 
         self.module.load_state_dict(state_dict[SAVE_KEYS.MODEL_STATE_DICT_KEY])
+
+        if load_mdata:
+            self.mdata = md.read_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu")) # type: ignore
 
         return None

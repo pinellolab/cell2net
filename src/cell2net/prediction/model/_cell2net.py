@@ -24,6 +24,7 @@ class Cell2Net:
         gene: str,
         rna_mod: str = "rna",
         atac_mod: str = "atac",
+        covariates: list[str] | None = None,
         n_channels: int = 4,
         n_filters: int = 30,
         kernel_size: int = 5,
@@ -37,6 +38,12 @@ class Cell2Net:
         ]
         self.n_peaks = len(self.peak_to_gene)
         assert self.n_peaks > 0, print("Cannot find any associated peaks!")
+
+        self.covariates = covariates
+        if covariates is not None:
+            self.n_covariates = len(covariates)
+        else:
+            self.n_covariates = 0
 
         # create anndata for RNA and ATAC
         self.adata_atac = mdata[atac_mod][:, self.peak_to_gene["peak"].values.tolist()]
@@ -52,6 +59,7 @@ class Cell2Net:
         self.adata_rna.obsm["tf"] = adata_rna[:, adata_rna.var["is_tf"]].layers["counts"].copy()  # type: ignore
 
         self.mdata = MuData({rna_mod: self.adata_rna, atac_mod: self.adata_atac})  # type: ignore
+        self.mdata.obs = mdata.obs.copy()
 
         # Parameters for sequence encoder
         self.n_channels = n_channels
@@ -63,6 +71,7 @@ class Cell2Net:
             n_peaks=self.n_peaks,
             peak_len=256,
             n_tfs=self.n_tfs,
+            n_covariates=self.n_covariates,
             n_filters=self.n_filters,
             n_channels=self.n_channels,
             n_dims=self.n_dims,
@@ -93,9 +102,10 @@ class Cell2Net:
             rna = data["rna"].to(self.device)
             dna = data["dna"].to(self.device)
             tf_exp = data["tf"].to(self.device)
+            covariates = data["covariates"].to(self.device)
 
             # get prediction
-            pred = self.module(dna, atac, tf_exp)
+            pred = self.module(dna, atac, tf_exp, covariates)
             loss = self.criterion(pred.view(-1).float(), rna.view(-1).float())
 
             # optimize parameters
@@ -117,9 +127,10 @@ class Cell2Net:
             rna = data["rna"].to(self.device)
             dna = data["dna"].to(self.device)
             tf_exp = data["tf"].to(self.device)
+            covariates = data["covariates"].to(self.device)
 
             # get prediction
-            pred = self.module(dna, atac, tf_exp)
+            pred = self.module(dna, atac, tf_exp, covariates)
             loss = self.criterion(pred.view(-1).float(), rna.view(-1).float())
 
             valid_loss += loss.item() / len(self.train_dl)
@@ -136,7 +147,9 @@ class Cell2Net:
         drop_last: bool = True,
         persistent_workers: bool = True,
     ) -> DataLoader:
-        dataset = MuTorchDataset(mdata=self.mdata[idx])  # type: ignore
+        dataset = MuTorchDataset(
+            mdata=self.mdata[idx], covariates=self.covariates # type: ignore
+        )
 
         dataloader = DataLoader(
             dataset=dataset,
@@ -302,6 +315,7 @@ class Cell2Net:
             n_peaks=self.n_peaks,
             peak_len=256,
             n_tfs=self.n_tfs,
+            n_covariates=self.n_covariates,
             n_filters=self.n_filters,
             n_channels=self.n_channels,
             n_dims=self.n_dims,
@@ -310,6 +324,6 @@ class Cell2Net:
         self.module.load_state_dict(state_dict[SAVE_KEYS.MODEL_STATE_DICT_KEY])
 
         if load_mdata:
-            self.mdata = md.read_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu")) # type: ignore
+            self.mdata = md.read_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu"))  # type: ignore
 
         return None

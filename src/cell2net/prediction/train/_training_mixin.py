@@ -1,3 +1,5 @@
+from lightning import LightningDataModule
+
 from ._training_plan import TrainingPlan
 from ._training_runner import TrainRunner
 
@@ -5,7 +7,7 @@ from ._training_runner import TrainRunner
 class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
 
-    @devices_dsp.dedent
+    # @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 20,

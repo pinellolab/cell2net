@@ -1,7 +1,6 @@
 import logging
 import re
 
-import numpy as np
 import pandas as pd
 import pyfaidx
 import pyranges as pr
@@ -9,30 +8,6 @@ import pyranges.genomicfeatures as gf
 from mudata import MuData
 from pysam import FastaFile
 from tqdm import tqdm
-
-
-def _seq_to_code(seq):
-    # Make sure seq has only allowed bases
-    allowed = set("ACTGN")
-    if not set(seq).issubset(allowed):
-        invalid = set(seq) - allowed
-        raise ValueError(
-            f"Sequence contains chars not in allowed DNA alphabet (ACGTN): {invalid}"
-        )
-
-    # Dictionary returning one-hot encoding for each nucleotide
-    nuc_d = {
-        "A": 0,
-        "C": 1,
-        "G": 2,
-        "T": 3,
-        "N": -1,
-    }
-
-    # Create array from nucleotide sequence
-    vec = np.array([nuc_d[x] for x in seq])
-
-    return vec
 
 
 def add_peaks(
@@ -103,8 +78,7 @@ def add_dna_sequence(
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
-    sequence_varm_key: str = "dna_sequence",
-    code_varm_key: str = "dna_code",
+    sequence_var_key: str = "dna_sequence",
 ) -> None:
     """Add the DNA sequence of each peak to data object.
 
@@ -127,7 +101,7 @@ def add_dna_sequence(
     fasta = FastaFile(filename=ref_fasta)
     df = adata.var[[chr_var_key, start_var_key, end_var_key]]
 
-    seqs, codes = [], []
+    seqs = []
     # Loop for each chromosome
     for chrom, start, end in tqdm(
         zip(
@@ -137,46 +111,14 @@ def add_dna_sequence(
             strict=False,
         )
     ):
+        seqs.append(fasta.fetch(chrom, start, end).upper())
 
-        seq = fasta.fetch(chrom, start, end).upper()
-        seqs.append(seq)
-        codes.append(_seq_to_code(seq=seq))
+    adata.var[sequence_var_key] = seqs
 
-    codes = np.stack(codes)
-
-    adata.var[sequence_varm_key] = seqs
-    adata.varm[code_varm_key] = codes
-
-    # for chrom in tqdm(chroms):
-    #     chrom_df = df[df[chr_var_key] == chrom]
-
-    #     seqs = []
-    #     for chrom, start, end in zip(
-    #         chrom_df[chr_var_key],
-    #         chrom_df[start_var_key],
-    #         chrom_df[end_var_key],
-    #         strict=False,
-    #     ):
-    #         seq = fasta.fetch(chrom, start, end).upper()
-    #         seqs.append(list(seq))
-
-    #     assert len(seqs) == len(chrom_df)
-    #     seq_dfs.append(pd.DataFrame(seqs, index=chrom_df.index))
-
-    #     # peaks.append(adata.var_names[i])
-    #     # seqs.append(fasta.fetch(chrom, start, end).upper())
-
-    # sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
-    # adata.var[sequence_varm_key] =
-
-    # adata.varm[sequence_varm_key] = sequence_df
-    # adata.varm[code_varm_key] = sequence_df.map(_one_hot_encode)
-
-    # adata.uns["peak_seq"] = pd.DataFrame(data={"peak": peaks, "seq": seqs})
     return None
 
 
-def add_peak_to_gene(
+def peak_to_gene(
     mdata: MuData,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
@@ -186,7 +128,48 @@ def add_peak_to_gene(
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
-):
+    highly_variable: bool = True,
+    genes: list[str] | None = None,
+    min_n_peaks: int = 1,
+    inplace: bool = True,
+) -> pd.DataFrame | None:
+    """
+    For each gene, identify its associated peaks limited by up and downstream.
+
+    Parameters
+    ----------
+    mdata : MuData
+        Input data object, should at least containing two modalities
+    rna_mod : str, optional
+        Name of RNA modality in mdata, by default "rna"
+    atac_mod : str, optional
+        Name of ATAC modality in mdata, by default "atac"
+    up_stream : int, optional
+        Distance of upstream of TSS to find associated peaks, by default 500_000
+    down_stream : int, optional
+        Distance of downstream of TSS to find associated peaks, by default 500_000
+    ref_fasta : str, optional
+        _description_, by default ""
+    chr_var_key : str, optional
+        Column name in mdata[atac_mod].var to get the chromosome of peaks, by default "chr"
+    start_var_key : str, optional
+        Column name in mdata[atac_mod].var to get the start position of peaks, by default "start"
+    end_var_key : str, optional
+        Column name in mdata[atac_mod].var to get the end position of peaks, by default "end"
+    highly_variable : bool, optional
+        Whether or not to only use highly variable genes, by default True
+    genes : list[str] | None, optional
+        Filter peak-to-gene list using these genes, by default None. If None, no filtering is performed
+    min_n_peaks: int, optional
+        Minimum number of associated peaks. Default: 1
+    inplace: bool, optional
+        If set, add the results to mdata, otherwise return the dataframe. Default: True
+
+    Returns
+    -------
+    _type_
+        Update mdata
+    """
     # Check if can find TSS coordinates in adata_rna
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]
@@ -195,8 +178,6 @@ def add_peak_to_gene(
 
     logging.info("Fetch gene coordinates")
     df_tss = adata_rna.uns["gene_tss_coord"]
-
-    df_tss = adata_rna.uns["gene_tss_coord"]
     df_tss["Start"] = df_tss["tss"] - 1
     df_tss["End"] = df_tss["tss"]
     df_tss["Score"] = 0
@@ -204,6 +185,14 @@ def add_peak_to_gene(
     df_tss["Strand"] = df_tss["strand"]
     df_tss["Chromosome"] = df_tss["chrom"]
     df_tss = df_tss[["Chromosome", "Start", "End", "Name", "Score", "Strand", "tss"]]
+
+    if highly_variable:
+        logging.info("Using highly variable genes")
+        df = adata_rna.var[adata_rna.var["highly_variable"]]
+        df_tss = df_tss[df_tss["Name"].isin(df["genes"])]
+
+    if genes is not None:
+        df_tss = df_tss[df_tss["Name"].isin(genes)]
 
     gr_genes = pr.from_dict(df_tss)
     gr_genes = gr_genes.extend({"5": up_stream})
@@ -243,6 +232,15 @@ def add_peak_to_gene(
         df.columns = ["gene", "peak", "distance"]
         df_list.append(df)
 
-    mdata.uns["peak_to_gene"] = pd.concat(df_list).reset_index(drop=True)
+    df = pd.concat(df_list).reset_index(drop=True)
 
-    return None
+    # Remove genes with number of associated peaks less than min_n_peaks
+    grouped_df = df.groupby("gene").count()
+    grouped_df = grouped_df[grouped_df["peak"] > min_n_peaks]
+
+    df = df[df["gene"].isin(grouped_df.index)]
+
+    if inplace:
+        mdata.uns["peak_to_gene"] = df
+    else:
+        return df

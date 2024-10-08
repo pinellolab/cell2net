@@ -1,10 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import lightning as pl
 from scvi.train import Trainer
 from torch import nn
 
-from cell2net.prediction.data import DataSplitter
-
 from ._utils import parse_device_args
+
+# avoid circular imports for type annotation.
+if TYPE_CHECKING:
+    from cell2net.prediction.data import DataSplitter
 
 
 class TrainRunner:

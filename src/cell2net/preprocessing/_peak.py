@@ -131,6 +131,7 @@ def peak_to_gene(
     highly_variable: bool = True,
     genes: list[str] | None = None,
     min_n_peaks: int = 1,
+    max_pct_dropout_by_counts: float = 100,
     inplace: bool = True,
 ) -> pd.DataFrame | None:
     """
@@ -162,6 +163,8 @@ def peak_to_gene(
         Filter peak-to-gene list using these genes, by default None. If None, no filtering is performed
     min_n_peaks: int, optional
         Minimum number of associated peaks. Default: 1
+    max_pct_dropout_by_counts: float, optional
+        Maximum dropout by counts. Default: 100
     inplace: bool, optional
         If set, add the results to mdata, otherwise return the dataframe. Default: True
 
@@ -189,6 +192,11 @@ def peak_to_gene(
     if highly_variable:
         logging.info("Using highly variable genes")
         df = adata_rna.var[adata_rna.var["highly_variable"]]
+        df_tss = df_tss[df_tss["Name"].isin(df["genes"])]
+
+    if max_pct_dropout_by_counts is not None:
+        logging.info("Filter genes by pct_dropout_by_counts")
+        df = adata_rna.var[adata_rna.var["pct_dropout_by_counts"] < max_pct_dropout_by_counts]
         df_tss = df_tss[df_tss["Name"].isin(df["genes"])]
 
     if genes is not None:
@@ -239,6 +247,9 @@ def peak_to_gene(
     grouped_df = grouped_df[grouped_df["peak"] > min_n_peaks]
 
     df = df[df["gene"].isin(grouped_df.index)]
+
+    n_genes = len(df["gene"].unique())
+    logging.info(f"Number of genes: {n_genes}")
 
     if inplace:
         mdata.uns["peak_to_gene"] = df

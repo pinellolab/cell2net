@@ -33,9 +33,7 @@ class Cell2Net:
         super().__init__()
         self.gene = gene
 
-        self.peak_to_gene = mdata.uns["peak_to_gene"][
-            mdata.uns["peak_to_gene"]["gene"] == gene
-        ]
+        self.peak_to_gene = mdata.uns["peak_to_gene"][mdata.uns["peak_to_gene"]["gene"] == gene]
         self.n_peaks = len(self.peak_to_gene)
         assert self.n_peaks > 0, print("Cannot find any associated peaks!")
 
@@ -148,7 +146,8 @@ class Cell2Net:
         persistent_workers: bool = True,
     ) -> DataLoader:
         dataset = MuTorchDataset(
-            mdata=self.mdata[idx], covariates=self.covariates # type: ignore
+            mdata=self.mdata[idx],
+            covariates=self.covariates,  # type: ignore
         )
 
         dataloader = DataLoader(
@@ -181,9 +180,7 @@ class Cell2Net:
             print("Using provided index for training and validation")
 
         elif train_size:
-            print(
-                f"Split dataset for training and validation; training size is {train_size}"
-            )
+            print(f"Split dataset for training and validation; training size is {train_size}")
             train_idx, valid_idx = train_test_split(
                 self.mdata.obs_names,
                 train_size=train_size,
@@ -215,9 +212,7 @@ class Cell2Net:
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
-        self.optimizer = Adam(
-            self.module.parameters(), lr=lr, weight_decay=weight_decay
-        )
+        self.optimizer = Adam(self.module.parameters(), lr=lr, weight_decay=weight_decay)
 
         self.best_score = np.inf
         self.history = pd.DataFrame(columns=["epoch", "train_loss", "valid_loss"])
@@ -280,8 +275,9 @@ class Cell2Net:
             atac = data["atac"].to(self.device)
             dna = data["dna"].to(self.device)
             tf_exp = data["tf"].to(self.device)
+            covariates = data["covariates"].to(self.device)
 
-            pred = self.module(dna, atac, tf_exp).detach().cpu().view(-1)
+            pred = self.module(dna, atac, tf_exp, covariates).detach().cpu().view(-1)
 
             rna = data["rna"]
             rna_true.append(rna)

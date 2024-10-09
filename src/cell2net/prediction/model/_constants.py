@@ -6,6 +6,7 @@ class _SAVE_KEYS_NT(NamedTuple):
     MDATA_FNAME: str = "mdata.h5mu"
     MODEL_FNAME: str = "model.pt"
     MODEL_STATE_DICT_KEY: str = "model_state_dict"
+    MODULE_SUMMARY_DICT_KEY: str = "module_summary"
     VAR_NAMES_KEY: str = "var_names"
     ATTR_DICT_KEY: str = "attr_dict"
     LEGACY_MODEL_FNAME: str = "model_params.pt"

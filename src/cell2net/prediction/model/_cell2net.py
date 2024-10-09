@@ -33,7 +33,9 @@ class Cell2Net:
         super().__init__()
         self.gene = gene
 
-        self.peak_to_gene = mdata.uns["peak_to_gene"][mdata.uns["peak_to_gene"]["gene"] == gene]
+        self.peak_to_gene = mdata.uns["peak_to_gene"][
+            mdata.uns["peak_to_gene"]["gene"] == gene
+        ]
         self.n_peaks = len(self.peak_to_gene)
         assert self.n_peaks > 0, print("Cannot find any associated peaks!")
 
@@ -75,10 +77,22 @@ class Cell2Net:
             n_dims=self.n_dims,
         )
 
-        self._model_summary_string = (
+        self._module_summary = {
+            "n_peaks": self.n_peaks,
+            "peak_len": 256,
+            "n_tfs": self.n_tfs,
+            "n_covariates": self.n_covariates,
+            "n_filters": self.n_filters,
+            "n_channels": self.n_channels,
+            "n_dims": self.n_dims,
+        }
+
+        self._summary_string = (
             f"gene_name: {self.gene}, "
             f"n_peaks: {self.n_peaks}, "
+            f"peak_len: 256, "
             f"n_tfs: {self.n_tfs}, "
+            f"n_covariates: {self.n_covariates}, "
             f"n_filters: {self.n_filters}, "
             f"n_channels: {self.n_channels}, "
             f"kernel_size: {self.kernel_size}, "
@@ -88,7 +102,7 @@ class Cell2Net:
         self.is_train = False
 
     def summary(self):
-        return self._model_summary_string
+        return self._summary_string
 
     def _train(self):
         self.module.train()
@@ -180,7 +194,9 @@ class Cell2Net:
             print("Using provided index for training and validation")
 
         elif train_size:
-            print(f"Split dataset for training and validation; training size is {train_size}")
+            print(
+                f"Split dataset for training and validation; training size is {train_size}"
+            )
             train_idx, valid_idx = train_test_split(
                 self.mdata.obs_names,
                 train_size=train_size,
@@ -212,7 +228,9 @@ class Cell2Net:
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
-        self.optimizer = Adam(self.module.parameters(), lr=lr, weight_decay=weight_decay)
+        self.optimizer = Adam(
+            self.module.parameters(), lr=lr, weight_decay=weight_decay
+        )
 
         self.best_score = np.inf
         self.history = pd.DataFrame(columns=["epoch", "train_loss", "valid_loss"])
@@ -229,9 +247,7 @@ class Cell2Net:
             # save model if find a better validation score
             if valid_loss < self.best_score:
                 self.best_score = valid_loss
-                self.best_model = {
-                    SAVE_KEYS.MODEL_STATE_DICT_KEY: self.module.state_dict(),
-                }
+                self.best_model = self.module.state_dict()
 
         self.history = pd.DataFrame(
             data={
@@ -290,12 +306,58 @@ class Cell2Net:
 
         return corr  # type: ignore
 
-    def save(self, dir_path: str, save_mdata: bool = False) -> None:
-        """Save the state of the model"""
+    def save(
+        self,
+        dir_path: str,
+        save_best_model: bool = True,
+        save_mdata: bool = False,
+        overwrite: bool = True,
+    ) -> None:
+        """
+        Save state of the model
+
+        Parameters
+        ----------
+        dir_path : str
+            A string indicating a directory path used to save the model
+        save_best_model : bool, optional
+            Whether or not save the best model based on validation results. Default: True
+        save_mdata : bool, optional
+            Whether or not save the mdata. Default: False
+        overwrite : bool, optional
+            Whether or not rewrite existing file. Default: True
+
+        Returns
+        -------
+        _type_
+            _description_
+
+        Raises
+        ------
+        ValueError
+            _description_
+        """
+        if not os.path.exists(dir_path) or overwrite:
+            os.makedirs(dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                f"{dir_path} already exists. Please provide another directory for saving."
+            )
         model_save_path = os.path.join(dir_path, f"{self.gene}.pt")
 
-        # save the model state dict
-        torch.save(self.best_model, model_save_path)
+        # whether save the best model
+        if save_best_model:
+            model_state_dict = self.best_model
+        else:
+            model_state_dict = self.module.state_dict()
+
+        torch.save(
+            {
+                SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
+                SAVE_KEYS.MODULE_SUMMARY_DICT_KEY: self._module_summary,
+            },
+            model_save_path,
+        )
 
         if save_mdata:
             self.mdata.write_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu"))
@@ -305,7 +367,7 @@ class Cell2Net:
     def load(self, dir_path: str, load_mdata: bool = False) -> None:
         """Instantiate a model from the saved output."""
         model_path = os.path.join(dir_path, f"{self.gene}.pt")
-        state_dict = torch.load(model_path, weights_only=True)
+        state_dict = torch.load(model_path)
 
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,

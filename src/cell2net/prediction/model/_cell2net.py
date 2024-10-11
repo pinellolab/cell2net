@@ -99,8 +99,14 @@ class Cell2Net:
             f"n_dims: {self.n_dims}"
         )
 
-        self.is_train = False
+        self.is_trained_ = False
 
+    @property
+    def is_trained(self) -> bool:
+        """Whether the model has been trained."""
+        return self.is_trained_
+
+    @property
     def summary(self):
         return self._summary_string
 
@@ -188,7 +194,6 @@ class Cell2Net:
         device_name: str = "cuda",
         lr: float = 3e-04,
         weight_decay: float = 1e-04,
-        **kwargs,
     ) -> None:
         if train_idx and valid_idx:
             print("Using provided index for training and validation")
@@ -257,7 +262,7 @@ class Cell2Net:
             }
         )
 
-        self.is_train = True
+        self.is_trained_ = True
 
         return None
 

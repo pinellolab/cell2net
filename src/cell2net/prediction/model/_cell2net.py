@@ -49,17 +49,20 @@ class Cell2Net:
         self.adata_atac = mdata[atac_mod][:, self.peak_to_gene["peak"].values.tolist()]
         self.adata_rna = mdata[rna_mod][:, gene]
 
-        # Check how many genes are TFs
-        self.n_tfs = np.sum(mdata[rna_mod].var["is_tf"])
-        if mdata[rna_mod].var.loc[gene]["is_tf"]:
-            self.n_tfs -= 1
+        # get all TFs
+        df_tfs = mdata[rna_mod].var[mdata[rna_mod].var["is_tf"]]
 
         # If gene is a tf, then exclude it from the predictors
-        adata_rna = mdata[rna_mod][:, ~mdata[rna_mod].var_names.isin([gene])]
-        self.adata_rna.obsm["tf"] = adata_rna[:, adata_rna.var["is_tf"]].layers["counts"].copy()  # type: ignore
+        if gene in df_tfs.index:
+            df_tfs = df_tfs.drop(gene)
+
+        self.adata_rna.obsm["tf"] = mdata[rna_mod][:, df_tfs.index].layers["counts"].copy()  # type: ignore
 
         self.mdata = MuData({rna_mod: self.adata_rna, atac_mod: self.adata_atac})  # type: ignore
         self.mdata.obs = mdata.obs.copy()
+        self.mdata.uns["tfs"] = df_tfs.index.values.tolist()
+
+        self.n_tfs = len(df_tfs)
 
         # Parameters for sequence encoder
         self.n_channels = n_channels
@@ -100,6 +103,7 @@ class Cell2Net:
         )
 
         self.is_trained_ = False
+        self._history = None
 
     @property
     def is_trained(self) -> bool:
@@ -109,6 +113,10 @@ class Cell2Net:
     @property
     def summary(self):
         return self._summary_string
+
+    @property
+    def history(self) -> None | pd.DataFrame:
+        return self._history
 
     def _train(self):
         self.module.train()
@@ -192,7 +200,7 @@ class Cell2Net:
         max_epochs: int = 20,
         random_state: int = 42,
         device_name: str = "cuda",
-        lr: float = 3e-04,
+        lr: float = 1e-04,
         weight_decay: float = 1e-04,
     ) -> None:
         if train_idx and valid_idx:
@@ -238,7 +246,6 @@ class Cell2Net:
         )
 
         self.best_score = np.inf
-        self.history = pd.DataFrame(columns=["epoch", "train_loss", "valid_loss"])
 
         epochs, train_losses, valid_losses = [], [], []
         for epoch in tqdm(range(max_epochs)):
@@ -254,7 +261,7 @@ class Cell2Net:
                 self.best_score = valid_loss
                 self.best_model = self.module.state_dict()
 
-        self.history = pd.DataFrame(
+        self._history = pd.DataFrame(
             data={
                 "epochs": epochs,
                 "train_loss": train_losses,
@@ -369,10 +376,12 @@ class Cell2Net:
 
         return None
 
-    def load(self, dir_path: str, load_mdata: bool = False) -> None:
+    def load(
+        self, dir_path: str, weights_only: bool = True, load_mdata: bool = False
+    ) -> None:
         """Instantiate a model from the saved output."""
         model_path = os.path.join(dir_path, f"{self.gene}.pt")
-        state_dict = torch.load(model_path)
+        state_dict = torch.load(model_path, weights_only=weights_only)
 
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,

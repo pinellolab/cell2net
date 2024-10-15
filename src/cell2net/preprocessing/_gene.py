@@ -103,7 +103,7 @@ def add_tf_info_from_jaspar(
 
     is_tf = []
     for gene_name in adata.var_names:
-        if gene_name in tf_names:
+        if gene_name in tf_names or gene_name.upper() in tf_names:
             is_tf.append(True)
         else:
             is_tf.append(False)

@@ -163,20 +163,55 @@ class Cell2Net:
 
         return valid_loss
 
-    def _get_dataloader(
+    def get_dataloader(
         self,
-        idx,
-        batch_size: int,
-        num_workers: int,
+        idx: list[str] | None = None,
+        batch_size: int = 128,
+        num_workers: int = 4,
         pin_memory: bool = True,
         shuffle: bool = True,
         drop_last: bool = True,
         persistent_workers: bool = True,
+        **kwargs,
     ) -> DataLoader:
-        dataset = MuTorchDataset(
-            mdata=self.mdata[idx],  # type: ignore
-            covariates=self.covariates,
-        )
+        """
+        Create a dataloader to iterate through the dataset using the mdata.
+
+        Parameters
+        ----------
+        idx : list[str] | None, optional
+            List of cell barcodes used to subset the mdata
+            If None, will use all cells. Default: None
+        batch_size : int, optional
+            Batch size of the dataloader. Default: 128
+        num_workers : int, optional
+            Number of cpus used to prepare data. Default: 4
+        pin_memory : bool, optional
+            _description_, by default True
+        shuffle : bool, optional
+            _description_, by default True
+        drop_last : bool, optional
+            _description_, by default True
+        persistent_workers : bool, optional
+            _description_, by default True
+        **kwargs:
+            Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.
+
+        Returns
+        -------
+        DataLoader
+            _description_
+        """
+        if idx:
+            dataset = MuTorchDataset(
+                mdata=self.mdata[idx],  # type: ignore
+                covariates=self.covariates,
+            )
+        else:
+            dataset = MuTorchDataset(
+                mdata=self.mdata,
+                covariates=self.covariates,
+            )
 
         dataloader = DataLoader(
             dataset=dataset,
@@ -186,6 +221,7 @@ class Cell2Net:
             shuffle=shuffle,
             drop_last=drop_last,
             persistent_workers=persistent_workers,
+            **kwargs,
         )
 
         return dataloader
@@ -218,8 +254,8 @@ class Cell2Net:
         else:
             raise ValueError("Please provide train_size or index")
 
-        self.train_dl = self._get_dataloader(
-            train_idx,
+        self.train_dl = self.get_dataloader(
+            idx=train_idx,  # type: ignore
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
@@ -227,8 +263,8 @@ class Cell2Net:
             drop_last=True,
         )
 
-        self.valid_dl = self._get_dataloader(
-            train_idx,
+        self.valid_dl = self.get_dataloader(
+            idx=valid_idx,  # type: ignore
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
@@ -259,7 +295,7 @@ class Cell2Net:
             # save model if find a better validation score
             if valid_loss < self.best_score:
                 self.best_score = valid_loss
-                self.best_model = self.module.state_dict()
+                self.check_point = self.module.state_dict()
 
         self._history = pd.DataFrame(
             data={
@@ -359,7 +395,7 @@ class Cell2Net:
 
         # whether save the best model
         if save_best_model:
-            model_state_dict = self.best_model
+            model_state_dict = self.check_point
         else:
             model_state_dict = self.module.state_dict()
 

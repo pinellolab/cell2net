@@ -12,10 +12,11 @@ def compute_attribution(
     num_workers: int = 4,
 ):
     r"""
-    Compute attribution of each input feature, i.e., peak sequences, peak accessibility and TF expression.
+    Calculate the attribution of each input feature to gene expression.
 
-    using the Integrated Gradients method from captum package
-    Note that this is done for each single cell independently.
+    This is done using the Integrated Gradients algorithm from captum package.
+    Note to calcualte attribution of peak sequences,
+    peak accessibility and TF expression for each single cell independently.
 
     Parameters
     ----------
@@ -81,8 +82,8 @@ def compute_attribution(
         atac_attr.append(attributions[1].detach().cpu())
         tf_attr.append(attributions[2].detach().cpu())
 
-    dna_attr = torch.cat(dna_attr, dim=0).numpy()
-    atac_attr = torch.cat(atac_attr, dim=0).numpy()
-    tf_attr = torch.cat(tf_attr, dim=0).numpy()
+    peak_seq_attr = torch.cat(dna_attr, dim=0).numpy()
+    peak_acc_attr = torch.cat(atac_attr, dim=0).numpy()
+    tf_exp_attr = torch.cat(tf_attr, dim=0).numpy()
 
-    return dna_attr, atac_attr, tf_attr
+    return peak_seq_attr, peak_acc_attr, tf_exp_attr

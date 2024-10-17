@@ -11,8 +11,6 @@ from torch.optim.adam import Adam
 from tqdm import tqdm
 
 from cell2net._setting import settings
-
-# from cell2net.prediction.data import MuTorchDataset,
 from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.module import PeaksTF2GeneExpressionPoisson
 
@@ -36,10 +34,12 @@ class Cell2Net(BaseModel):
         super().__init__()
         self.gene = gene
 
-        self.peak_to_gene = mdata.uns["peak_to_gene"][
+        peak_to_gene = mdata.uns["peak_to_gene"][
             mdata.uns["peak_to_gene"]["gene"] == gene
         ]
-        self.n_peaks = len(self.peak_to_gene)
+        peak_to_gene = peak_to_gene.reset_index(drop=True)
+
+        self.n_peaks = len(peak_to_gene)
         assert self.n_peaks > 0, print("Cannot find any associated peaks!")
 
         self.covariates = covariates
@@ -49,7 +49,7 @@ class Cell2Net(BaseModel):
             self.n_covariates = 0
 
         # create anndata for RNA and ATAC
-        adata_atac = mdata[atac_mod][:, self.peak_to_gene["peak"].values.tolist()]
+        adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()]
         adata_rna = mdata[rna_mod][:, gene]
 
         # get all TFs
@@ -64,7 +64,7 @@ class Cell2Net(BaseModel):
         self.mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac})  # type: ignore
         self.mdata.obs = mdata.obs.copy()
         self.mdata.uns["tfs"] = df_tfs.index.values.tolist()
-        self.mdata.uns["peak_to_gene"] = self.peak_to_gene
+        self.mdata.uns["peak_to_gene"] = peak_to_gene
 
         self.n_tfs = len(df_tfs)
 
@@ -161,7 +161,7 @@ class Cell2Net(BaseModel):
         batch_size: int = settings.batch_size,
         num_workers: int = settings.dl_num_works,
         max_epochs: int = 20,
-        random_state: int = settings.random_state,
+        random_state: int = 42,
         lr: float = 3e-04,
         weight_decay: float = 1e-04,
     ) -> None:

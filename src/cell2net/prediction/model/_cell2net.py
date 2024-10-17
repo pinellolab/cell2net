@@ -8,16 +8,19 @@ from mudata import MuData
 from scipy import stats
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from cell2net.prediction.data import MuTorchDataset
+from cell2net._setting import settings
+
+# from cell2net.prediction.data import MuTorchDataset,
+from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.module import PeaksTF2GeneExpressionPoisson
 
+from ._base import BaseModel
 from ._constants import SAVE_KEYS
 
 
-class Cell2Net:
+class Cell2Net(BaseModel):
     def __init__(
         self,
         mdata: MuData,
@@ -46,8 +49,8 @@ class Cell2Net:
             self.n_covariates = 0
 
         # create anndata for RNA and ATAC
-        self.adata_atac = mdata[atac_mod][:, self.peak_to_gene["peak"].values.tolist()]
-        self.adata_rna = mdata[rna_mod][:, gene]
+        adata_atac = mdata[atac_mod][:, self.peak_to_gene["peak"].values.tolist()]
+        adata_rna = mdata[rna_mod][:, gene]
 
         # get all TFs
         df_tfs = mdata[rna_mod].var[mdata[rna_mod].var["is_tf"]]
@@ -56,11 +59,12 @@ class Cell2Net:
         if gene in df_tfs.index:
             df_tfs = df_tfs.drop(gene)
 
-        self.adata_rna.obsm["tf"] = mdata[rna_mod][:, df_tfs.index].layers["counts"].copy()  # type: ignore
+        adata_rna.obsm["tf"] = mdata[rna_mod][:, df_tfs.index].layers["counts"].copy()  # type: ignore
 
-        self.mdata = MuData({rna_mod: self.adata_rna, atac_mod: self.adata_atac})  # type: ignore
+        self.mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac})  # type: ignore
         self.mdata.obs = mdata.obs.copy()
         self.mdata.uns["tfs"] = df_tfs.index.values.tolist()
+        self.mdata.uns["peak_to_gene"] = self.peak_to_gene
 
         self.n_tfs = len(df_tfs)
 
@@ -90,7 +94,7 @@ class Cell2Net:
             "n_dims": self.n_dims,
         }
 
-        self._summary_string = (
+        self.summary_ = (
             f"gene_name: {self.gene}, "
             f"n_peaks: {self.n_peaks}, "
             f"peak_len: 256, "
@@ -101,22 +105,6 @@ class Cell2Net:
             f"kernel_size: {self.kernel_size}, "
             f"n_dims: {self.n_dims}"
         )
-
-        self.is_trained_ = False
-        self._history = None
-
-    @property
-    def is_trained(self) -> bool:
-        """Whether the model has been trained."""
-        return self.is_trained_
-
-    @property
-    def summary(self):
-        return self._summary_string
-
-    @property
-    def history(self) -> None | pd.DataFrame:
-        return self._history
 
     def _train(self):
         self.module.train()
@@ -147,96 +135,34 @@ class Cell2Net:
         self.module.eval()
 
         valid_loss = 0.0
-        for data in self.valid_dl:
-            # get data
-            atac = data["atac"].to(self.device)
-            rna = data["rna"].to(self.device)
-            dna = data["dna"].to(self.device)
-            tf_exp = data["tf"].to(self.device)
-            covariates = data["covariates"].to(self.device)
+        with torch.no_grad():
+            for data in self.valid_dl:
+                # get data
+                atac = data["atac"].to(self.device)
+                rna = data["rna"].to(self.device)
+                dna = data["dna"].to(self.device)
+                tf_exp = data["tf"].to(self.device)
+                covariates = data["covariates"].to(self.device)
 
-            # get prediction
-            pred = self.module(dna, atac, tf_exp, covariates)
-            loss = self.criterion(pred.view(-1).float(), rna.view(-1).float())
+                # get prediction
+                pred = self.module(dna, atac, tf_exp, covariates)
+                loss = self.criterion(pred.view(-1).float(), rna.view(-1).float())
 
-            valid_loss += loss.item() / len(self.train_dl)
+                valid_loss += loss.item() / len(self.train_dl)
 
         return valid_loss
 
-    def get_dataloader(
-        self,
-        idx: list[str] | None = None,
-        batch_size: int = 128,
-        num_workers: int = 4,
-        pin_memory: bool = True,
-        shuffle: bool = True,
-        drop_last: bool = True,
-        persistent_workers: bool = True,
-        **kwargs,
-    ) -> DataLoader:
-        """
-        Create a dataloader to iterate through the dataset using the mdata.
-
-        Parameters
-        ----------
-        idx : list[str] | None, optional
-            List of cell barcodes used to subset the mdata
-            If None, will use all cells. Default: None
-        batch_size : int, optional
-            Batch size of the dataloader. Default: 128
-        num_workers : int, optional
-            Number of cpus used to prepare data. Default: 4
-        pin_memory : bool, optional
-            _description_, by default True
-        shuffle : bool, optional
-            _description_, by default True
-        drop_last : bool, optional
-            _description_, by default True
-        persistent_workers : bool, optional
-            _description_, by default True
-        **kwargs:
-            Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.
-
-        Returns
-        -------
-        DataLoader
-            _description_
-        """
-        if idx:
-            dataset = MuTorchDataset(
-                mdata=self.mdata[idx],  # type: ignore
-                covariates=self.covariates,
-            )
-        else:
-            dataset = MuTorchDataset(
-                mdata=self.mdata,
-                covariates=self.covariates,
-            )
-
-        dataloader = DataLoader(
-            dataset=dataset,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            persistent_workers=persistent_workers,
-            **kwargs,
-        )
-
-        return dataloader
-
     def train(
         self,
+        device_name: str = "cuda",
         train_size: float | None = 0.8,
         train_idx: list[int] | list[str] | None = None,
         valid_idx: list[int] | list[str] | None = None,
-        batch_size: int = 128,
-        num_workers: int = 4,
+        batch_size: int = settings.batch_size,
+        num_workers: int = settings.dl_num_works,
         max_epochs: int = 20,
-        random_state: int = 42,
-        device_name: str = "cuda",
-        lr: float = 1e-04,
+        random_state: int = settings.random_state,
+        lr: float = 3e-04,
         weight_decay: float = 1e-04,
     ) -> None:
         if train_idx and valid_idx:
@@ -247,15 +173,17 @@ class Cell2Net:
                 f"Split dataset for training and validation; training size is {train_size}"
             )
             train_idx, valid_idx = train_test_split(
-                self.mdata.obs_names,
+                self.mdata.obs_names.values.tolist(),
                 train_size=train_size,
                 random_state=random_state,
             )
         else:
             raise ValueError("Please provide train_size or index")
 
-        self.train_dl = self.get_dataloader(
-            idx=train_idx,  # type: ignore
+        self.train_dl = get_dataloader(
+            mdata=self.mdata,
+            covariates=self.covariates,
+            idx=train_idx,
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
@@ -263,8 +191,10 @@ class Cell2Net:
             drop_last=True,
         )
 
-        self.valid_dl = self.get_dataloader(
-            idx=valid_idx,  # type: ignore
+        self.valid_dl = get_dataloader(
+            mdata=self.mdata,
+            covariates=self.covariates,
+            idx=valid_idx,
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
@@ -272,8 +202,11 @@ class Cell2Net:
             drop_last=False,
         )
 
-        self.device = torch.device(device_name)
-        self.module = self.module.to(self.device)
+        # move module to device
+        self.to_device(device_name=device_name)
+
+        # self.device = torch.device(device_name)
+        # self.module = self.module.to(self.device)
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
@@ -282,7 +215,6 @@ class Cell2Net:
         )
 
         self.best_score = np.inf
-
         epochs, train_losses, valid_losses = [], [], []
         for epoch in tqdm(range(max_epochs)):
             train_loss = self._train()
@@ -297,7 +229,7 @@ class Cell2Net:
                 self.best_score = valid_loss
                 self.check_point = self.module.state_dict()
 
-        self._history = pd.DataFrame(
+        self.history_ = pd.DataFrame(
             data={
                 "epochs": epochs,
                 "train_loss": train_losses,
@@ -316,16 +248,14 @@ class Cell2Net:
         num_workers: int = 4,
         device_name: str = "cuda",
     ) -> np.float32:
-        self.device = torch.device(device_name)
-        self.module = self.module.to(self.device)
+        device = torch.device(device_name)
+        self.module = self.module.to(device)
         self.module.eval()
 
-        # if test_idx is None, use all cells for testing
-        if test_idx is None:
-            test_idx = self.mdata.obs_names  # type: ignore
-
-        self.test_dl = self._get_dataloader(
-            test_idx,
+        self.test_dl = get_dataloader(
+            mdata=self.mdata,
+            covariates=self.covariates,
+            idx=test_idx,
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
@@ -334,23 +264,25 @@ class Cell2Net:
         )
 
         rna_true, rna_pred = [], []
-        for data in self.test_dl:
-            # get data
-            atac = data["atac"].to(self.device)
-            dna = data["dna"].to(self.device)
-            tf_exp = data["tf"].to(self.device)
-            covariates = data["covariates"].to(self.device)
+        with torch.no_grad():
+            for data in self.test_dl:
+                # get data
+                atac = data["atac"].to(device)
+                dna = data["dna"].to(device)
+                tf_exp = data["tf"].to(device)
+                covariates = data["covariates"].to(device)
 
-            pred = self.module(dna, atac, tf_exp, covariates).detach().cpu().view(-1)
+                pred = self.module(dna, atac, tf_exp, covariates)
+                pred = pred.detach().cpu().view(-1)
 
-            rna = data["rna"]
-            rna_true.append(rna)
-            rna_pred.append(pred)
+                rna = data["rna"]
+                rna_true.append(rna)
+                rna_pred.append(pred)
 
-        rna_true = torch.concat(rna_true).numpy()
-        rna_pred = torch.concat(rna_pred).numpy()
+        self.rna_true = torch.concat(rna_true).numpy()
+        self.rna_pred = torch.concat(rna_pred).numpy()
 
-        corr, _ = stats.spearmanr(rna_true, rna_pred)
+        corr, _ = stats.spearmanr(self.rna_true, self.rna_pred)
 
         return corr  # type: ignore
 

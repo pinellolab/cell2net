@@ -1,83 +1,63 @@
 """Logging and Profiling"""
 
-_VERBOSITY_LEVELS_FROM_STRINGS = {"error": 0, "warn": 1, "info": 2, "hint": 3}
+from __future__ import annotations
+
+from datetime import datetime
 
 
-def info(*args, **kwargs):
-    return msg(*args, v="info", **kwargs)
+def error(
+    msg: str,
+    *,
+    time: datetime = None,
+    deep: str | None = None,
+    extra: dict | None = None,
+) -> datetime:
+    """\
+    Log message with specific level and return current time.
+
+    Parameters
+    ----------
+    msg
+        Message to display.
+    time
+        A time in the past. If this is passed, the time difference from then
+        to now is appended to `msg` as ` (HH:MM:SS)`.
+        If `msg` contains `{time_passed}`, the time difference is instead
+        inserted at that position.
+    deep
+        If the current verbosity is higher than the log function’s level,
+        this gets displayed as well
+    extra
+        Additional values you can specify in `msg` like `{time_passed}`.
+    """
+    from ._settings import settings
+
+    return settings._root_logger.error(msg, time=time, deep=deep, extra=extra)
 
 
-def error(*args, **kwargs):
-    args = ("Error:",) + args
-    return msg(*args, v="error", **kwargs)
+@_copy_docs_and_signature(error)
+def warning(msg, *, time=None, deep=None, extra=None) -> datetime:
+    from ._settings import settings
+
+    return settings._root_logger.warning(msg, time=time, deep=deep, extra=extra)
 
 
-def warn(*args, **kwargs):
-    args = ("WARNING:",) + args
-    return msg(*args, v="warn", **kwargs)
+@_copy_docs_and_signature(error)
+def info(msg, *, time=None, deep=None, extra=None) -> datetime:
+    from ._settings import settings
+
+    return settings._root_logger.info(msg, time=time, deep=deep, extra=extra)
 
 
-def hint(*args, **kwargs):
-    return msg(*args, v="hint", **kwargs)
+@_copy_docs_and_signature(error)
+def hint(msg, *, time=None, deep=None, extra=None) -> datetime:
+    from ._settings import settings
+
+    return settings._root_logger.hint(msg, time=time, deep=deep, extra=extra)
 
 
-def msg(
-    *msg,
-    v=None,
-    time=False,
-    memory=False,
-    reset=False,
-    end="\n",
-    no_indent=False,
-    t=None,
-    m=None,
-    r=None,
-):
-    r"""
-    Write message to logging output.
-    Log output defaults to standard output but can be set to a file
-    by setting `sc.settings.log_file = 'mylogfile.txt'`.
-    v : {'error', 'warn', 'info', 'hint'} or int, (default: 4)
-        0/'error', 1/'warn', 2/'info', 3/'hint', 4, 5, 6...
-    time, t : bool, optional (default: False)
-        Print timing information; restart the clock.
-    memory, m : bool, optional (default: Faulse)
-        Print memory information.
-    reset, r : bool, optional (default: False)
-        Reset timing and memory measurement. Is automatically reset
-        when passing one of ``time`` or ``memory``.
-    end : str (default: '\n')
-        Same meaning as in builtin ``print()`` function.
-    no_indent : bool (default: False)
-        Do not indent for ``v >= 4``.
-    """  # noqa: D205
-    # variable shortcuts
-    if t is not None:
-        time = t
-    if m is not None:
-        memory = m
-    if r is not None:
-        reset = r
-    if v is None:
-        v = 4
-    if isinstance(v, str):
-        v = _VERBOSITY_LEVELS_FROM_STRINGS[v]
-    if v == 3:  # insert "--> " before hints
-        msg = ("-->",) + msg
-    if v >= 4 and not no_indent:
-        msg = ("   ",) + msg
-    if _settings_verbosity_greater_or_equal_than(v):
-        if not time and not memory and len(msg) > 0:
-            _write_log(*msg, end=end)
-        if reset:
-            try:
-                settings._previous_memory_usage, _ = get_memory_usage()
-            except:
-                pass
-            settings._previous_time = get_time()
-        if time:
-            elapsed = get_passed_time()
-            msg = msg + (f"({_sec_to_str(elapsed)})",)
-            _write_log(*msg, end=end)
-        if memory:
-            _write_log(get_memory_usage(), end=end)
+@_copy_docs_and_signature(error)
+def debug(msg, *, time=None, deep=None, extra=None) -> datetime:
+    from ._settings import settings
+
+    return settings._root_logger.debug(msg, time=time, deep=deep, extra=extra)

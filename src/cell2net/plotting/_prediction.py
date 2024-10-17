@@ -30,5 +30,3 @@ def train_history(
         plt.show()
     else:
         return ax
-
-

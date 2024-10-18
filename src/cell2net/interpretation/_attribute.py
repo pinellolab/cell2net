@@ -64,9 +64,9 @@ def compute_attribution(
 
     atac_attr, dna_attr, tf_attr = [], [], []
     for data in data_loader:
-        atac = data["atac"].to(model.device).requires_grad_()
-        dna = data["dna"].to(model.device).requires_grad_()
-        tf_exp = data["tf"].to(model.device).requires_grad_()
+        peak_seq = data["peak_seq"].to(model.device).requires_grad_()
+        peak_acc = data["peak_acc"].to(model.device).requires_grad_()
+        tf_exp = data["tf_exp"].to(model.device).requires_grad_()
         covariates = data["covariates"].to(model.device).requires_grad_()
 
         # _dna = torch.zeros_like(atac).to(model.device)
@@ -74,7 +74,7 @@ def compute_attribution(
         # _tf_exp = torch.zeros_like(tf_exp).to(model.device)
 
         attributions, delta = ig.attribute(
-            inputs=(dna, atac, tf_exp, covariates),
+            inputs=(peak_seq, peak_acc, tf_exp, covariates),
             return_convergence_delta=True,
         )
 

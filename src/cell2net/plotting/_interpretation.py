@@ -3,10 +3,11 @@
 import logging
 
 import pandas as pd
+from gtfparse import read_gtf
 from mudata import MuData
 from sklearn.preprocessing import StandardScaler
 
-from cell2net._utils import create_bulk_adata
+from cell2net.utils import create_bulk_adata
 
 
 def peak_to_gene_links(mdata: MuData):
@@ -41,10 +42,12 @@ def peak_to_gene_heatmap(
     return NotImplemented
 
 
-# from https://github.com/snehamitra/SCARlink/blob/main/scarlink/src/plotExtra.py
-def genome_annotation(crhom: str, start: int, end: int, ax, gtf_file: str) -> None:
+# modified from https://github.com/snehamitra/SCARlink/blob/main/scarlink/src/plotExtra.py
+def genome_annotation(crhom: str, start: int, end: int, ax, gtf_file: str):
 
-    
+    # returns GTF with essential columns such as "feature", "seqname", "start", "end"
+    # alongside the names of any optional keys which appeared in the attribute column
+    df_genes = read_gtf(gtf_file)
 
     return NotImplemented
 

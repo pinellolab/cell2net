@@ -111,16 +111,20 @@ class Cell2Net(BaseModel):
 
         train_loss = 0.0
         for data in self.train_dl:
-            # get data
-            atac = data["atac"].to(self.device)
-            rna = data["rna"].to(self.device)
-            dna = data["dna"].to(self.device)
-            tf_exp = data["tf"].to(self.device)
+            # get input features
+            peak_seq = data["peak_seq"].to(self.device)
+            peak_acc = data["peak_acc"].to(self.device)
+            tf_exp = data["tf_exp"].to(self.device)
             covariates = data["covariates"].to(self.device)
 
+            # get target gene expression
+            target_exp = data["target_exp"].to(self.device)
+
             # get prediction
-            pred = self.module(dna, atac, tf_exp, covariates)
-            loss = self.criterion(pred.view(-1).float(), rna.view(-1).float())
+            pred_exp = self.module(peak_seq, peak_acc, tf_exp, covariates)
+            loss = self.criterion(
+                pred_exp.view(-1).float(), target_exp.view(-1).float()
+            )
 
             # optimize parameters
             self.optimizer.zero_grad()
@@ -137,16 +141,20 @@ class Cell2Net(BaseModel):
         valid_loss = 0.0
         with torch.no_grad():
             for data in self.valid_dl:
-                # get data
-                atac = data["atac"].to(self.device)
-                rna = data["rna"].to(self.device)
-                dna = data["dna"].to(self.device)
-                tf_exp = data["tf"].to(self.device)
+                # get input features
+                peak_seq = data["peak_seq"].to(self.device)
+                peak_acc = data["peak_acc"].to(self.device)
+                tf_exp = data["tf_exp"].to(self.device)
                 covariates = data["covariates"].to(self.device)
 
+                # get target gene expression
+                target_exp = data["target_exp"].to(self.device)
+
                 # get prediction
-                pred = self.module(dna, atac, tf_exp, covariates)
-                loss = self.criterion(pred.view(-1).float(), rna.view(-1).float())
+                pred_exp = self.module(peak_seq, peak_acc, tf_exp, covariates)
+                loss = self.criterion(
+                    pred_exp.view(-1).float(), target_exp.view(-1).float()
+                )
 
                 valid_loss += loss.item() / len(self.train_dl)
 
@@ -266,16 +274,16 @@ class Cell2Net(BaseModel):
         rna_true, rna_pred = [], []
         with torch.no_grad():
             for data in self.test_dl:
-                # get data
-                atac = data["atac"].to(device)
-                dna = data["dna"].to(device)
-                tf_exp = data["tf"].to(device)
-                covariates = data["covariates"].to(device)
+                # get input features
+                peak_seq = data["peak_seq"].to(self.device)
+                peak_acc = data["peak_acc"].to(self.device)
+                tf_exp = data["tf_exp"].to(self.device)
+                covariates = data["covariates"].to(self.device)
 
-                pred = self.module(dna, atac, tf_exp, covariates)
+                pred = self.module(peak_seq, peak_acc, tf_exp, covariates)
                 pred = pred.detach().cpu().view(-1)
 
-                rna = data["rna"]
+                rna = data["target_exp"]
                 rna_true.append(rna)
                 rna_pred.append(pred)
 

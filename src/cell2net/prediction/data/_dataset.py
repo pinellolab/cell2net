@@ -17,15 +17,16 @@ class MuTorchDataset(Dataset):
         super().__init__()
 
         self.mdata = mdata
-        self.rna = np.array(mdata[rna_mod].layers["counts"].todense()).reshape(-1)  # type: ignore
-        self.atac = np.array(mdata[atac_mod].layers["counts"].todense())  # type: ignore
-        self.tf = np.array(mdata[rna_mod].obsm["tf"].todense())  # type: ignore
+        self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense()).reshape(-1)  # type: ignore
+        self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense())  # type: ignore
+        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense())  # type: ignore
 
         self.covariates = mdata.obs[covariates].to_numpy()
 
         # convert seq to one-hot encoding
-        self.peak_seqs = self.mdata[atac_mod].var["dna_sequence"].values.tolist()
-        self.peak_seqs = encode_seq(self.peak_seqs)
+        self.peak_seq = encode_seq(
+            self.mdata[atac_mod].var["dna_sequence"].values.tolist()
+        )
 
         self.train = train
 
@@ -36,12 +37,12 @@ class MuTorchDataset(Dataset):
 
     def __getitem__(self, idx):
         data_map = {}
-        data_map["atac"] = self.atac[idx]
-        data_map["dna"] = self.peak_seqs
-        data_map["tf"] = self.tf[idx]
+        data_map["peak_acc"] = self.peak_acc[idx]
+        data_map["peak_seq"] = self.peak_seq
+        data_map["tf_exp"] = self.tf_exp[idx]
         data_map["covariates"] = self.covariates[idx]
 
         if self.train:
-            data_map["rna"] = self.rna[idx]
+            data_map["target_exp"] = self.target_exp[idx]
 
         return data_map

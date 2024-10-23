@@ -111,7 +111,7 @@ def compute_peak_attribution(
     batch_size : int, optional
         Batch size, by default 32
     num_workers : int, optional
-        _description_, by default 4
+        Number of CPUs for dataloader, by default 4
 
     Returns
     -------
@@ -130,7 +130,6 @@ def compute_peak_attribution(
         persistent_workers=True,
     )
 
-    model.to_device(model.device)
     model.module.train()
 
     # Use Integrated Gradients to estimate feature importances
@@ -159,4 +158,4 @@ def compute_peak_attribution(
     peak_acc_attr = torch.cat(atac_attr, dim=0).numpy()
     tf_exp_attr = torch.cat(tf_attr, dim=0).numpy()
 
-    return peak_seq_attr, peak_acc_attr, tf_exp_attr
+    return peak_seq_attr, peak_acc_attr, tf_exp_attr, delta

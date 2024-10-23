@@ -254,7 +254,7 @@ class Cell2Net(BaseModel):
         )
 
         logger.info("Training finished")
-        logger.info(f"Find best model at epoch {epoch}")
+        logger.info(f"Find best model at epoch {self.best_epoch}")
         logger.info(f"Valid loss: {self.best_score: .3f}")
 
         self.is_trained_ = True

@@ -1,6 +1,9 @@
+import numpy as np
 import torch
 from captum.attr import IntegratedGradients
+from tqdm import tqdm
 
+from cell2net._logging import logger
 from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.model import Cell2Net
 
@@ -93,14 +96,10 @@ def compute_peak_attribution(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
     batch_size: int = 32,
-    num_workers: int = 4,
-):
+    num_workers: int = 1,
+) -> np.ndarray:
     r"""
-    Calculate the attribution of each input feature to gene expression.
-
-    This is done using the Integrated Gradients algorithm from captum package.
-    Note to calcualte attribution of peak sequences,
-    peak accessibility and TF expression for each single cell independently.
+    Calculate the attribution of peak accessibility to gene expression.
 
     Parameters
     ----------
@@ -115,19 +114,21 @@ def compute_peak_attribution(
 
     Returns
     -------
-    _type_
-        _description_
+    np.ndarray
+        An numpy array of peak attribution with a shape of (n_cells, n_peaks)
     """
     # create a dataloader
+    logger.info("Create dataloader")
     data_loader = get_dataloader(
         mdata=model.mdata,
         covariates=model.covariates,
         idx=idx,
         batch_size=batch_size,
         num_workers=num_workers,
+        pin_memory=False,
         shuffle=False,
         drop_last=False,
-        persistent_workers=True,
+        persistent_workers=False,
     )
 
     model.module.train()
@@ -135,27 +136,47 @@ def compute_peak_attribution(
     # Use Integrated Gradients to estimate feature importances
     ig = IntegratedGradients(model.module)
 
-    atac_attr, dna_attr, tf_attr = [], [], []
-    for data in data_loader:
+    # for each peak, find the highest value across all cells
+    max_peak_acc = (
+        model.mdata["atac"].layers["counts"].max(axis=0).toarray().flatten()  # type: ignore
+    )
+
+    logger.info("Compute attribution for peak accessibility")
+    peak_acc_attr = []
+    for data in tqdm(data_loader):
         peak_seq = data["peak_seq"].to(model.device).requires_grad_()
         peak_acc = data["peak_acc"].to(model.device).requires_grad_()
         tf_exp = data["tf_exp"].to(model.device).requires_grad_()
         covariates = data["covariates"].to(model.device).requires_grad_()
 
-        _peak_acc = torch.zeros_like(peak_acc).to(model.device)
+        _max_peak_acc = torch.from_numpy(
+            np.repeat(max_peak_acc[np.newaxis, :], peak_acc.shape[0], axis=0)
+        ).to(model.device)
 
-        attributions, delta = ig.attribute(
+        # get baseline peak accessibility
+        # for each cell, if the target input peak has a number > 0, then the baseline will be 0
+        # otherwise, the baseline will be the highest value of accessibility of this peak across all cells
+        _peak_acc = torch.where(
+            peak_acc > 0,
+            torch.zeros_like(peak_acc),
+            _max_peak_acc,
+        )
+
+        attributions, _delta = ig.attribute(
             inputs=(peak_seq, peak_acc, tf_exp, covariates),
             baselines=(peak_seq, _peak_acc, tf_exp, covariates),
             return_convergence_delta=True,
+            n_steps=50,
         )
 
-        dna_attr.append(attributions[0].detach().cpu())
-        atac_attr.append(attributions[1].detach().cpu())
-        tf_attr.append(attributions[2].detach().cpu())
+        peak_acc_attr.append(attributions[1].detach().cpu())
 
-    peak_seq_attr = torch.cat(dna_attr, dim=0).numpy()
-    peak_acc_attr = torch.cat(atac_attr, dim=0).numpy()
-    tf_exp_attr = torch.cat(tf_attr, dim=0).numpy()
+        # move other attributions to cpu
+        attributions[0].detach().cpu()
+        attributions[2].detach().cpu()
+        attributions[3].detach().cpu()
 
-    return peak_seq_attr, peak_acc_attr, tf_exp_attr, delta
+    peak_acc_attr = torch.cat(peak_acc_attr, dim=0).numpy()
+    # delta = torch.cat(delta, dim=0).numpy()
+
+    return peak_acc_attr

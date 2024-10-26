@@ -8,6 +8,7 @@ from mudata import MuData
 from scipy import stats
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from cell2net._setting import settings
@@ -26,12 +27,16 @@ class Cell2Net(BaseModel):
         rna_mod: str = "rna",
         atac_mod: str = "atac",
         covariates: list[str] | None = None,
+        n_filters: list[int] | None = None,
         n_channels: int = 4,
-        n_filters: int = 30,
         kernel_size: int = 5,
-        n_dims: int = 4,
+        n_dims: int = 16,
     ):
         super().__init__()
+
+        if n_filters is None:
+            n_filters = [64, 32, 32, 16]
+
         self.gene = gene
 
         peak_to_gene = mdata.uns["peak_to_gene"][
@@ -77,6 +82,7 @@ class Cell2Net(BaseModel):
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
             peak_len=256,
+            kernel_size=self.kernel_size,
             n_tfs=self.n_tfs,
             n_covariates=self.n_covariates,
             n_filters=self.n_filters,
@@ -110,6 +116,7 @@ class Cell2Net(BaseModel):
         self.module.train()
 
         train_loss = 0.0
+        rna_true, rna_pred = [], []
         for data in self.train_dl:
             # get input features
             peak_seq = data["peak_seq"].to(self.device)
@@ -133,12 +140,21 @@ class Cell2Net(BaseModel):
 
             train_loss += loss.item() / len(self.train_dl)
 
-        return train_loss
+            rna_true.append(target_exp.detach().cpu().view(-1))
+            rna_pred.append(pred_exp.detach().cpu().view(-1))
+
+        # compute spearman correlation beetween target and predicted expression
+        rna_true = torch.concat(rna_true).numpy()
+        rna_pred = torch.concat(rna_pred).numpy()
+        train_corr, _ = stats.spearmanr(rna_true, rna_pred)
+
+        return train_loss, train_corr
 
     def _valid(self):
         self.module.eval()
 
         valid_loss = 0.0
+        rna_true, rna_pred = [], []
         with torch.no_grad():
             for data in self.valid_dl:
                 # get input features
@@ -158,7 +174,15 @@ class Cell2Net(BaseModel):
 
                 valid_loss += loss.item() / len(self.train_dl)
 
-        return valid_loss
+                rna_true.append(target_exp.detach().cpu().view(-1))
+                rna_pred.append(pred_exp.detach().cpu().view(-1))
+
+        # compute spearman correlation beetween target and predicted expression
+        rna_true = torch.concat(rna_true).numpy()
+        rna_pred = torch.concat(rna_pred).numpy()
+        valid_corr, _ = stats.spearmanr(rna_true, rna_pred)
+
+        return valid_loss, valid_corr
 
     def train(
         self,
@@ -210,38 +234,41 @@ class Cell2Net(BaseModel):
             drop_last=False,
         )
 
-        # move module to device
+        # Move module to device
         self.to_device(device_name=device_name)
-
-        # self.device = torch.device(device_name)
-        # self.module = self.module.to(self.device)
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
         self.optimizer = Adam(
             self.module.parameters(), lr=lr, weight_decay=weight_decay
         )
+        lr_scheduler = ReduceLROnPlateau(self.optimizer, "min", min_lr=1e-5, patience=5)
 
-        self.best_score = np.inf
+        self.best_score, self.best_epoch = np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
         for epoch in tqdm(range(max_epochs)):
-            train_loss = self._train()
-            valid_loss = self._valid()
+            train_loss, train_corr = self._train()
+            valid_loss, valid_corr = self._valid()
 
             epochs.append(epoch)
             train_losses.append(train_loss)
             valid_losses.append(valid_loss)
 
-            # save model if find a better validation score
+            # Save model if find a better validation score
             if valid_loss < self.best_score:
                 self.best_score = valid_loss
+                self.best_epoch = epoch
                 self.check_point = self.module.state_dict()
+
+            lr_scheduler.step(valid_loss)
 
         self.history_ = pd.DataFrame(
             data={
                 "epochs": epochs,
                 "train_loss": train_losses,
                 "valid_loss": valid_losses,
+                "train_corr": train_corr,
+                "valid_corr": valid_corr,
             }
         )
 
@@ -287,8 +314,9 @@ class Cell2Net(BaseModel):
                 rna_true.append(rna)
                 rna_pred.append(pred)
 
+        # convert log(lambda) to lambda
         self.rna_true = torch.concat(rna_true).numpy()
-        self.rna_pred = torch.concat(rna_pred).numpy()
+        self.rna_pred = torch.concat(rna_pred).exp().numpy()
 
         corr, _ = stats.spearmanr(self.rna_true, self.rna_pred)
 

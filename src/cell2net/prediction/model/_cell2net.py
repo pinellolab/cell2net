@@ -58,6 +58,9 @@ class Cell2Net(BaseModel):
         adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()]
         adata_rna = mdata[rna_mod][:, gene]
 
+        self.max_gex = np.max(adata_rna.layers["counts"])  # type: ignore
+        self.min_gex = np.min(adata_rna.layers["counts"])  # type: ignore
+
         # get all TFs
         df_tfs = mdata[rna_mod].var[mdata[rna_mod].var["is_tf"]]
 
@@ -327,7 +330,10 @@ class Cell2Net(BaseModel):
 
         # convert log(lambda) to lambda
         self.rna_true = torch.concat(rna_true).numpy()
-        self.rna_pred = torch.concat(rna_pred).exp().numpy()
+        self.rna_pred = torch.concat(rna_pred).exp()
+        self.rna_pred = torch.clamp(
+            self.rna_pred, min=self.min_gex, max=self.max_gex
+        ).numpy()
 
         corr, _ = stats.spearmanr(self.rna_true, self.rna_pred)
 

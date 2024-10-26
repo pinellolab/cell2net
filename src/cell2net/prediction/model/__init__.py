@@ -1,1 +1,1 @@
-from ._cell2net import Cell2Net, Cell2Net_Jc
+from ._cell2net import Cell2Net

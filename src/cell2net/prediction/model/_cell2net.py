@@ -32,6 +32,7 @@ class Cell2Net(BaseModel):
         n_channels: int = 4,
         kernel_size: int = 5,
         n_dims: int = 16,
+        dropout_rate: float = 0.25,
     ):
         super().__init__()
 
@@ -54,14 +55,14 @@ class Cell2Net(BaseModel):
         else:
             self.n_covariates = 0
 
-        # create anndata for RNA and ATAC
+        # Create anndata for RNA and ATAC
         adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()]
         adata_rna = mdata[rna_mod][:, gene]
 
         self.max_gex = np.max(adata_rna.layers["counts"])  # type: ignore
         self.min_gex = np.min(adata_rna.layers["counts"])  # type: ignore
 
-        # get all TFs
+        # Get all TFs
         df_tfs = mdata[rna_mod].var[mdata[rna_mod].var["is_tf"]]
 
         # If gene is a tf, then exclude it from the predictors
@@ -82,6 +83,7 @@ class Cell2Net(BaseModel):
         self.n_filters = n_filters
         self.kernel_size = kernel_size
         self.n_dims = n_dims
+        self.dropout_rate = dropout_rate
 
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
@@ -92,6 +94,7 @@ class Cell2Net(BaseModel):
             n_filters=self.n_filters,
             n_channels=self.n_channels,
             n_dims=self.n_dims,
+            dropout_rate=self.dropout_rate,
         )
 
         self._module_summary = {
@@ -125,6 +128,7 @@ class Cell2Net(BaseModel):
             # get input features
             peak_seq = data["peak_seq"].to(self.device)
             peak_acc = data["peak_acc"].to(self.device)
+            peak_dist = data["peak_dist"].to(self.device)
             tf_exp = data["tf_exp"].to(self.device)
             covariates = data["covariates"].to(self.device)
 
@@ -132,7 +136,7 @@ class Cell2Net(BaseModel):
             target_exp = data["target_exp"].to(self.device)
 
             # get prediction
-            pred_exp = self.module(peak_seq, peak_acc, tf_exp, covariates)
+            pred_exp = self.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
             loss = self.criterion(
                 pred_exp.view(-1).float(), target_exp.view(-1).float()
             )
@@ -164,6 +168,7 @@ class Cell2Net(BaseModel):
                 # get input features
                 peak_seq = data["peak_seq"].to(self.device)
                 peak_acc = data["peak_acc"].to(self.device)
+                peak_dist = data["peak_dist"].to(self.device)
                 tf_exp = data["tf_exp"].to(self.device)
                 covariates = data["covariates"].to(self.device)
 
@@ -171,7 +176,9 @@ class Cell2Net(BaseModel):
                 target_exp = data["target_exp"].to(self.device)
 
                 # get prediction
-                pred_exp = self.module(peak_seq, peak_acc, tf_exp, covariates)
+                pred_exp = self.module(
+                    peak_seq, peak_acc, peak_dist, tf_exp, covariates
+                )
                 loss = self.criterion(
                     pred_exp.view(-1).float(), target_exp.view(-1).float()
                 )
@@ -318,10 +325,11 @@ class Cell2Net(BaseModel):
                 # get input features
                 peak_seq = data["peak_seq"].to(self.device)
                 peak_acc = data["peak_acc"].to(self.device)
+                peak_dist = data["peak_dist"].to(self.device)
                 tf_exp = data["tf_exp"].to(self.device)
                 covariates = data["covariates"].to(self.device)
 
-                pred = self.module(peak_seq, peak_acc, tf_exp, covariates)
+                pred = self.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
                 pred = pred.detach().cpu().view(-1)
 
                 rna = data["target_exp"]

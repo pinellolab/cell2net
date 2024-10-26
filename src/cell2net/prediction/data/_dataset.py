@@ -24,8 +24,8 @@ class MuTorchDataset(Dataset):
         self.covariates = mdata.obs[covariates].to_numpy()
 
         # distance of peak to TSS, normalized by the maximum value
-        self.distance = mdata.uns["peak_to_gene"]["distance"].values
-        self.distance = np.exp(-self.distance / 500000)
+        self.peak_dist = mdata.uns["peak_to_gene"]["distance"].values
+        self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
 
         # convert seq to one-hot encoding
         self.peak_seq = encode_seq(
@@ -43,9 +43,9 @@ class MuTorchDataset(Dataset):
         data_map = {}
         data_map["peak_acc"] = self.peak_acc[idx]
         data_map["peak_seq"] = self.peak_seq
+        data_map["peak_dist"] = self.peak_dist
         data_map["tf_exp"] = self.tf_exp[idx]
         data_map["covariates"] = self.covariates[idx]
-        data_map["distance"] = self.distance[idx]
 
         if self.train:
             data_map["target_exp"] = self.target_exp[idx]

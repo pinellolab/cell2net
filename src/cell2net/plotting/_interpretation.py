@@ -10,6 +10,10 @@ from sklearn.preprocessing import StandardScaler
 from cell2net.utils import create_bulk_adata
 
 
+def peak_attr_boxplot(data):
+    return NotImplemented
+
+
 def peak_to_gene_links(mdata: MuData):
 
     return NotImplemented

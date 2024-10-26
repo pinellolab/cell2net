@@ -1,7 +1,8 @@
 import numpy as np
+import pandas as pd
 
 
-def average_attribution(attribution: np.ndarray, groups) -> np.ndarray:
+def average_attribution(attribution: np.ndarray, groups) -> np.ndarray | pd.DataFrame:
     """
     Compute average attribution using group information
 
@@ -36,7 +37,7 @@ def average_attribution(attribution: np.ndarray, groups) -> np.ndarray:
     return avg_attr
 
 
-def _avg_attr_peak_acc_or_tf_exp(attr: np.ndarray, groups) -> np.ndarray:
+def _avg_attr_peak_acc_or_tf_exp(attr: np.ndarray, groups) -> pd.DataFrame:
     # Get unique string groups and map them to numeric labels
     unique_groups, group_indices = np.unique(groups, return_inverse=True)
 
@@ -53,7 +54,9 @@ def _avg_attr_peak_acc_or_tf_exp(attr: np.ndarray, groups) -> np.ndarray:
     # Compute the average for each group along dimension 0
     avg_attr = sum_by_group / count_by_group[:, None]  # Add two None for broadcasting
 
-    return avg_attr
+    df = pd.DataFrame(data=avg_attr, index=unique_groups)
+
+    return df
 
 
 def _avg_attr_peak_seq(attr: np.ndarray, groups) -> np.ndarray:

@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from mudata import MuData
 
 from ._utils import average_attribution
@@ -10,9 +9,13 @@ def peak_to_gene(
     peak_acc_attr: np.ndarray,
     groupby: str | None = None,
     min_attr: float = 0,
-) -> pd.DataFrame:
+):
     """
     Extracts peak-to-gene links based on the attribution of peak accessibility
+
+    This is done by performing t-test to test if the attribution is significantly
+    greater than 0. If the groupby is None, all cells are used, otherwise the test
+    is performed for each group.
 
     Parameters
     ----------
@@ -36,11 +39,19 @@ def peak_to_gene(
         )
         groups = mdata.obs[groupby].values
 
+        assert len(groups) == peak_acc_attr.shape[0], print(
+            f"Length of grouby {len(groups)} is different from number of cells {peak_acc_attr.shape[0]}"
+        )
+
     avg_attr = average_attribution(peak_acc_attr, groups=groups)
+    avg_attr.columns = mdata["atac"].var_names  # type: ignore
 
-    mdata.uns["peak_to_gene"].loc[:, "attribution"] = avg_attr
-    df_p2g = mdata.uns["peak_to_gene"].copy()
+    mdata.uns["peak_attr"] = avg_attr
 
-    df_p2g = df_p2g[df_p2g["attribution"] > min_attr].reset_index(drop=True)
+    # mdata.uns[]
+    # mdata.uns["peak_to_gene"].loc[:, "attribution"] = avg_attr
+    # df_p2g = mdata.uns["peak_to_gene"].copy()
 
-    return df_p2g
+    # df_p2g = df_p2g[df_p2g["attribution"] > min_attr].reset_index(drop=True)
+
+    return None

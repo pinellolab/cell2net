@@ -11,6 +11,7 @@ from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
+from cell2net._logging import logger
 from cell2net._setting import settings
 from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.module import PeaksTF2GeneExpressionPoisson
@@ -190,6 +191,7 @@ class Cell2Net(BaseModel):
         train_size: float | None = 0.8,
         train_idx: list[int] | list[str] | None = None,
         valid_idx: list[int] | list[str] | None = None,
+        stratify: list[str] | None = None,
         batch_size: int = settings.batch_size,
         num_workers: int = settings.dl_num_works,
         max_epochs: int = 20,
@@ -198,19 +200,24 @@ class Cell2Net(BaseModel):
         weight_decay: float = 1e-04,
     ) -> None:
         if train_idx and valid_idx:
-            print("Using provided index for training and validation")
+            logger.info("Using provided index for training and validation")
 
         elif train_size:
-            print(
-                f"Split dataset for training and validation; training size is {train_size}"
-            )
+            logger.info(f"Training size is provided: {train_size}")
+            logger.info("Split the data for training and validation")
             train_idx, valid_idx = train_test_split(
                 self.mdata.obs_names.values.tolist(),
                 train_size=train_size,
                 random_state=random_state,
+                stratify=stratify,
             )
         else:
-            raise ValueError("Please provide train_size or index")
+            raise ValueError(
+                "Please provide train_size or indices for trainging and validation"
+            )
+
+        logger.info(f"Number of training: {len(train_idx)}")  # type: ignore
+        logger.info(f"Number of validation: {len(valid_idx)}")  # type: ignore
 
         self.train_dl = get_dataloader(
             mdata=self.mdata,
@@ -271,6 +278,10 @@ class Cell2Net(BaseModel):
                 "valid_corr": valid_corr,
             }
         )
+
+        logger.info("Training finished")
+        logger.info(f"Find best model at epoch {self.best_epoch}")
+        logger.info(f"Valid loss: {self.best_score: .3f}")
 
         self.is_trained_ = True
 

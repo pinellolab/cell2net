@@ -1,57 +1,64 @@
 import numpy as np
+import pandas as pd
 from mudata import MuData
+from scipy import stats
 
-from ._utils import average_attribution
+from cell2net._logging import logger
 
 
 def peak_to_gene(
     mdata: MuData,
     peak_acc_attr: np.ndarray,
-    groupby: str | None = None,
-    min_attr: float = 0,
-):
+    groupby: str,
+) -> pd.DataFrame:
     """
     Extracts peak-to-gene links based on the attribution of peak accessibility
 
-    This is done by performing t-test to test if the attribution is significantly
-    greater than 0. If the groupby is None, all cells are used, otherwise the test
-    is performed for each group.
+    This is done by performing t-test to compare the attributions to zero.
+    If the groupby is None, all cells are used, otherwise the test is done for each group.
 
     Parameters
     ----------
     mdata : MuData
         MuData object including RNA and ATAC modalities
     peak_acc_attr : np.ndarray
-        A numpy array
+        A numpy array of peak accessibility attribution
     groupby : str | None, optional
         Name of one column in mdata.obs to group cells. by default None
 
     Returns
     -------
     pd.DataFrame
-        A dataframe containing all associated peaks
+        Calculated t-statistic and p-value for each peak-to-gene link
     """
-    if groupby is None:
-        groups = None
-    else:
-        assert groupby in mdata.obs.columns, print(
-            f"Cannot find {groupby} in mdata.obs"
+    assert groupby in mdata.obs.columns, print(f"Cannot find {groupby} in mdata.obs")
+
+    groups = mdata.obs[groupby].values
+
+    assert len(groups) == peak_acc_attr.shape[0], print(
+        f"Length of grouby {len(groups)} is different from number of cells {peak_acc_attr.shape[0]}"
+    )
+
+    logger.info(f"Extract peak-to-gene links for {groupby}")
+    unique_groups, group_indices = np.unique(groups, return_inverse=True)  # type: ignore
+
+    df_list = []
+    # For each group, subset the attribution and perform t-test
+    for i, unique_group in enumerate(unique_groups):
+        _peak_acc_attr = peak_acc_attr[group_indices == i]
+        res = stats.ttest_1samp(
+            _peak_acc_attr, popmean=0, axis=0, alternative="two-sided"
         )
-        groups = mdata.obs[groupby].values
 
-        assert len(groups) == peak_acc_attr.shape[0], print(
-            f"Length of grouby {len(groups)} is different from number of cells {peak_acc_attr.shape[0]}"
+        df = pd.DataFrame(
+            data={"t-statistic": res[0], "pvalue": res[1], "cell_type": unique_group}
         )
+        df["peak"] = mdata.uns["peak_to_gene"]["peak"]
+        df["gene"] = mdata.uns["peak_to_gene"]["gene"]
 
-    avg_attr = average_attribution(peak_acc_attr, groups=groups)
-    avg_attr.columns = mdata["atac"].var_names  # type: ignore
+        df_list.append(df)
 
-    mdata.uns["peak_attr"] = avg_attr
+    df = pd.concat(df_list, axis=0).reset_index(drop=True)
+    df = df[["gene", "peak", "cell_type", "t-statistic", "pvalue"]]
 
-    # mdata.uns[]
-    # mdata.uns["peak_to_gene"].loc[:, "attribution"] = avg_attr
-    # df_p2g = mdata.uns["peak_to_gene"].copy()
-
-    # df_p2g = df_p2g[df_p2g["attribution"] > min_attr].reset_index(drop=True)
-
-    return None
+    return df

@@ -95,7 +95,7 @@ def compute_attribution(
 def compute_peak_attribution(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
-    batch_size: int = 32,
+    batch_size: int = 8,
     num_workers: int = 1,
 ) -> np.ndarray:
     r"""
@@ -136,7 +136,8 @@ def compute_peak_attribution(
     # Use Integrated Gradients to estimate feature importances
     ig = IntegratedGradients(model.module)
 
-    # for each peak, find the highest value across all cells
+    # For each peak, find the highest value across all cells
+    # This value will be used as baseline for peaks that are not accessible
     max_peak_acc = (
         model.mdata["atac"].layers["counts"].max(axis=0).toarray().flatten()  # type: ignore
     )
@@ -146,6 +147,7 @@ def compute_peak_attribution(
     for data in tqdm(data_loader):
         peak_seq = data["peak_seq"].to(model.device).requires_grad_()
         peak_acc = data["peak_acc"].to(model.device).requires_grad_()
+        peak_dist = data["peak_dist"].to(model.device).requires_grad_()
         tf_exp = data["tf_exp"].to(model.device).requires_grad_()
         covariates = data["covariates"].to(model.device).requires_grad_()
 
@@ -153,9 +155,9 @@ def compute_peak_attribution(
             np.repeat(max_peak_acc[np.newaxis, :], peak_acc.shape[0], axis=0)
         ).to(model.device)
 
-        # get baseline peak accessibility
-        # for each cell, if the target input peak has a number > 0, then the baseline will be 0
-        # otherwise, the baseline will be the highest value of accessibility of this peak across all cells
+        # Create baseline peak accessibility
+        # For each cell, if the target input peak has a number > 0, then the baseline will be 0
+        # Otherwise, the baseline will be the highest value of accessibility of this peak across all cells
         _peak_acc = torch.where(
             peak_acc > 0,
             torch.zeros_like(peak_acc),
@@ -163,8 +165,8 @@ def compute_peak_attribution(
         )
 
         attributions, _delta = ig.attribute(
-            inputs=(peak_seq, peak_acc, tf_exp, covariates),
-            baselines=(peak_seq, _peak_acc, tf_exp, covariates),
+            inputs=(peak_seq, peak_acc, peak_dist, tf_exp, covariates),
+            baselines=(peak_seq, _peak_acc, peak_dist, tf_exp, covariates),
             return_convergence_delta=True,
             n_steps=50,
         )

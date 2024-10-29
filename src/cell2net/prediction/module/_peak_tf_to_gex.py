@@ -136,7 +136,7 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
     def forward(self, peak_seq, peak_acc, peak_dist=None, tf_exp=None, covariates=None):
         assert (
             peak_seq.shape[1] == self.n_peaks
-        ), f"Input size is incorrect, found {peak_seq.shape[1]} peaks, expected {self.n_peaks} peaks!"
+        ), f"Incorrect input size, found {peak_seq.shape[1]} peaks, expected {self.n_peaks} peaks!"
 
         # Embed peak sequence
         seq_embd = self.seq_encoder(peak_seq)

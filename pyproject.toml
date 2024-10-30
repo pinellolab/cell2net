@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "cell2net"
-version = "0.0.1"
+version = "0.0.2"
 description = "cell2net"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -22,32 +22,30 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-  "anndata",
-  # for debug logging (referenced from the issue template)
+  "mudata==0.3.1",
+  "anndata==0.10.9",
+  "pandas==2.2.3",
+  "scanpy==1.10.3",
+  "pyfaidx==0.8.1.2",
+  "pyranges==0.1.2",
+  "muon==0.1.6",
   "session-info",
+  "pyjaspar==3.0.0",
+  "pysam==0.22.1",
+  "captum",
+  "polars",
+  "matplotlib",
+  "PyComplexHeatmap==1.7.7",
 ]
 optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
 optional-dependencies.doc = [
-  "PyComplexHeatmap==1.7.7",
-  "matplotlib==3.7.5",
-  "numpy==1.24.3",
-  "lightning==2.4.0",
-  "pyjaspar==3.0.0",
-  "pysam==0.22.1",
-  "pyfaidx==0.8.1.2",
-  "pyranges==0.1.2",
-  "muon==0.1.6",
-  "mudata==0.3.1",
-  "anndata==0.10.9",
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
   "ipython",
   "myst-nb>=1.1",
-  "pandas==2.2.3",
-  "scanpy==1.10.3",
   # Until pybtex >0.23.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=4",

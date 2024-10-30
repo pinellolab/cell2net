@@ -125,7 +125,7 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
         # fully connected layers to predict the log(lambda) of Poisson distribution
         self.fc = nn.Sequential(
             nn.Linear(
-                self.n_peaks * (self.n_dims + 1) + self.n_tfs + self.n_covariates, 32
+                self.n_peaks + self.n_covariates, 32
             ),
             nn.ReLU(),
             nn.BatchNorm1d(32),
@@ -138,24 +138,7 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
             peak_seq.shape[1] == self.n_peaks
         ), f"Incorrect input size, found {peak_seq.shape[1]} peaks, expected {self.n_peaks} peaks!"
 
-        # Embed peak sequence
-        seq_embd = self.seq_encoder(peak_seq)
-        seq_embd = torch.flatten(seq_embd.permute(0, 2, 1, 3), start_dim=2)
-        peak_acc = peak_acc.unsqueeze(-1)
-
-        # Merge signal with sequence embedding
-        seq_atac_embd = self.merge_seq_atac(
-            torch.concat([seq_embd, peak_acc], axis=-1).permute(0, 2, 1)  # type: ignore
-        ).permute(0, 2, 1)
-
-        # Send merged embeding to Transformer encoder
-        attn_list = []
-        for i in range(self.n_attn_blocks):
-            seq_atac_embd, attn = self.attn_blocks[i](seq_atac_embd)
-            attn_list.append(attn.unsqueeze(0))
-        seq_atac_embd = torch.flatten(seq_atac_embd, start_dim=1)
-
-        x = torch.concat([seq_atac_embd, peak_dist, tf_exp, covariates], dim=1)  # type: ignore
+        x = torch.concat([peak_acc, covariates], dim=1)  # type: ignore
 
         # Concat peak accessibility, tf expression, and covariates
         x = self.fc(x)

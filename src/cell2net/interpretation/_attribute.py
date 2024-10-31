@@ -92,7 +92,7 @@ def compute_attribution(
     return peak_seq_attr, peak_acc_attr, tf_exp_attr
 
 
-def compute_peak_attribution(
+def compute_peak_attr(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
     batch_size: int = 8,
@@ -195,12 +195,13 @@ def compute_peak_attribution(
     return attr
 
 
-def compute_tf_attribution(
+def compute_tf_attr(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
     batch_size: int = 8,
     num_workers: int = 1,
-    n_steps: int = 100,
+    baseline: str = "max_dist",
+    n_steps: int = 50,
 ) -> np.ndarray:
     r"""
     Calculate the attribution of TF expression to target gene expression.
@@ -240,8 +241,8 @@ def compute_tf_attribution(
     # Use Integrated Gradients to estimate feature importances
     ig = IntegratedGradients(model.module)
 
-    # For each peak, find the highest value across all cells
-    # This value will be used as baseline for peaks that are not accessible
+    # For each TF, find the highest value across all cells
+    # This value will be used as baseline for TFs with zero expression
     max_tf_exp = (
         model.mdata["rna"].obsm["tf"].max(axis=0).toarray().flatten()  # type: ignore
     )
@@ -264,7 +265,7 @@ def compute_tf_attribution(
         # Otherwise, the baseline will be the highest value of across all cells
         _tf_exp = torch.where(
             tf_exp > 0,
-            torch.zeros_like(peak_acc),
+            torch.zeros_like(tf_exp),
             _max_tf_exp,
         )
 

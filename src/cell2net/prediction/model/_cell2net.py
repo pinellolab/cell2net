@@ -12,7 +12,6 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from cell2net._logging import logger
-from cell2net._setting import settings
 from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.module import PeaksTF2GeneExpressionPoisson
 
@@ -202,8 +201,8 @@ class Cell2Net(BaseModel):
         train_idx: list[int] | list[str] | None = None,
         valid_idx: list[int] | list[str] | None = None,
         stratify: list[str] | None = None,
-        batch_size: int = settings.batch_size,
-        num_workers: int = settings.dl_num_works,
+        batch_size: int = 128,
+        num_workers: int = 4,
         max_epochs: int = 20,
         random_state: int = 42,
         lr: float = 3e-04,
@@ -263,6 +262,7 @@ class Cell2Net(BaseModel):
 
         self.best_score, self.best_epoch = np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
+        train_corrs, valid_corrs = [], []
         for epoch in tqdm(range(max_epochs)):
             train_loss, train_corr = self._train()
             valid_loss, valid_corr = self._valid()
@@ -270,6 +270,8 @@ class Cell2Net(BaseModel):
             epochs.append(epoch)
             train_losses.append(train_loss)
             valid_losses.append(valid_loss)
+            train_corrs.append(train_corr)
+            valid_corrs.append(valid_corr)
 
             # Save model if find a better validation score
             if valid_loss < self.best_score:
@@ -284,8 +286,8 @@ class Cell2Net(BaseModel):
                 "epochs": epochs,
                 "train_loss": train_losses,
                 "valid_loss": valid_losses,
-                "train_corr": train_corr,
-                "valid_corr": valid_corr,
+                "train_corr": train_corrs,
+                "valid_corr": valid_corrs,
             }
         )
 
@@ -394,6 +396,7 @@ class Cell2Net(BaseModel):
 
         torch.save(
             {
+                SAVE_KEYS.MODEL_HISTORY: self.history_,
                 SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
                 SAVE_KEYS.MODULE_SUMMARY_DICT_KEY: self._module_summary,
             },
@@ -423,6 +426,7 @@ class Cell2Net(BaseModel):
         )
 
         self.module.load_state_dict(state_dict[SAVE_KEYS.MODEL_STATE_DICT_KEY])
+        self.history_ = state_dict[SAVE_KEYS.MODEL_HISTORY]
 
         if load_mdata:
             self.mdata = md.read_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu"))  # type: ignore

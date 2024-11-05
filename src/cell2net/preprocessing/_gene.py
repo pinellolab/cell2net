@@ -5,26 +5,20 @@ from mudata import MuData
 from pyjaspar import jaspardb
 
 
-def add_gene_tss_coord(
-    mdata: MuData,
-    gene_gtf: str,
-    feature_type: str = "gene",
-    mod_names: str = "rna",
-) -> None:
+def get_gene_tss_coor(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
     """
-    Extract the TSS coordinates for each gene.
+    Extract
 
     Parameters
     ----------
-    mdata : MuData
-        Input MuData object containing gene expression
     gene_gtf : str
-        GTF file including gene annotation, which should have 9 columns.
-    feature_type : str
-    """
-    assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
-    adata = mdata[mod_names]
+        _description_
 
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     if gene_gtf.endswith(".gz"):
         file_handle = gzip.open(gene_gtf, "rt")
     else:
@@ -69,6 +63,32 @@ def add_gene_tss_coord(
     # Convert gene_info into a DataFrame for easier manipulation
     df = pd.DataFrame(gene_info, columns=["chrom", "gene_name", "strand", "tss"])
     df = df.drop_duplicates(["gene_name"], keep="first")
+
+    return df
+
+
+def add_gene_tss_coord(
+    mdata: MuData,
+    gene_gtf: str,
+    feature_type: str = "gene",
+    mod_names: str = "rna",
+) -> None:
+    """
+    Add the TSS coordinates of genes to mdata.
+
+    Parameters
+    ----------
+    mdata : MuData
+        Input MuData object containing gene expression
+    gene_gtf : str
+        GTF file including gene annotation, which should have 9 columns.
+    feature_type : str
+    """
+    assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
+    adata = mdata[mod_names]
+
+    df = get_gene_tss_coor(gene_gtf=gene_gtf, feature_type=feature_type)
+
     adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)]
 
     return None

@@ -396,7 +396,7 @@ class Cell2Net(BaseModel):
 
         torch.save(
             {
-                SAVE_KEYS.MODEL_HISTORY: self.history_,
+                SAVE_KEYS.MODEL_HISTORY: self.history_.to_dict(),
                 SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
                 SAVE_KEYS.MODULE_SUMMARY_DICT_KEY: self._module_summary,
             },
@@ -426,7 +426,7 @@ class Cell2Net(BaseModel):
         )
 
         self.module.load_state_dict(state_dict[SAVE_KEYS.MODEL_STATE_DICT_KEY])
-        self.history_ = state_dict[SAVE_KEYS.MODEL_HISTORY]
+        self.history_ = pd.DataFrame.from_dict(state_dict[SAVE_KEYS.MODEL_HISTORY])
 
         if load_mdata:
             self.mdata = md.read_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu"))  # type: ignore

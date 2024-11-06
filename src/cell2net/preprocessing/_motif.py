@@ -252,7 +252,7 @@ def tf_to_gene(
     Returns
     -------
     None
-        Update mudata by adding a sparse matrix to mdata[rna_mod].varm
+        Add a dataframe to mdata[rna_mod].uns
     """
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]

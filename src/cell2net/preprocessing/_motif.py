@@ -3,16 +3,82 @@ from typing import Literal, get_args
 import MOODS.scan
 import MOODS.tools
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from mudata import MuData
+from pyjaspar import jaspardb
 from tqdm import tqdm
 
 _BACKGROUND = Literal["subject", "genome", "even"]
 
 
+def get_motifs_from_jaspar(
+    release: str = "JASPAR2024",
+    collection: str = "CORE",
+    tax_group: list[str] | None = None,
+):
+
+    if tax_group is None:
+        tax_group = ["vertebrates"]
+
+    jdb_obj = jaspardb(release=release)
+    motifs = jdb_obj.fetch_motifs(collection=collection, tax_group=tax_group)
+
+    return motifs
+
+
+def add_tf_info_from_jaspar(
+    mdata: MuData,
+    rna_mod: str = "rna",
+    motifs: list | None = None,
+) -> None:
+    """
+    Check if the genes are transcription factor using JASPAR database.
+
+    Parameters
+    ----------
+    mdata : MuData
+        Input MuData object containing gene expression
+    mod_names : str
+        Name of RNA modality in mdata, by default "rna"
+    release : str
+        Release of JASPAR database, by default "JASPAR2024"
+    """
+    assert rna_mod in mdata.mod_names, f"Cannot find modality: {rna_mod}"
+    adata = mdata[rna_mod]
+
+    jdb_obj = jaspardb(release=release)
+    motifs = jdb_obj.fetch_motifs(collection="CORE", tax_group=["vertebrates"])
+
+    motif_names, motif_ids = [], []
+    for motif in motifs:
+        motif_names.append(motif.name)
+        motif_ids.append(motif.matrix_id)
+
+    df_motif = pd.DataFrame(data={"name": motif_names, "matrix_id": motif_ids})
+
+    # tf_names = []
+    # for motif in motifs:
+    #     tf_names.append(motif.name)
+
+    # adata.var_names.upper()
+
+    is_tf = []
+    for gene_name in adata.var_names:
+        if gene_name in df_motif["name"] or gene_name.upper() in df_motif["name"]:
+            is_tf.append(True)
+        else:
+            is_tf.append(False)
+
+    adata.var["is_tf"] = is_tf
+
+    return None
+
+
 def match_motif(
-    data: MuData,
-    motifs,
+    data: MuData | AnnData,
+    rna_mod: str = "rna",
+    atac_mod: str = "atac",
     pseudocounts=0.0001,
     p_value=5e-05,
     background: _BACKGROUND = "even",
@@ -42,17 +108,20 @@ def match_motif(
     """
     if isinstance(data, AnnData):
         adata = data
-    elif isinstance(data, MuData) and "atac" in data.mod:
-        adata = data.mod["atac"]
+    elif isinstance(data, MuData) and atac_mod in data.mod:
+        adata = data.mod[atac_mod]
     else:
-        raise TypeError("Expected AnnData or MuData object with 'atac' modality")
+        raise TypeError(f"Expected AnnData or MuData object with {atac_mod} modality")
 
     assert (
-        "peak_seq" in adata.uns_keys()
+        "dna_sequence" in adata.var.columns
     ), "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
 
     options = get_args(_BACKGROUND)
     assert background in options, f"'{background}' is not in {options}"
+
+    jdb_obj = jaspardb(release="JASPAR2024")
+    motifs = jdb_obj.fetch_motifs(collection="CORE", tax_group=["vertebrates"])
 
     # add motif names to Anndata object
     adata.uns["motif_name"] = [None] * len(motifs)
@@ -96,7 +165,7 @@ def match_motif(
     adata.varm["motif_match"] = np.zeros(shape=(adata.n_vars, n_motifs), dtype=np.uint8)
 
     for i in tqdm(range(adata.n_vars)):
-        results = scanner.scan(adata.uns["peak_seq"][i])
+        results = scanner.scan(adata.var["dna_sequence"].iloc[i])
         for j in range(n_motifs):
             if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
                 adata.varm["motif_match"][i, j] = 1  # type: ignore

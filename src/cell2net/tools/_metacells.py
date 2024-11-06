@@ -1,8 +1,9 @@
-import anndata as ad
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from anndata import AnnData
 from mudata import MuData
+from scipy.sparse import csc_matrix
 from tqdm import tqdm
 
 from cell2net._logging import logger
@@ -93,12 +94,14 @@ def metacells(
 
     # create pseudo-bulk profiles for RNA and ATAC
     logger.info("Create pseudo-bulk profiles")
-    adata_rna = ad.AnnData(
-        X=rna_counts, var=mdata["rna"].var, obs=mdata.obs.iloc[obs_indices]
+    adata_rna = AnnData(
+        X=csc_matrix(rna_counts), var=mdata["rna"].var, obs=mdata.obs.iloc[obs_indices]
     )
 
-    adata_atac = ad.AnnData(
-        X=atac_counts, var=mdata["atac"].var, obs=mdata.obs.iloc[obs_indices]
+    adata_atac = AnnData(
+        X=csc_matrix(atac_counts),
+        var=mdata["atac"].var,
+        obs=mdata.obs.iloc[obs_indices],
     )
 
     adata_rna.layers["counts"] = adata_rna.X.copy()  # type: ignore

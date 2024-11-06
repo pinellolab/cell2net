@@ -61,21 +61,18 @@ class Cell2Net(BaseModel):
         self.max_gex = np.max(adata_rna.layers["counts"])  # type: ignore
         self.min_gex = np.min(adata_rna.layers["counts"])  # type: ignore
 
-        # Get all TFs
-        df_tfs = mdata[rna_mod].var[mdata[rna_mod].var["is_tf"]]
+        # Get associated TFs
+        row = mdata[rna_mod].uns["gene_tf"].loc[gene]
+        tfs = row[row != 0].index.tolist()
 
-        # If gene is a tf, then exclude it from the predictors
-        if gene in df_tfs.index:
-            df_tfs = df_tfs.drop(gene)
-
-        adata_rna.obsm["tf"] = mdata[rna_mod][:, df_tfs.index].layers["counts"].copy()  # type: ignore
+        adata_rna.obsm["tf"] = mdata[rna_mod][:, tfs].layers["counts"].copy()  # type: ignore
 
         self.mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac})  # type: ignore
         self.mdata.obs = mdata.obs.copy()
-        self.mdata.uns["tfs"] = df_tfs.index.values.tolist()
+        self.mdata.uns["tfs"] = tfs
         self.mdata.uns["peak_to_gene"] = peak_to_gene
 
-        self.n_tfs = len(df_tfs)
+        self.n_tfs = len(tfs)
 
         # Parameters for sequence encoder
         self.n_channels = n_channels
@@ -118,7 +115,7 @@ class Cell2Net(BaseModel):
             f"n_dims: {self.n_dims}"
         )
 
-    def _train(self):
+    def _train(self) -> tuple[float, float]:
         self.module.train()
 
         train_loss = 0.0
@@ -153,11 +150,11 @@ class Cell2Net(BaseModel):
         # compute spearman correlation beetween target and predicted expression
         rna_true = torch.concat(rna_true).numpy()
         rna_pred = torch.concat(rna_pred).numpy()
-        train_corr, _ = stats.spearmanr(rna_true, rna_pred)
+        res = stats.spearmanr(rna_true, rna_pred)
 
-        return train_loss, train_corr
+        return train_loss, res.statistic  # type: ignore
 
-    def _valid(self):
+    def _valid(self) -> tuple[float, float]:
         self.module.eval()
 
         valid_loss = 0.0
@@ -190,9 +187,9 @@ class Cell2Net(BaseModel):
         # compute spearman correlation beetween target and predicted expression
         rna_true = torch.concat(rna_true).numpy()
         rna_pred = torch.concat(rna_pred).numpy()
-        valid_corr, _ = stats.spearmanr(rna_true, rna_pred)
+        res = stats.spearmanr(rna_true, rna_pred)
 
-        return valid_loss, valid_corr
+        return valid_loss, res.statistic  # type: ignore
 
     def train(
         self,
@@ -258,9 +255,9 @@ class Cell2Net(BaseModel):
         self.optimizer = Adam(
             self.module.parameters(), lr=lr, weight_decay=weight_decay
         )
-        lr_scheduler = ReduceLROnPlateau(self.optimizer, "min", min_lr=1e-5, patience=5)
+        lr_scheduler = ReduceLROnPlateau(self.optimizer, "max", min_lr=1e-5, patience=5)
 
-        self.best_score, self.best_epoch = np.inf, 0
+        self.best_score, self.best_epoch = -np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
         train_corrs, valid_corrs = [], []
         for epoch in tqdm(range(max_epochs)):
@@ -274,12 +271,12 @@ class Cell2Net(BaseModel):
             valid_corrs.append(valid_corr)
 
             # Save model if find a better validation score
-            if valid_loss < self.best_score:
-                self.best_score = valid_loss
+            if valid_corr > self.best_score:
+                self.best_score = valid_corr
                 self.best_epoch = epoch
                 self.check_point = self.module.state_dict()
 
-            lr_scheduler.step(valid_loss)
+            lr_scheduler.step(valid_corr)  # type: ignore
 
         self.history_ = pd.DataFrame(
             data={

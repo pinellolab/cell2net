@@ -2,7 +2,6 @@ import gzip
 
 import pandas as pd
 from mudata import MuData
-from pyjaspar import jaspardb
 
 
 def get_gene_tss_coor(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
@@ -91,42 +90,4 @@ def add_gene_tss_coord(
 
     adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)]
 
-    return None
-
-
-def add_tf_info_from_jaspar(
-    mdata: MuData,
-    mod_names: str = "rna",
-    release: str = "JASPAR2024",
-) -> None:
-    """
-    Check if the genes are transcription factor using JASPAR database.
-
-    Parameters
-    ----------
-    mdata : MuData
-        Input MuData object containing gene expression
-    mod_names : str
-        Name of RNA modality in mdata, by default "rna"
-    release : str
-        Release of JASPAR database, by default "JASPAR2024"
-    """
-    assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
-    adata = mdata[mod_names]
-
-    jdb_obj = jaspardb(release=release)
-    motifs = jdb_obj.fetch_motifs(collection="CORE", tax_group=["vertebrates"])
-
-    tf_names = []
-    for motif in motifs:
-        tf_names.append(motif.name)
-
-    is_tf = []
-    for gene_name in adata.var_names:
-        if gene_name in tf_names or gene_name.upper() in tf_names:
-            is_tf.append(True)
-        else:
-            is_tf.append(False)
-
-    adata.var["is_tf"] = is_tf
     return None

@@ -1,5 +1,6 @@
 from importlib.metadata import version
 
+from . import evaluation as eval
 from . import genome as go
 from . import interpretation as ip
 from . import perturbation as pt
@@ -10,6 +11,6 @@ from . import tools as tl
 from . import utils as utils
 from ._setting import settings
 
-__all__ = ["pl", "pp", "tl", "pd", "ip", "pt", "settings", "utils", "go"]
+__all__ = ["pl", "pp", "tl", "pd", "ip", "pt", "settings", "utils", "go", "eval"]
 
 __version__ = version("cell2net")

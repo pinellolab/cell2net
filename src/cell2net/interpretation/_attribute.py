@@ -97,7 +97,7 @@ def compute_peak_attr(
     idx: list[int] | list[str] | None = None,
     batch_size: int = 8,
     num_workers: int = 1,
-    baseline: str = "max_dist",
+    baseline: str = "zero",
     n_steps: int = 50,
     multiply_by_inputs: bool = True,
 ) -> None:
@@ -116,7 +116,7 @@ def compute_peak_attr(
     num_workers : int, optional
         Number of CPUs for dataloader, by default 1
     baseline: str, optional
-        How to create baseline to compute integrated gradients. Default: "max_dist"
+        How to create baseline to compute integrated gradients. Default: "zero"
     n_steps: int, optional
         Number of steps used by the approximation method. Default: 50.
     multiply_by_inputs: bool, optional
@@ -202,7 +202,6 @@ def compute_tf_attr(
     idx: list[int] | list[str] | None = None,
     batch_size: int = 8,
     num_workers: int = 1,
-    baseline: str = "max_dist",
     n_steps: int = 50,
 ) -> np.ndarray:
     r"""
@@ -243,33 +242,16 @@ def compute_tf_attr(
     # Use Integrated Gradients to estimate feature importances
     ig = IntegratedGradients(model.module, multiply_by_inputs=False)
 
-    # For each TF, find the highest value across all cells
-    # This value will be used as baseline for TFs with zero expression
-    max_tf_exp = (
-        model.mdata["rna"].obsm["tf"].max(axis=0).toarray().flatten()  # type: ignore
-    )
-
     logger.info("Compute attribution for TF expression")
     attr = []
     for data in tqdm(data_loader):
-        peak_seq = data["peak_seq"].to(model.device).requires_grad_()
-        peak_acc = data["peak_acc"].to(model.device).requires_grad_()
-        peak_dist = data["peak_dist"].to(model.device).requires_grad_()
+        peak_seq = data["peak_seq"].to(model.device)
+        peak_acc = data["peak_acc"].to(model.device)
+        peak_dist = data["peak_dist"].to(model.device)
         tf_exp = data["tf_exp"].to(model.device).requires_grad_()
         covariates = data["covariates"].to(model.device)
 
-        _max_tf_exp = torch.from_numpy(
-            np.repeat(max_tf_exp[np.newaxis, :], tf_exp.shape[0], axis=0)
-        ).to(model.device)
-
-        # Create baseline TF expression
-        # For each cell, if the target input > 0, then the baseline will be 0
-        # Otherwise, the baseline will be the highest value of across all cells
-        _tf_exp = torch.where(
-            tf_exp > 0,
-            torch.zeros_like(tf_exp),
-            _max_tf_exp,
-        )
+        _tf_exp = torch.zeros_like(tf_exp)
 
         attributions = ig.attribute(
             inputs=(peak_seq, peak_acc, peak_dist, tf_exp),
@@ -280,8 +262,6 @@ def compute_tf_attr(
         )
 
         attr.append(attributions[3].detach().cpu())
-
-        # Release GPU memory
         del attributions
 
     attr = torch.cat(attr, dim=0).numpy()

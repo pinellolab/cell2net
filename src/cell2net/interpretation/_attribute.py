@@ -92,15 +92,16 @@ def compute_attribution(
     return peak_seq_attr, peak_acc_attr, tf_exp_attr
 
 
-def compute_peak_attribution(
+def compute_peak_attr(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
     batch_size: int = 8,
     num_workers: int = 1,
     baseline: str = "max_dist",
     n_steps: int = 50,
-) -> np.ndarray:
-    r"""
+    multiply_by_inputs: bool = True,
+) -> None:
+    """
     Calculate the attribution of peak accessibility to gene expression.
 
     Parameters
@@ -111,13 +112,15 @@ def compute_peak_attribution(
         A list of int or string to indicate.
         If set to None, use all cells. Default: None
     batch_size : int, optional
-        Batch size, by default 32
+        Batch size, by default 8
     num_workers : int, optional
-        Number of CPUs for dataloader, by default 4
+        Number of CPUs for dataloader, by default 1
     baseline: str, optional
         How to create baseline to compute integrated gradients. Default: "max_dist"
     n_steps: int, optional
         Number of steps used by the approximation method. Default: 50.
+    multiply_by_inputs: bool, optional
+        Whether or multiply input features when estimating attribution. Default: True
 
     Returns
     -------
@@ -141,7 +144,7 @@ def compute_peak_attribution(
     model.module.train()
 
     # Use Integrated Gradients to estimate feature importances
-    ig = IntegratedGradients(model.module)
+    ig = IntegratedGradients(model.module, multiply_by_inputs=multiply_by_inputs)
 
     # For each peak, find the highest value across all cells
     # This value will be used as baseline for peaks that are not accessible
@@ -152,10 +155,10 @@ def compute_peak_attribution(
     logger.info("Compute attribution for peak accessibility")
     attr = []
     for data in tqdm(data_loader):
-        peak_seq = data["peak_seq"].to(model.device).requires_grad_()
+        peak_seq = data["peak_seq"].to(model.device)
         peak_acc = data["peak_acc"].to(model.device).requires_grad_()
-        peak_dist = data["peak_dist"].to(model.device).requires_grad_()
-        tf_exp = data["tf_exp"].to(model.device).requires_grad_()
+        peak_dist = data["peak_dist"].to(model.device)
+        tf_exp = data["tf_exp"].to(model.device)
         covariates = data["covariates"].to(model.device)
 
         # Create baseline peak accessibility
@@ -175,7 +178,8 @@ def compute_peak_attribution(
             case "zero":
                 _peak_acc = torch.zeros_like(peak_acc)
             case "gaussian":
-                _peak_acc = peak_acc + torch.randn(peak_acc.size()) * 0.1
+                _noise = torch.randn(peak_acc.size()) * 0.1
+                _peak_acc = peak_acc + _noise.to(model.device)
 
         attributions = ig.attribute(
             inputs=(peak_seq, peak_acc, peak_dist, tf_exp),
@@ -186,21 +190,20 @@ def compute_peak_attribution(
         )
 
         attr.append(attributions[1].detach().cpu())
-
-        # Release GPU memory by moving other attributions to cpu
         del attributions
 
-    attr = torch.cat(attr, dim=0).numpy()
+    model.mdata["atac"].obsm["peak_attr"] = torch.cat(attr, dim=0).numpy()
 
-    return attr
+    return None
 
 
-def compute_tf_attribution(
+def compute_tf_attr(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
     batch_size: int = 8,
     num_workers: int = 1,
-    n_steps: int = 100,
+    baseline: str = "max_dist",
+    n_steps: int = 50,
 ) -> np.ndarray:
     r"""
     Calculate the attribution of TF expression to target gene expression.
@@ -238,10 +241,10 @@ def compute_tf_attribution(
     model.module.train()
 
     # Use Integrated Gradients to estimate feature importances
-    ig = IntegratedGradients(model.module)
+    ig = IntegratedGradients(model.module, multiply_by_inputs=False)
 
-    # For each peak, find the highest value across all cells
-    # This value will be used as baseline for peaks that are not accessible
+    # For each TF, find the highest value across all cells
+    # This value will be used as baseline for TFs with zero expression
     max_tf_exp = (
         model.mdata["rna"].obsm["tf"].max(axis=0).toarray().flatten()  # type: ignore
     )
@@ -264,7 +267,7 @@ def compute_tf_attribution(
         # Otherwise, the baseline will be the highest value of across all cells
         _tf_exp = torch.where(
             tf_exp > 0,
-            torch.zeros_like(peak_acc),
+            torch.zeros_like(tf_exp),
             _max_tf_exp,
         )
 

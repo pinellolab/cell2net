@@ -101,6 +101,7 @@ def create_bulk_adata(
     groupby: str,
     normalize: bool = True,
     target_sum: int | float = 10000,
+    log1p: bool = True,
 ) -> ad.AnnData:
     """
     Create a pseudo-bulk anndata file using groupby information
@@ -128,5 +129,8 @@ def create_bulk_adata(
 
     if normalize:
         sc.pp.normalize_total(adata_bulk, target_sum=target_sum, layer="counts")
+
+    if log1p:
+        sc.pp.log1p(adata_bulk)
 
     return adata_bulk

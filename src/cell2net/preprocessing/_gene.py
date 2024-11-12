@@ -2,29 +2,22 @@ import gzip
 
 import pandas as pd
 from mudata import MuData
-from pyjaspar import jaspardb
 
 
-def add_gene_tss_coord(
-    mdata: MuData,
-    gene_gtf: str,
-    feature_type: str = "gene",
-    mod_names: str = "rna",
-) -> None:
+def get_gene_tss_coor(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
     """
-    Extract the TSS coordinates for each gene.
+    Extract
 
     Parameters
     ----------
-    mdata : MuData
-        Input MuData object containing gene expression
     gene_gtf : str
-        GTF file including gene annotation, which should have 9 columns.
-    feature_type : str
-    """
-    assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
-    adata = mdata[mod_names]
+        _description_
 
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     if gene_gtf.endswith(".gz"):
         file_handle = gzip.open(gene_gtf, "rt")
     else:
@@ -69,44 +62,32 @@ def add_gene_tss_coord(
     # Convert gene_info into a DataFrame for easier manipulation
     df = pd.DataFrame(gene_info, columns=["chrom", "gene_name", "strand", "tss"])
     df = df.drop_duplicates(["gene_name"], keep="first")
-    adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)]
 
-    return None
+    return df
 
 
-def add_tf_info_from_jaspar(
+def add_gene_tss_coord(
     mdata: MuData,
+    gene_gtf: str,
+    feature_type: str = "gene",
     mod_names: str = "rna",
-    release: str = "JASPAR2024",
 ) -> None:
     """
-    Check if the genes are transcription factor using JASPAR database.
+    Add the TSS coordinates of genes to mdata.
 
     Parameters
     ----------
     mdata : MuData
         Input MuData object containing gene expression
-    mod_names : str
-        Name of RNA modality in mdata, by default "rna"
-    release : str
-        Release of JASPAR database, by default "JASPAR2024"
+    gene_gtf : str
+        GTF file including gene annotation, which should have 9 columns.
+    feature_type : str
     """
     assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
     adata = mdata[mod_names]
 
-    jdb_obj = jaspardb(release=release)
-    motifs = jdb_obj.fetch_motifs(collection="CORE", tax_group=["vertebrates"])
+    df = get_gene_tss_coor(gene_gtf=gene_gtf, feature_type=feature_type)
 
-    tf_names = []
-    for motif in motifs:
-        tf_names.append(motif.name)
+    adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)]
 
-    is_tf = []
-    for gene_name in adata.var_names:
-        if gene_name in tf_names or gene_name.upper() in tf_names:
-            is_tf.append(True)
-        else:
-            is_tf.append(False)
-
-    adata.var["is_tf"] = is_tf
     return None

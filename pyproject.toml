@@ -36,6 +36,7 @@ dependencies = [
   "polars",
   "matplotlib",
   "PyComplexHeatmap==1.7.7",
+  "MOODS-python"
 ]
 optional-dependencies.dev = [
   "pre-commit",

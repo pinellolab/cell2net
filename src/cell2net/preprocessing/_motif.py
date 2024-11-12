@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Literal, get_args
 
 import MOODS.scan
@@ -45,62 +46,15 @@ def get_motifs_from_jaspar(
     return motifs
 
 
-# def add_tf_info_from_jaspar(
-#     mdata: MuData,
-#     rna_mod: str = "rna",
-#     motifs: list | None = None,
-# ) -> None:
-#     """
-#     Check if the genes are transcription factor using JASPAR database.
-
-#     Parameters
-#     ----------
-#     mdata : MuData
-#         Input MuData object containing gene expression
-#     mod_names : str
-#         Name of RNA modality in mdata, by default "rna"
-#     release : str
-#         Release of JASPAR database, by default "JASPAR2024"
-#     """
-#     assert rna_mod in mdata.mod_names, f"Cannot find modality: {rna_mod}"
-#     adata = mdata[rna_mod]
-
-#     jdb_obj = jaspardb(release=release)
-#     motifs = jdb_obj.fetch_motifs(collection="CORE", tax_group=["vertebrates"])
-
-#     motif_names, motif_ids = [], []
-#     for motif in motifs:
-#         motif_names.append(motif.name)
-#         motif_ids.append(motif.matrix_id)
-
-#     df_motif = pd.DataFrame(data={"name": motif_names, "matrix_id": motif_ids})
-
-#     # tf_names = []
-#     # for motif in motifs:
-#     #     tf_names.append(motif.name)
-
-#     # adata.var_names.upper()
-
-#     is_tf = []
-#     for gene_name in adata.var_names:
-#         if gene_name in df_motif["name"] or gene_name.upper() in df_motif["name"]:
-#             is_tf.append(True)
-#         else:
-#             is_tf.append(False)
-
-#     adata.var["is_tf"] = is_tf
-
-#     return None
-
-
 def match_motif(
     mdata: MuData,
-    motifs,
+    motifs: Iterable,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
     pseudocounts=0.0001,
     p_value=5e-05,
     background: _BACKGROUND = "even",
+    key_added: str = "motif_match",
 ) -> None:
     """
     Perform motif matching to predict binding sites using MOODS
@@ -222,7 +176,7 @@ def match_motif(
             if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
                 motif_match[i, j] = 1  # type: ignore
 
-    adata_atac.varm["motif_match"] = csr_matrix(motif_match)
+    adata_atac.varm[key_added] = csr_matrix(motif_match)
 
     return None
 

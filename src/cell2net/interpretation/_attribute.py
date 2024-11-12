@@ -100,8 +100,8 @@ def compute_peak_attr(
     baseline: str = "max_dist",
     n_steps: int = 50,
     multiply_by_inputs: bool = True,
-) -> np.ndarray:
-    r"""
+) -> None:
+    """
     Calculate the attribution of peak accessibility to gene expression.
 
     Parameters
@@ -112,13 +112,15 @@ def compute_peak_attr(
         A list of int or string to indicate.
         If set to None, use all cells. Default: None
     batch_size : int, optional
-        Batch size, by default 32
+        Batch size, by default 8
     num_workers : int, optional
-        Number of CPUs for dataloader, by default 4
+        Number of CPUs for dataloader, by default 1
     baseline: str, optional
         How to create baseline to compute integrated gradients. Default: "max_dist"
     n_steps: int, optional
         Number of steps used by the approximation method. Default: 50.
+    multiply_by_inputs: bool, optional
+        Whether or multiply input features when estimating attribution. Default: True
 
     Returns
     -------
@@ -188,13 +190,11 @@ def compute_peak_attr(
         )
 
         attr.append(attributions[1].detach().cpu())
-
-        # Release GPU memory by moving other attributions to cpu
         del attributions
 
-    attr = torch.cat(attr, dim=0).numpy()
+    model.mdata["atac"].obsm["peak_attr"] = torch.cat(attr, dim=0).numpy()
 
-    return attr
+    return None
 
 
 def compute_tf_attr(

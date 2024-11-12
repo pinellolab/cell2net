@@ -131,7 +131,7 @@ def peak_to_gene(
     highly_variable: bool = True,
     genes: list[str] | None = None,
     min_n_peaks: int = 1,
-    max_pct_dropout_by_counts: float = 100,
+    max_pct_dropout_by_counts: float | None = None,
     inplace: bool = True,
 ) -> pd.DataFrame | None:
     """
@@ -196,7 +196,9 @@ def peak_to_gene(
 
     if max_pct_dropout_by_counts is not None:
         logging.info("Filter genes by pct_dropout_by_counts")
-        df = adata_rna.var[adata_rna.var["pct_dropout_by_counts"] < max_pct_dropout_by_counts]
+        df = adata_rna.var[
+            adata_rna.var["pct_dropout_by_counts"] < max_pct_dropout_by_counts
+        ]
         df_tss = df_tss[df_tss["Name"].isin(df["genes"])]
 
     if genes is not None:

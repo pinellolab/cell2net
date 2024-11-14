@@ -47,9 +47,8 @@ def tf_to_gene(
     # For each group, subset the attribution and perform t-test by comparing with the reference
     for i, unique_group in enumerate(unique_groups):
         _attr = attr[group_indices == i]
-        _ref_attr = attr[group_indices != i]
 
-        res = stats.ttest_ind(_attr, _ref_attr, axis=0, alternative="greater")
+        res = stats.ttest_1samp(_attr, popmean=0, axis=0, alternative="greater")
 
         df = pd.DataFrame(
             data={

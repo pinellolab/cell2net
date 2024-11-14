@@ -1,21 +1,20 @@
+import anndata as ad
 import numpy as np
-import pandas as pd
 import scanpy as sc
 from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import csc_matrix
-from tqdm import tqdm
 
 from cell2net._logging import logger
 
 
-def metacells(
+def get_metacells(
     mdata: MuData,
     n_metacells: int,
-    mod_key: str | None = None,
+    rna_mod: str = "rna",
+    atac_mod: str = "atac",
     n_neighbors: int = 15,
-    n_pcs: int = 30,
-    use_rep: str | None = "X_pca",
+    use_rep: str = "X_pca",
     groupby: str | None = None,
 ) -> MuData:
     """
@@ -54,62 +53,116 @@ def metacells(
     """
     # randome select number of cells that will be used as metacells
     logger.info(f"Select {n_metacells} metacells")
-    obs_indices = np.random.choice(mdata.n_obs, size=n_metacells, replace=False)
+
+    metacell_indices = np.random.choice(
+        mdata.n_obs, size=n_metacells, replace=False
+    ).tolist()
+
+    metacell_names = mdata.obs_names[metacell_indices]
+
+    if groupby:
+        logger.info(f"Group cells by {groupby}")
+        groups = mdata.obs[groupby].unique().tolist()
+
+        _adata_rna_list, _adata_atac_list = [], []
+        for group in groups:
+            _mdata = mdata[mdata.obs[groupby] == group]
+            _metacell_names = list(set(metacell_names) & set(_mdata.obs_names))
+            logger.info(f"Create {len(_metacell_names)} metacells for {group}")
+
+            # get metacell indices
+            _metacell_indices = [
+                i
+                for i, obs_name in enumerate(_mdata.obs_names)
+                if obs_name in _metacell_names
+            ]
+
+            _adata_rna, _adata_atac = _get_metacells(
+                mdata=_mdata,
+                metacell_indices=_metacell_indices,
+                rna_mod=rna_mod,
+                atac_mod=atac_mod,
+                n_neighbors=n_neighbors,
+                use_rep=use_rep,
+            )
+
+            _adata_rna_list.append(_adata_rna)
+            _adata_atac_list.append(_adata_atac)
+
+        adata_rna = ad.concat(_adata_rna_list)
+        adata_atac = ad.concat(_adata_atac_list)
+    else:
+        # create metacells using all cells
+        logger.info("No groupby provided, using all cells")
+        adata_rna, adata_atac = _get_metacells(
+            mdata=mdata,
+            metacell_indices=metacell_indices,
+            rna_mod=rna_mod,
+            atac_mod=atac_mod,
+            n_neighbors=n_neighbors,
+            use_rep=use_rep,
+        )
+
+    mdata_metacells = MuData({rna_mod: adata_rna, atac_mod: adata_atac})
+    mdata_metacells.obs = mdata.obs.iloc[metacell_indices].copy()
+
+    return mdata_metacells
+
+
+def _get_metacells(
+    mdata,
+    metacell_indices: list[int],
+    rna_mod: str = "rna",
+    atac_mod: str = "atac",
+    n_neighbors: int = 15,
+    use_rep: str = "X_pca",
+):
+
+    adata_rna = mdata[rna_mod]
+    adata_atac = mdata[atac_mod]
 
     # compute kNN and the distance from each point to its nearest neighbors
     sc.pp.neighbors(
-        mdata.mod[mod_key],
+        mdata.mod[rna_mod],
         use_rep=use_rep,
-        n_pcs=n_pcs,
         n_neighbors=n_neighbors,
         knn=True,
     )
+    knn_graph = mdata.mod[rna_mod].obsp["connectivities"]
 
-    rna_counts = np.zeros(shape=(n_metacells, mdata["rna"].n_vars), dtype=np.float32)
-    atac_counts = np.zeros(shape=(n_metacells, mdata["atac"].n_vars), dtype=np.float32)
-
-    logger.info("Find neighbors for each metacell")
-    df_list = []
-    for i, idx in tqdm(enumerate(obs_indices)):
-        metacell_name = f"metacell_{i}"
-        neighbors_idx = mdata.mod[mod_key].obsp["connectivities"][idx].nonzero()[1]  # type: ignore
+    rna_counts = np.zeros(
+        shape=(len(metacell_indices), adata_rna.n_vars), dtype=np.float32
+    )
+    atac_counts = np.zeros(
+        shape=(len(metacell_indices), adata_atac.n_vars), dtype=np.float32
+    )
+    for i, idx in enumerate(metacell_indices):
+        neighbors_idx = knn_graph[idx].nonzero()[1]  # type: ignore
 
         # get cell names
         cells = mdata.obs_names[neighbors_idx]
 
-        rna_counts[i, :] = np.ravel(mdata["rna"][cells, :].layers["counts"].sum(axis=0))  # type: ignore
-        atac_counts[i, :] = np.ravel(
-            mdata["atac"][cells, :].layers["counts"].sum(axis=0)  # type: ignore
-        )
-
-        df = pd.DataFrame(
-            data={
-                "metacells": metacell_name,
-                "center_cell": mdata.obs_names[idx],
-                "obs_names": cells,
-            }
-        )
-
-        df_list.append(df)
+        rna_counts[i, :] = np.ravel(adata_rna[cells, :].layers["counts"].sum(axis=0))
+        atac_counts[i, :] = np.ravel(adata_atac[cells, :].layers["counts"].sum(axis=0))
 
     # create pseudo-bulk profiles for RNA and ATAC
-    logger.info("Create pseudo-bulk profiles")
     adata_rna = AnnData(
-        X=csc_matrix(rna_counts), var=mdata["rna"].var, obs=mdata.obs.iloc[obs_indices]
+        X=csc_matrix(rna_counts),
+        obs=mdata[rna_mod].obs.iloc[metacell_indices].copy(),
     )
 
     adata_atac = AnnData(
         X=csc_matrix(atac_counts),
-        var=mdata["atac"].var,
-        obs=mdata.obs.iloc[obs_indices],
+        obs=mdata[atac_mod].obs.iloc[metacell_indices].copy(),
     )
+
+    adata_rna.var_names = mdata[rna_mod].var_names
+    adata_atac.var_names = mdata[atac_mod].var_names
 
     adata_rna.layers["counts"] = adata_rna.X.copy()  # type: ignore
     adata_atac.layers["counts"] = adata_atac.X.copy()  # type: ignore
 
-    mdata_metacells = MuData({"rna": adata_rna, "atac": adata_atac})
-    mdata_metacells.uns["metacells"] = pd.concat(df_list)
+    sc.pp.calculate_qc_metrics(adata=adata_rna)
+    sc.pp.calculate_qc_metrics(adata=adata_atac)
 
-    mdata_metacells.obs = mdata.obs.iloc[obs_indices].copy()
-
-    return mdata_metacells
+    return adata_rna, adata_atac

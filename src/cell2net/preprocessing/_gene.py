@@ -6,17 +6,19 @@ from mudata import MuData
 
 def get_gene_tss_coor(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
     """
-    Extract
+    Extract TSS coordinates for each gene from a GTF file
 
     Parameters
     ----------
     gene_gtf : str
-        _description_
+        GTF file including gene annotation, should have 9 columns.
+    feature_type:
+        Which feature type in the GTF file to use. Default: gene
 
     Returns
     -------
     pd.DataFrame
-        _description_
+        A dataframe
     """
     if gene_gtf.endswith(".gz"):
         file_handle = gzip.open(gene_gtf, "rt")
@@ -73,7 +75,7 @@ def add_gene_tss_coord(
     mod_names: str = "rna",
 ) -> None:
     """
-    Add the TSS coordinates of genes to mdata.
+    Add the TSS coordinates of genes to mdata[mod_names].uns.
 
     Parameters
     ----------
@@ -82,6 +84,7 @@ def add_gene_tss_coord(
     gene_gtf : str
         GTF file including gene annotation, which should have 9 columns.
     feature_type : str
+        Which feature type in the GTF file to use. Default: gene
     """
     assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
     adata = mdata[mod_names]

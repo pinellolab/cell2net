@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from mudata import MuData
-from scipy import stats
 
 from cell2net._logging import logger
 
@@ -10,6 +9,8 @@ def tf_to_gene(
     mdata: MuData,
     attr: np.ndarray,
     groupby: str,
+    min_attr: float | None = 0.0,
+    n_tfs_per_group: int | None = 20,
 ) -> pd.DataFrame:
     """
     Extracts TF-gene regulation base on the attribution of transcription factor expression
@@ -48,20 +49,25 @@ def tf_to_gene(
     for i, unique_group in enumerate(unique_groups):
         _attr = attr[group_indices == i]
 
-        res = stats.ttest_1samp(_attr, popmean=0, axis=0, alternative="greater")
+        # res = stats.ttest_1samp(_attr, popmean=0, axis=0, alternative="greater")
 
         df = pd.DataFrame(
             data={
                 "tf": mdata.uns["tfs"],
                 "gene": mdata["rna"].var_names[0],
-                "cell_type": unique_group,
+                groupby: unique_group,
                 "avg_attr": np.mean(_attr, axis=0),
-                "t-statistic": res[0],
-                "pvalue": res[1],
+                "std_attr": np.std(_attr, axis=0),
+                # "t-statistic": res[0],
+                # "pvalue": res[1],
             }
         )
         df_list.append(df)
 
     df = pd.concat(df_list, axis=0).reset_index(drop=True)
+
+    # filter by min_attr
+    if min_attr:
+        df = df[df["avg_attr"] > min_attr].reset_index(drop=True)
 
     return df

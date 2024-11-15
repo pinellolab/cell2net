@@ -149,15 +149,14 @@ def _get_metacells(
     adata_rna = AnnData(
         X=csc_matrix(rna_counts),
         obs=mdata[rna_mod].obs.iloc[metacell_indices].copy(),
+        var=mdata[rna_mod].var,
     )
 
     adata_atac = AnnData(
         X=csc_matrix(atac_counts),
         obs=mdata[atac_mod].obs.iloc[metacell_indices].copy(),
+        var=mdata[atac_mod].var,
     )
-
-    adata_rna.var_names = mdata[rna_mod].var_names
-    adata_atac.var_names = mdata[atac_mod].var_names
 
     adata_rna.layers["counts"] = adata_rna.X.copy()  # type: ignore
     adata_atac.layers["counts"] = adata_atac.X.copy()  # type: ignore

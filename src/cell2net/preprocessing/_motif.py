@@ -223,6 +223,7 @@ def tf_to_gene(
     gene_tf = np.zeros(shape=(len(genes), n_motifs), dtype=np.uint8)
 
     logger.info("Find potential TFs for each gene")
+    motif_names = df_motifs["gene_name"].values.tolist()
     for i, gene in tqdm(enumerate(genes)):
         df_p2g = mdata.uns["peak_to_gene"][mdata.uns["peak_to_gene"]["gene"] == gene]
         peaks = df_p2g["peak"].values.tolist()
@@ -238,10 +239,10 @@ def tf_to_gene(
         idx_list = list(set(np.concatenate(idx_list)))
         gene_tf[i, idx_list] = 1
 
-        # to avoid self-regulation, we here check if the target gene
-        # is also a TF, if so, remove it from the regulator
-        if gene in df_motifs["gene_name"]:
-            idx = df_motifs["gene_name"][df_motifs["gene_name"] == gene].index
+        # to avoid self-regulation, we here check if the target gene is also a TF.
+        # If so, remove it from the regulator
+        if gene in motif_names:
+            idx = motif_names.index(gene)
             gene_tf[i, idx] = 0
 
     adata_rna.uns[key_added] = pd.DataFrame(

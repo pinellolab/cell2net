@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 from mudata import MuData
-
-from cell2net._logging import logger
+from scipy import stats
 
 
 def tf_to_gene(
@@ -10,7 +9,7 @@ def tf_to_gene(
     attr: np.ndarray,
     groupby: str,
     min_attr: float | None = 0.0,
-    n_tfs_per_group: int | None = 20,
+    n_tfs: int = 15,
 ) -> pd.DataFrame:
     """
     Extracts TF-gene regulation base on the attribution of transcription factor expression
@@ -40,8 +39,8 @@ def tf_to_gene(
         f"Length of grouby {len(groups)} is different from number of cells {attr.shape[0]}"
     )
 
-    logger.info("Extract tf-to-gene links")
-    logger.info(f"Cells are grouped by {groupby}")
+    # logger.info("Extract tf-to-gene links")
+    # logger.info(f"Cells are grouped by {groupby}")
     unique_groups, group_indices = np.unique(groups, return_inverse=True)  # type: ignore
 
     df_list = []
@@ -49,7 +48,7 @@ def tf_to_gene(
     for i, unique_group in enumerate(unique_groups):
         _attr = attr[group_indices == i]
 
-        # res = stats.ttest_1samp(_attr, popmean=0, axis=0, alternative="greater")
+        res = stats.ttest_1samp(_attr, popmean=0, axis=0, alternative="greater")
 
         df = pd.DataFrame(
             data={
@@ -57,9 +56,9 @@ def tf_to_gene(
                 "gene": mdata["rna"].var_names[0],
                 groupby: unique_group,
                 "avg_attr": np.mean(_attr, axis=0),
-                "std_attr": np.std(_attr, axis=0),
-                # "t-statistic": res[0],
-                # "pvalue": res[1],
+                # "std_attr": np.std(_attr, axis=0),
+                "t-statistic": res[0],
+                "pvalue": res[1],
             }
         )
         df_list.append(df)
@@ -69,5 +68,12 @@ def tf_to_gene(
     # filter by min_attr
     if min_attr:
         df = df[df["avg_attr"] > min_attr].reset_index(drop=True)
+
+    # Group by 'group_column' and select the top 20 rows within each group
+    df = (
+        df.groupby(groupby)
+        .apply(lambda x: x.nlargest(n_tfs, "avg_attr"))
+        .reset_index(drop=True)
+    )
 
     return df

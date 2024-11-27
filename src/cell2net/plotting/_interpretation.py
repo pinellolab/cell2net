@@ -8,6 +8,12 @@ from sklearn.preprocessing import StandardScaler
 from cell2net._logging import logger
 from cell2net.utils import create_bulk_adata
 
+# from scanpy import
+
+
+def tf_attr_dotplot(df: pd.DataFrame, var_names, groupby):
+    pass
+
 
 def peak_attr_boxplot(data):
     return NotImplemented

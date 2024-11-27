@@ -1,19 +1,13 @@
 import numpy as np
 import pandas as pd
 from mudata import MuData
-from scipy import stats
 
 
 def peak_to_gene(
-    mdata: MuData,
-    attr: np.ndarray,
-    groupby: str,
+    mdata: MuData, attr: np.ndarray, groupby: str, n_peaks: int = 50
 ) -> pd.DataFrame:
     """
     Extracts peak-to-gene links based on the attribution of peak accessibility
-
-    This is done by performing t-test to compare the attributions to zero.
-    If the groupby is None, all cells are used, otherwise the test is done for each group.
 
     Parameters
     ----------
@@ -47,23 +41,23 @@ def peak_to_gene(
     # For each group, subset the attribution and perform t-test
     for i, unique_group in enumerate(unique_groups):
         _attr = attr[group_indices == i]
-        _ref_attr = attr[group_indices != i]
-
-        # res = stats.ttest_ind(_attr, _ref_attr, axis=0, alternative="greater")
-        res = stats.ttest_1samp(_attr, popmean=0, axis=0, alternative="greater")
-
         df = pd.DataFrame(
             data={
                 "peak": mdata.uns["peak_to_gene"]["peak"],
                 "gene": gene,
-                "cell_type": unique_group,
+                groupby: unique_group,
                 "avg_attr": np.mean(_attr, axis=0),
-                "t-statistic": res[0],
-                "pvalue": res[1],
             }
         )
         df_list.append(df)
 
     df = pd.concat(df_list, axis=0).reset_index(drop=True)
+
+    # Group by 'group_column' and select the top 20 rows within each group
+    df = (
+        df.groupby(groupby)
+        .apply(lambda x: x.nlargest(n_peaks, "avg_attr"))
+        .reset_index(drop=True)
+    )
 
     return df

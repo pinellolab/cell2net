@@ -22,3 +22,4 @@ __pycache__/
 
 # workspace
 src/cell2net/prediction/model/cell2net.code-workspace
+cell2net.code-workspace

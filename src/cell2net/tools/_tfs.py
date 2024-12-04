@@ -17,7 +17,7 @@ def get_top_tfs(
     Returns
     -------
     pd.DataFrame
-        _description_
+        Output dataframe
     """
     # copy the dataframe
     df_act = df.copy()

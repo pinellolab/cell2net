@@ -2,7 +2,6 @@
 .DS_Store
 *~
 buck-out/
-install.sh
 
 # Compiled files
 .venv/

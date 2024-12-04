@@ -1,3 +1,5 @@
+"""Functions to make dot plot"""
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -8,8 +10,9 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
+from scanpy.plotting import DotPlot
 
-_VarNames = str | Sequence[str]
+from ._utils import _VarNames, process_var_names
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -17,14 +20,25 @@ if TYPE_CHECKING:
 
     import pandas as pd
     from matplotlib.axes import Axes
-    from matplotlib.colors import Colormap
+    from matplotlib.colors import Colormap, Normalize
 
 
-def _prepare_var_names():
-    pass
+def prepare_dataframes_for_tf_dotplot(
+    df: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Prepare the color and size dataframe for dot plot
 
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe
 
-def prepare_dataframes(df: pd.DataFrame):
+    Returns
+    -------
+    _type_
+        _description_
+    """
     # get average regulation of each tf within cell types
     # used for dot color
     dot_color_df = df.groupby(["tf", "cell_type_v2"])["avg_attr"].sum().reset_index()
@@ -50,15 +64,14 @@ def prepare_dataframes(df: pd.DataFrame):
     return dot_color_df, dot_size_df
 
 
-def _dot_plot(
+def make_dot_plot(
     dot_size: pd.DataFrame,
     dot_color: pd.DataFrame,
-    dot_ax: Axes,
-    cmap: Colormap | str | None = "Reds",
+    ax: Axes,
+    cmap: Colormap | str | None,
     color_on: Literal["dot", "square"] = "dot",
     dot_max: float | None = None,
     dot_min: float | None = None,
-    standard_scale: Literal["var", "group"] | None = "var",
     smallest_dot: float = 0.0,
     largest_dot: float = 200.0,
     size_exponent: float = 1.5,
@@ -77,7 +90,8 @@ def _dot_plot(
     Makes a *dot plot* given two data frames.
 
     One contains the doc size and other containing the dot color.
-    The indices and columns of the data frame are used to label the output image
+    They should have the same indices and columns, which are used
+    to label the output image.
 
     This function is modified from scanpy.plotting.Dotplot
 
@@ -104,15 +118,6 @@ def _dot_plot(
         "and dot_color dataframes have the same columns"
     )
 
-    if standard_scale == "group":
-        dot_color = dot_color.sub(dot_color.min(1), axis=0)
-        dot_color = dot_color.div(dot_color.max(1), axis=0).fillna(0)
-    elif standard_scale == "var":
-        dot_color -= dot_color.min(0)
-        dot_color = (dot_color / dot_color.max(0)).fillna(0)
-    elif standard_scale is None:
-        pass
-
     y, x = np.indices(dot_color.shape)
     y = y.flatten() + 0.5
     x = x.flatten() + 0.5
@@ -138,20 +143,42 @@ def _dot_plot(
         # re-scale frac between 0 and 1
         frac = (frac - dot_min) / old_range
 
-    return dot_ax
+    ax.scatter(x, y, **kwds)
+
+    return ax
 
 
 def tf_dotplot(
     df: pd.DataFrame,
-    ax: Axes,
-    cmap: Colormap | str | None,
     var_names: _VarNames | Mapping[str, _VarNames],
     categories_order: Sequence[str] | None = None,
+    standard_scale: Literal["var", "group"] | None = None,
     title: str | None = None,
+    colorbar_title: str | None = DotPlot.DEFAULT_COLOR_LEGEND_TITLE,
+    size_title: str | None = DotPlot.DEFAULT_SIZE_LEGEND_TITLE,
     figsize: tuple[float, float] | None = None,
-    standard_scale="var",
-    dendrogram=True,
-) -> None:
+    dendrogram: bool | str = False,
+    var_group_positions: Sequence[tuple[int, int]] | None = None,
+    var_group_labels: Sequence[str] | None = None,
+    var_group_rotation: float | None = None,
+    layer: str | None = None,
+    swap_axes: bool | None = False,
+    dot_color_df: pd.DataFrame | None = None,
+    show: bool | None = None,
+    save: str | bool | None = None,
+    ax: Axes | None = None,
+    return_fig: bool | None = False,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    vcenter: float | None = None,
+    norm: Normalize | None = None,
+    # Style parameters
+    cmap: Colormap | str | None = DotPlot.DEFAULT_COLORMAP,
+    dot_max: float | None = DotPlot.DEFAULT_DOT_MAX,
+    dot_min: float | None = DotPlot.DEFAULT_DOT_MIN,
+    smallest_dot: float = DotPlot.DEFAULT_SMALLEST_DOT,
+    **kwds,
+) -> None | Axes:
     """
     Makes a *dot plot* of the regulation activities of `var_names`.
 
@@ -170,38 +197,17 @@ def tf_dotplot(
     dendrogram : bool, optional
         _description_, by default True
     """
-    #
-    width, height = figsize if figsize is not None else (None, None)
+    # prepare data for plotting
+    dot_color, dot_size = prepare_dataframes_for_tf_dotplot(df)
 
-    dot_color, dot_size = prepare_dataframes(df)
-
-    # subset the dataframe
-    has_var_groups = False
-    if isinstance(var_names, Mapping):
-        var_group_labels = []
-        _var_names = []
-        var_group_positions = []
-        start = 0
-        for label, vars_list in var_names.items():
-            if isinstance(vars_list, str):
-                vars_list = [vars_list]
-            # use list() in case var_list is a numpy array or pandas series
-            _var_names.extend(list(vars_list))
-            var_group_labels.append(label)
-            var_group_positions.append((start, start + len(vars_list) - 1))
-            start += len(vars_list)
-
-        var_names = _var_names
-        var_group_labels = var_group_labels
-        var_group_positions = var_group_positions
-        has_var_groups = True
-
-    elif isinstance(var_names, str):
-        var_names = [var_names]
-
+    # process variable names and subset dataframe
+    var_names, var_group_labels, var_group_positions, has_var_groups = (
+        process_var_names(var_names)
+    )
     dot_color = dot_color[var_names]
     dot_size = dot_size[var_names]
 
+    # normalize the dataframe for dot color
     if standard_scale == "group":
         dot_color = dot_color.sub(dot_color.min(1), axis=0)
         dot_color = dot_color.div(dot_color.max(1), axis=0).fillna(0)
@@ -211,14 +217,17 @@ def tf_dotplot(
     elif standard_scale is None:
         pass
 
-    # make scatter plot in which
-    # x = var_names
-    # y = groupby category
-    # size = number of target genes
-    # color = mean regulation activity
+    # get dot
+    # set figure size
+    width, height = figsize if figsize is not None else (None, None)
 
-    # +0.5 in y and x to set the dot center at 0.5 multiples
-    # this facilitates dendrogram and totals alignment for
-    # matrixplot, dotplot and stackec_violin using the same coordinates.
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 5))
 
-    pass
+    # make dot plot
+    make_dot_plot(dot_color=dot_color, dot_size=dot_size, ax=ax, cmap=cmap)
+
+    if return_fig:
+        return ax
+    else:
+        return None

@@ -1,4 +1,3 @@
-import logging
 import re
 
 import pandas as pd
@@ -8,6 +7,8 @@ import pyranges.genomicfeatures as gf
 from mudata import MuData
 from pysam import FastaFile
 from tqdm import tqdm
+
+from cell2net._logging import logger
 
 
 def add_peaks(
@@ -122,6 +123,7 @@ def peak_to_gene(
     mdata: MuData,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
+    gene_name_col: str = "gene_names",
     up_stream: int = 500_000,
     down_stream: int = 500_000,
     ref_fasta: str = "",
@@ -145,6 +147,8 @@ def peak_to_gene(
         Name of RNA modality in mdata, by default "rna"
     atac_mod : str, optional
         Name of ATAC modality in mdata, by default "atac"
+    gene_name_col: str, optional
+        Where to find the genome in mdata[rna_mod].var, by default "gene_names"
     up_stream : int, optional
         Distance of upstream of TSS to find associated peaks, by default 500_000
     down_stream : int, optional
@@ -179,7 +183,7 @@ def peak_to_gene(
 
     assert "gene_tss_coord" in adata_rna.uns, "Cannot find gene TSS coordinates"
 
-    logging.info("Fetch gene coordinates")
+    logger.info("Fetch gene coordinates")
     df_tss = adata_rna.uns["gene_tss_coord"]
     df_tss["Start"] = df_tss["tss"] - 1
     df_tss["End"] = df_tss["tss"]
@@ -189,17 +193,17 @@ def peak_to_gene(
     df_tss["Chromosome"] = df_tss["chrom"]
     df_tss = df_tss[["Chromosome", "Start", "End", "Name", "Score", "Strand", "tss"]]
 
+    df_var = adata_rna.var
+
     if highly_variable:
-        logging.info("Using highly variable genes")
-        df = adata_rna.var[adata_rna.var["highly_variable"]]
-        df_tss = df_tss[df_tss["Name"].isin(df["genes"])]
+        logger.info("Using highly variable genes")
+        df_var = df_var[df_var["highly_variable"]]
+        df_tss = df_tss[df_tss["Name"].isin(df_var[gene_name_col])]
 
     if max_pct_dropout_by_counts is not None:
-        logging.info("Filter genes by pct_dropout_by_counts")
-        df = adata_rna.var[
-            adata_rna.var["pct_dropout_by_counts"] < max_pct_dropout_by_counts
-        ]
-        df_tss = df_tss[df_tss["Name"].isin(df["genes"])]
+        logger.info("Filter genes by pct_dropout_by_counts")
+        df_var = df_var[df_var["pct_dropout_by_counts"] < max_pct_dropout_by_counts]
+        df_tss = df_tss[df_tss["Name"].isin(df_var[gene_name_col])]
 
     if genes is not None:
         df_tss = df_tss[df_tss["Name"].isin(genes)]
@@ -211,7 +215,7 @@ def peak_to_gene(
     pyf = pyfaidx.Fasta(ref_fasta)
     gr_genes = gf.genome_bounds(gr_genes, chromsizes=pyf, clip=True)
 
-    logging.info("Overlaping peaks with genes")
+    logger.info("Find nearby peaks for each gene")
     df_peaks = pd.DataFrame(
         data={
             "Chromosome": adata_atac.var[chr_var_key],
@@ -251,7 +255,7 @@ def peak_to_gene(
     df = df[df["gene"].isin(grouped_df.index)]
 
     n_genes = len(df["gene"].unique())
-    logging.info(f"Number of genes: {n_genes}")
+    logger.info(f"Number of genes: {n_genes}")
 
     if inplace:
         mdata.uns["peak_to_gene"] = df

@@ -106,6 +106,8 @@ def get_metacells(
     mdata_metacells = MuData({rna_mod: adata_rna, atac_mod: adata_atac})
     mdata_metacells.obs = mdata.obs.iloc[metacell_indices].copy()
 
+    logger.info("Done")
+
     return mdata_metacells
 
 
@@ -122,6 +124,7 @@ def _get_metacells(
     adata_atac = mdata[atac_mod]
 
     # compute kNN and the distance from each point to its nearest neighbors
+    logger.info(f"Create KNN graph with {use_rep} and {n_neighbors} neighbors")
     sc.pp.neighbors(
         mdata.mod[rna_mod],
         use_rep=use_rep,

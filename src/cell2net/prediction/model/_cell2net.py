@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import mudata as md
 import numpy as np
@@ -17,6 +18,8 @@ from cell2net.prediction.module import PeaksTF2GeneExpressionPoisson
 
 from ._base import BaseModel
 from ._constants import SAVE_KEYS
+
+warnings.filterwarnings("ignore")
 
 
 class Cell2Net(BaseModel):
@@ -204,13 +207,16 @@ class Cell2Net(BaseModel):
         random_state: int = 42,
         lr: float = 3e-04,
         weight_decay: float = 1e-04,
+        verbose: bool = True,
     ) -> None:
         if train_idx and valid_idx:
-            logger.info("Using provided index for training and validation")
+            if verbose:
+                logger.info("Using provided index for training and validation")
 
         elif train_size:
-            logger.info(f"Training size is provided: {train_size}")
-            logger.info("Split the data for training and validation")
+            if verbose:
+                logger.info(f"Training size is provided: {train_size}")
+                logger.info("Split the data for training and validation")
             train_idx, valid_idx = train_test_split(
                 self.mdata.obs_names.values.tolist(),
                 train_size=train_size,
@@ -222,8 +228,9 @@ class Cell2Net(BaseModel):
                 "Please provide train_size or indices for trainging and validation"
             )
 
-        logger.info(f"Number of training: {len(train_idx)}")  # type: ignore
-        logger.info(f"Number of validation: {len(valid_idx)}")  # type: ignore
+        if verbose:
+            logger.info(f"Number of training: {len(train_idx)}")  # type: ignore
+            logger.info(f"Number of validation: {len(valid_idx)}")  # type: ignore
 
         self.train_dl = get_dataloader(
             mdata=self.mdata,
@@ -289,8 +296,9 @@ class Cell2Net(BaseModel):
         )
 
         logger.info("Training finished")
-        logger.info(f"Find best model at epoch {self.best_epoch}")
-        logger.info(f"Valid correlation: {self.best_score: .3f}")
+        logger.info(
+            f"Find best model at epoch {self.best_epoch} with valid correation {self.best_score: .3f}"
+        )
 
         self.is_trained_ = True
 

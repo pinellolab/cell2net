@@ -10,7 +10,8 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
-from scanpy.plotting import DotPlot
+from scanpy.plotting._baseplot_class import BasePlot
+from scanpy.plotting._utils import ColorLike, _AxesSubplot, check_colornorm, fix_kwds
 
 from ._utils import _VarNames, process_var_names
 
@@ -21,6 +22,69 @@ if TYPE_CHECKING:
     import pandas as pd
     from matplotlib.axes import Axes
     from matplotlib.colors import Colormap, Normalize
+
+
+class DotPlot(BasePlot):
+    DEFAULT_SAVE_PREFIX = "dotplot_"
+    # default style parameters
+    DEFAULT_COLORMAP = "Reds"
+    DEFAULT_COLOR_ON = "dot"
+    DEFAULT_DOT_MAX = None
+    DEFAULT_DOT_MIN = None
+    DEFAULT_SMALLEST_DOT = 0.0
+    DEFAULT_LARGEST_DOT = 200.0
+    DEFAULT_DOT_EDGECOLOR = "black"
+    DEFAULT_DOT_EDGELW = 0.2
+    DEFAULT_SIZE_EXPONENT = 1.5
+
+    # default legend parameters
+    DEFAULT_SIZE_LEGEND_TITLE = "Fraction of cells\nin group (%)"
+    DEFAULT_COLOR_LEGEND_TITLE = "Mean expression\nin group"
+    DEFAULT_LEGENDS_WIDTH = 1.5  # inches
+    DEFAULT_PLOT_X_PADDING = 0.8  # a unit is the distance between two x-axis ticks
+    DEFAULT_PLOT_Y_PADDING = 1.0  # a unit is the distance between two y-axis ticks
+
+    def __init__(
+        self,
+        dot_color_df: pd.DataFrame,
+        dot_size_df: pd.DataFrame,
+        categories_order: Sequence[str] | None = None,
+        ax: _AxesSubplot | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        vcenter: float | None = None,
+        norm: Normalize | None = None,
+        **kwds,
+    ):
+
+        # Because genes (columns) can be duplicated (e.g. when the
+        # same gene is reported as marker gene in two clusters)
+        # they need to be removed first,
+        # otherwise, the duplicated genes are further duplicated when reordering
+        # Eg. A df with columns ['a', 'b', 'a'] after reordering columns
+        # with df[['a', 'a', 'b']], results in a df with columns:
+        # ['a', 'a', 'a', 'a', 'b']
+
+        unique_var_names, unique_idx = np.unique(
+            dot_color_df.columns, return_index=True
+        )
+
+        # remove duplicate columns
+        if len(unique_var_names) != len(self.var_names):
+            dot_color_df = dot_color_df.iloc[:, unique_idx]
+
+        # get the same order for rows and columns in the dot_color_df
+        # using the order from the doc_size_df
+        dot_color_df = dot_color_df.loc[dot_size_df.index][dot_size_df.columns]
+
+        self.categories = dot_color_df.index.tolist()
+
+        self.dot_color_df, self.dot_size_df = (
+            df.loc[
+                categories_order if categories_order is not None else self.categories
+            ]  # type: ignore
+            for df in (dot_color_df, dot_size_df)
+        )
 
 
 def prepare_dataframes_for_tf_dotplot(
@@ -67,23 +131,23 @@ def prepare_dataframes_for_tf_dotplot(
 def make_dot_plot(
     dot_size: pd.DataFrame,
     dot_color: pd.DataFrame,
-    ax: Axes,
+    dot_ax: Axes,
     cmap: Colormap | str | None,
-    color_on: Literal["dot", "square"] = "dot",
-    dot_max: float | None = None,
-    dot_min: float | None = None,
-    smallest_dot: float = 0.0,
-    largest_dot: float = 200.0,
-    size_exponent: float = 1.5,
-    # edge_color: ColorLike | None = "black",
-    # edge_lw: float | None,
-    # grid: bool,
-    # x_padding: float,
-    # y_padding: float,
-    # vmin: float | None,
-    # vmax: float | None,
-    # vcenter: float | None,
-    # norm: Normalize | None,
+    color_on: Literal["dot", "square"],
+    dot_max: float | None,
+    dot_min: float | None,
+    smallest_dot: float,
+    largest_dot: float,
+    size_exponent: float,
+    edge_color: ColorLike | None,
+    edge_lw: float | None,
+    grid: bool,
+    x_padding: float,
+    y_padding: float,
+    vmin: float | None,
+    vmax: float | None,
+    vcenter: float | None,
+    norm: Normalize | None,
     **kwds,
 ):
     """
@@ -143,9 +207,59 @@ def make_dot_plot(
         # re-scale frac between 0 and 1
         frac = (frac - dot_min) / old_range
 
-    ax.scatter(x, y, **kwds)
+    size = frac**size_exponent
+    # rescale size to match smallest_dot and largest_dot
+    size = size * (largest_dot - smallest_dot) + smallest_dot
+    normalize = check_colornorm(vmin, vmax, vcenter, norm)
 
-    return ax
+    color = cmap(normalize(mean_flat))  # type: ignore
+
+    kwds = fix_kwds(
+        kwds,
+        s=size,
+        color=color,
+        linewidth=edge_lw,
+        edgecolor=edge_color,
+    )
+
+    dot_ax.scatter(x, y, **kwds)
+    y_ticks = np.arange(dot_color.shape[0]) + 0.5
+    dot_ax.set_yticks(y_ticks)
+    dot_ax.set_yticklabels(
+        [dot_color.index[idx] for idx, _ in enumerate(y_ticks)], minor=False
+    )
+    x_ticks = np.arange(dot_color.shape[1]) + 0.5
+    dot_ax.set_xticks(x_ticks)
+    dot_ax.set_xticklabels(
+        [dot_color.columns[idx] for idx, _ in enumerate(x_ticks)],
+        rotation=90,
+        ha="center",
+        minor=False,
+    )
+    dot_ax.tick_params(axis="both", labelsize="small")
+    dot_ax.grid(visible=False)
+
+    # to be consistent with the heatmap plot, is better to
+    # invert the order of the y-axis, such that the first group is on
+    # top
+    dot_ax.set_ylim(dot_color.shape[0], 0)
+    dot_ax.set_xlim(0, dot_color.shape[1])
+
+    if color_on == "dot":
+        # add padding to the x and y lims when the color is not in the square
+        # default y range goes from 0.5 to num cols + 0.5
+        # and default x range goes from 0.5 to num rows + 0.5, thus
+        # the padding needs to be corrected.
+        x_padding = x_padding - 0.5
+        y_padding = y_padding - 0.5
+        dot_ax.set_ylim(dot_color.shape[0] + y_padding, -y_padding)
+        dot_ax.set_xlim(-x_padding, dot_color.shape[1] + x_padding)
+
+    if grid:
+        dot_ax.grid(visible=True, color="gray", linewidth=0.1)
+        dot_ax.set_axisbelow(True)
+
+    return dot_ax
 
 
 def tf_dotplot(
@@ -197,6 +311,9 @@ def tf_dotplot(
     dendrogram : bool, optional
         _description_, by default True
     """
+    size_legend_title = "Number of target genes"
+    color_legend_title = "Mean regulation activity"
+
     # prepare data for plotting
     dot_color, dot_size = prepare_dataframes_for_tf_dotplot(df)
 
@@ -225,9 +342,9 @@ def tf_dotplot(
         fig, ax = plt.subplots(figsize=(10, 5))
 
     # make dot plot
-    make_dot_plot(dot_color=dot_color, dot_size=dot_size, ax=ax, cmap=cmap)
+    # make_dot_plot(dot_color=dot_color, dot_size=dot_size, ax=ax, cmap=cmap)
 
-    if return_fig:
-        return ax
-    else:
-        return None
+    # if return_fig:
+    #     return ax
+    # else:
+    #     return None

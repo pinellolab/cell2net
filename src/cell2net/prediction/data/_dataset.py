@@ -17,14 +17,16 @@ class MuTorchDataset(Dataset):
         super().__init__()
 
         self.mdata = mdata
-        self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense()).reshape(-1)  # type: ignore
-        self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense())  # type: ignore
-        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense())  # type: ignore
+        self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
+        self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
+        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
 
-        self.covariates = mdata.obs[covariates].to_numpy()
+        self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
 
         # distance of peak to TSS, normalized by the maximum value
-        self.peak_dist = mdata.uns["peak_to_gene"]["distance"].values
+        self.peak_dist = np.array(
+            mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32
+        )
         self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
 
         # convert seq to one-hot encoding
@@ -33,7 +35,6 @@ class MuTorchDataset(Dataset):
         )
 
         self.train = train
-
         self.len = self.mdata.n_obs
 
     def __len__(self):

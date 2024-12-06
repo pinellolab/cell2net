@@ -186,7 +186,8 @@ def tf_to_gene(
     rna_mod: str = "rna",
     atac_mod: str = "atac",
     key_added: str = "gene_tf",
-) -> None:
+    inplace: bool = True,
+) -> None | pd.DataFrame:
     """
     Link TFs to target genes based on TF binding sites.
 
@@ -202,6 +203,8 @@ def tf_to_gene(
         Name of RNA modality in mdata. Default: "rna"
     atac_mod: str, optional
         Name of ATAC modality in mdata. Default: "atac"
+    inplace: bool, optional
+        If set, add the results to mdata, otherwise return the dataframe. Default: True
 
     Returns
     -------
@@ -245,8 +248,9 @@ def tf_to_gene(
             idx = motif_names.index(gene)
             gene_tf[i, idx] = 0
 
-    adata_rna.uns[key_added] = pd.DataFrame(
-        data=gene_tf, index=genes, columns=df_motifs["gene_name"]
-    )
+    df = pd.DataFrame(data=gene_tf, index=genes, columns=df_motifs["gene_name"])
 
-    return None
+    if inplace:
+        adata_rna.uns[key_added] = df
+    else:
+        return df

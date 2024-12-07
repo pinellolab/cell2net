@@ -1,4 +1,5 @@
 import copy
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -75,7 +76,7 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
         peak_len: int,
         n_tfs: int,
         n_covariates: int,
-        n_filters: list[int] | None = None,
+        n_filters: Sequence[int] | None = None,
         n_channels: int = 4,
         kernel_size: int = 5,
         n_dims: int = 16,

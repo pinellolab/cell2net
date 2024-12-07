@@ -1,5 +1,6 @@
 import os
 import warnings
+from collections.abc import Sequence
 
 import mudata as md
 import numpy as np
@@ -10,7 +11,6 @@ from scipy import stats
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from tqdm import tqdm
 
 from cell2net._logging import logger
 from cell2net.prediction.data import get_dataloader
@@ -29,8 +29,8 @@ class Cell2Net(BaseModel):
         gene: str,
         rna_mod: str = "rna",
         atac_mod: str = "atac",
-        covariates: list[str] | None = None,
-        n_filters: list[int] | None = None,
+        covariates: Sequence[str] | None = None,
+        n_filters: Sequence[int] | None = None,
         n_channels: int = 4,
         kernel_size: int = 5,
         n_dims: int = 16,
@@ -267,7 +267,7 @@ class Cell2Net(BaseModel):
         self.best_score, self.best_epoch = -np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
         train_corrs, valid_corrs = [], []
-        for epoch in tqdm(range(max_epochs)):
+        for epoch in range(max_epochs):
             train_loss, train_corr = self._train()
             valid_loss, valid_corr = self._valid()
 

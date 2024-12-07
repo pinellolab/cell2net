@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import numpy as np
 from mudata import MuData
 from torch.utils.data import Dataset
@@ -6,12 +8,27 @@ from ._utils import encode_seq
 
 
 class MuTorchDataset(Dataset):
+    """
+    PyTorch Dataset for MuData objects.
+
+    Parameters
+    ----------
+    mdata : MuData
+        Input MuData object containing RNA and ATAC modalities
+    rna_mod: str, optional
+        Name of RNA modality, by default "rna"
+    atac_mod: str, optional
+        Name of ATAC modality, by default "atac"
+    covariates: Sequence[str], optional
+        A list of column names in mdata.obs, by deafult None
+    """
+
     def __init__(
         self,
         mdata: MuData,
         rna_mod: str = "rna",
         atac_mod: str = "atac",
-        covariates: list[str] | None = None,
+        covariates: Sequence[str] | None = None,
         train: bool = True,
     ) -> None:
         super().__init__()

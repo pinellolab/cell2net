@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from torch import nn
 
 
@@ -6,12 +8,12 @@ class SeqEncoder(nn.Module):
         self,
         base_size: int = 4,
         kernel_size: int = 7,
-        n_filters: list[int] | None = None,
+        n_filters: Sequence[int] | None = None,
     ) -> None:
         if n_filters is None:
             n_filters = [128, 64, 32, 32]
         super().__init__()
-        self.conv_dims = n_filters
+        self.conv_dims = list(n_filters)
         self.base_size = base_size
         self.kernal_size = kernel_size
         # cropped_len = 46

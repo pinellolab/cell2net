@@ -10,13 +10,15 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
+from scanpy._utils import Empty, _empty
 from scanpy.plotting._baseplot_class import BasePlot
 from scanpy.plotting._utils import ColorLike, _AxesSubplot, check_colornorm, fix_kwds
+
+from cell2net._logging import logger
 
 from ._utils import _VarNames, process_var_names
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
     from typing import Literal
 
     import pandas as pd
@@ -43,10 +45,13 @@ DEFAULT_LEGENDS_WIDTH = 1.5  # inches
 DEFAULT_PLOT_X_PADDING = 0.8  # a unit is the distance between two x-axis ticks
 DEFAULT_PLOT_Y_PADDING = 1.0  # a unit is the distance between two y-axis ticks
 
+# gridspec parameter. Sets the space between mainplot, dendrogram and legend
+DEFAULT_WSPACE = 0
+
 
 class DotPlot(BasePlot):
     """
-    Class for making a *dot plot* given two data frames
+    Class for *dot plot*
 
     This class is modified from scanpy.plotting.Dotplot by taking two pandas.DataFrame
     as inputs instead of an anndata object.
@@ -69,6 +74,7 @@ class DotPlot(BasePlot):
         dot_color_df: pd.DataFrame,
         dot_size_df: pd.DataFrame,
         var_names: _VarNames | Mapping[str, _VarNames],
+        standard_scale: Literal["var", "group"] | None = None,
         var_group_positions: Sequence[tuple[int, int]] | None = None,
         var_group_labels: Sequence[str] | None = None,
         var_group_rotation: float | None = None,
@@ -122,6 +128,148 @@ class DotPlot(BasePlot):
             ]  # type: ignore
             for df in (dot_color_df, dot_size_df)
         )
+
+        self.standard_scale = standard_scale
+
+        if categories_order is not None:
+            if set(self.categories) != set(categories_order):
+                logger.error(
+                    "Please check that the categories given by "
+                    "the `order` parameter match the categories that "
+                    "want to be reordered.\n\n"
+                    "Mismatch: "
+                    f"{set(self.categories).difference(categories_order)}\n\n"
+                    f"Given order categories: {categories_order}\n\n"
+                    f"Find categories: {self.categories}\n"
+                )
+                return
+
+        # Set fig title
+        self.fig_title = title
+
+        # set default values for legend
+        self.color_legend_title = DEFAULT_COLOR_LEGEND_TITLE
+        self.legends_width = DEFAULT_LEGENDS_WIDTH
+
+        # Set default style parameters
+        self.cmap = DEFAULT_COLORMAP
+        self.dot_max = DEFAULT_DOT_MAX
+        self.dot_min = DEFAULT_DOT_MIN
+        self.smallest_dot = DEFAULT_SMALLEST_DOT
+        self.largest_dot = DEFAULT_LARGEST_DOT
+        self.color_on = DEFAULT_COLOR_ON
+        self.size_exponent = DEFAULT_SIZE_EXPONENT
+        self.grid = False
+        self.plot_x_padding = DEFAULT_PLOT_X_PADDING
+        self.plot_y_padding = DEFAULT_PLOT_Y_PADDING
+
+        # style default parameters
+        self.are_axes_swapped = False
+        self.categories_order = categories_order
+        self.var_names_idx_order = None
+
+        self.wspace = DEFAULT_WSPACE
+
+        self.group_extra_size = 0
+        self.plot_group_extra = None
+
+        # after .render() is called the fig value is assigned and ax_dict
+        # contains a dictionary of the axes used in the plot
+        self.fig = None
+        self.ax_dict = None
+        self.ax = ax
+
+    def style(
+        self,
+        *,
+        cmap: Colormap | str | None | Empty = _empty,
+        color_on: Literal["dot", "square"] | Empty = _empty,
+        dot_max: float | None | Empty = _empty,
+        dot_min: float | None | Empty = _empty,
+        smallest_dot: float | Empty = _empty,
+        largest_dot: float | Empty = _empty,
+        dot_edge_color: ColorLike | None | Empty = _empty,
+        dot_edge_lw: float | None | Empty = _empty,
+        size_exponent: float | Empty = _empty,
+        grid: bool | Empty = _empty,
+        x_padding: float | Empty = _empty,
+        y_padding: float | Empty = _empty,
+    ):
+        """
+        Modifies plot visual parameters
+
+        Parameters
+        ----------
+        cmap : Colormap | str | None | Empty, optional
+            String denoting matplotlib color map, by default _empty
+        color_on : Literal["dot", "square"] | Empty, optional
+            By default the color map is applied to the color of the ``"dot"``.
+            Optionally, the colormap can be applied to a ``"square"`` behind the dot,
+            in which case the dot is transparent and only the edge is shown, by default _empty
+        dot_max : float | None | Empty, optional
+            If ``None``, the maximum dot size is set to the maximum fraction value found (e.g. 0.6).
+            If given, the value should be a number between 0 and 1.
+            All fractions larger than dot_max are clipped to this value, by default _empty
+        dot_min : float | None | Empty, optional
+            If ``None``, the minimum dot size is set to 0.
+            If given, the value should be a number between 0 and 1.
+            All fractions smaller than dot_min are clipped to this value, by default _empty
+        smallest_dot : float | Empty, optional
+            All expression fractions with `dot_min` are plotted with this size, by default _empty
+        largest_dot : float | Empty, optional
+            All expression fractions with `dot_max` are plotted with this size, by default _empty
+        dot_edge_color : ColorLike | None | Empty, optional
+            Dot edge color.
+            When `color_on='dot'`, ``None`` means no edge.
+            When `color_on='square'`, ``None`` means that
+            the edge color is white for darker colors and black for lighter background square, by default _empty
+        dot_edge_lw : float | None | Empty, optional
+            Dot edge line width.
+            When `color_on='dot'`, ``None`` means no edge.
+            When `color_on='square'`, ``None`` means a line width of 1.5, by default _empty
+        size_exponent : float | Empty, optional
+            Dot size is computed as:
+            fraction  ** size exponent and afterwards scaled to match the
+            `smallest_dot` and `largest_dot` size parameters.
+            Using a different size exponent changes the relative sizes of the dots
+            to each other, by default _empty
+        grid : bool | Empty, optional
+            Set to true to show grid lines. By default grid lines are not shown.
+            Further configuration of the grid lines can be achieved directly on the
+            returned ax, by default _empty
+        x_padding : float | Empty, optional
+            Space between the plot left/right borders and the dots center. A unit
+            is the distance between the x ticks. Only applied when color_on = dot, by default _empty
+        y_padding : float | Empty, optional
+            Space between the plot top/bottom borders and the dots center. A unit is
+            the distance between the y ticks. Only applied when color_on = dot, by default _empty
+        """
+        super().style(cmap=cmap)  # type: ignore
+
+        if dot_max is not _empty:
+            self.dot_max = dot_max
+        if dot_min is not _empty:
+            self.dot_min = dot_min
+        if smallest_dot is not _empty:
+            self.smallest_dot = smallest_dot
+        if largest_dot is not _empty:
+            self.largest_dot = largest_dot
+        if color_on is not _empty:
+            self.color_on = color_on
+        if size_exponent is not _empty:
+            self.size_exponent = size_exponent
+        if dot_edge_color is not _empty:
+            self.dot_edge_color = dot_edge_color
+        if dot_edge_lw is not _empty:
+            self.dot_edge_lw = dot_edge_lw
+        if grid is not _empty:
+            self.grid = grid
+        if x_padding is not _empty:
+            self.plot_x_padding = x_padding
+        if y_padding is not _empty:
+            self.plot_y_padding = y_padding
+
+        pass
 
     def legend(
         self,
@@ -191,10 +339,10 @@ class DotPlot(BasePlot):
             _color_df,
             ax,
             cmap=self.cmap,
-            color_on=self.color_on,
+            color_on=self.color_on,  # type: ignore
             dot_max=self.dot_max,
             dot_min=self.dot_min,
-            standard_scale=self.standard_scale,
+            standard_scale=self.standard_scale,  # type: ignore
             edge_color=self.dot_edge_color,
             edge_lw=self.dot_edge_lw,
             smallest_dot=self.smallest_dot,
@@ -572,8 +720,8 @@ def tf_dotplot(
     categories_order: Sequence[str] | None = None,
     standard_scale: Literal["var", "group"] | None = None,
     title: str | None = None,
-    colorbar_title: str | None = DotPlot.DEFAULT_COLOR_LEGEND_TITLE,
-    size_title: str | None = DotPlot.DEFAULT_SIZE_LEGEND_TITLE,
+    colorbar_title: str | None = DEFAULT_COLOR_LEGEND_TITLE,
+    size_title: str | None = DEFAULT_SIZE_LEGEND_TITLE,
     figsize: tuple[float, float] | None = None,
     dendrogram: bool | str = False,
     var_group_positions: Sequence[tuple[int, int]] | None = None,
@@ -591,10 +739,10 @@ def tf_dotplot(
     vcenter: float | None = None,
     norm: Normalize | None = None,
     # Style parameters
-    cmap: Colormap | str | None = DotPlot.DEFAULT_COLORMAP,
-    dot_max: float | None = DotPlot.DEFAULT_DOT_MAX,
-    dot_min: float | None = DotPlot.DEFAULT_DOT_MIN,
-    smallest_dot: float = DotPlot.DEFAULT_SMALLEST_DOT,
+    cmap: Colormap | str | None = DEFAULT_COLORMAP,
+    dot_max: float | None = DEFAULT_DOT_MAX,
+    dot_min: float | None = DEFAULT_DOT_MIN,
+    smallest_dot: float = DEFAULT_SMALLEST_DOT,
     **kwds,
 ) -> None | Axes:
     """
@@ -615,9 +763,6 @@ def tf_dotplot(
     dendrogram : bool, optional
         _description_, by default True
     """
-    size_legend_title = "Number of target genes"
-    color_legend_title = "Mean regulation activity"
-
     # prepare data for plotting
     dot_color, dot_size = prepare_dataframes_for_dotplot(df)
 

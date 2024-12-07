@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from mudata import MuData
 from torch.utils.data import DataLoader
 
@@ -10,8 +12,8 @@ def get_dataloader(
     mdata: MuData,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
-    idx: list[int] | list[str] | None = None,
-    covariates: list[str] | None = None,
+    idx: Sequence[int] | Sequence[str] | None = None,
+    covariates: Sequence[str] | None = None,
     batch_size: int = settings.batch_size,
     num_workers: int = settings.dl_num_works,
     pin_memory: bool = True,

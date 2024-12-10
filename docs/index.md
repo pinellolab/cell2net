@@ -10,6 +10,6 @@ api.md
 changelog.md
 contributing.md
 references.md
-
+install.md
 notebooks/example
 ```

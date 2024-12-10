@@ -9,7 +9,3 @@ Plotting: `pl`
     pl.tf_dotplot
     pl.train_history
     pl.tf_activity_variance
-    pl.regions
-    pl.spectral_eigenvalues
-    pl.network_edge_stat
-    pl.render_plot

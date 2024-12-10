@@ -54,7 +54,7 @@ def get_dataloader(
     Returns
     -------
     DataLoader
-        _description_
+        A dataloader instance
     """
     if idx:
         _mdata = mdata[idx]

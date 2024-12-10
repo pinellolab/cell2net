@@ -304,9 +304,11 @@ class DotPlot(BasePlot):
         elif 60 < diff <= 100:
             step = 20
         elif 100 < diff <= 150:
-            step = 30
-        else:
             step = 50
+        elif 150 < diff <= 300:
+            step = 100
+        else:
+            step = 200
 
         # a descending range that is afterwards inverted is used
         # to guarantee that dot_max is in the legend.

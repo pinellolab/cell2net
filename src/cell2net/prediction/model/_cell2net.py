@@ -203,6 +203,8 @@ class Cell2Net(BaseModel):
         stratify: list[str] | None = None,
         batch_size: int = 128,
         num_workers: int = 4,
+        pin_memory: bool = False,
+        persistent_workers: bool = False,
         max_epochs: int = 20,
         random_state: int = 42,
         lr: float = 3e-04,
@@ -238,7 +240,8 @@ class Cell2Net(BaseModel):
             idx=train_idx,
             batch_size=batch_size,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=pin_memory,
+            persistent_workers=persistent_workers,
             shuffle=True,
             drop_last=True,
         )
@@ -249,7 +252,8 @@ class Cell2Net(BaseModel):
             idx=valid_idx,
             batch_size=batch_size,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=pin_memory,
+            persistent_workers=persistent_workers,
             shuffle=False,
             drop_last=False,
         )

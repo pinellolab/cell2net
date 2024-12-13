@@ -1,4 +1,4 @@
-name: 'Build docs'
+name: Build docs
 description: 'Build documentation'
 
 inputs:

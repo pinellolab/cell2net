@@ -9,6 +9,7 @@ import polars as pl
 import pyBigWig
 
 from cell2net._logging import logger
+from cell2net.utils import santize_str_for_filename
 
 from ._utils import bgzip, tabix_index
 
@@ -195,27 +196,45 @@ def fragment_to_bigwig(
     cut_sites: bool = False,
 ) -> None:
     """
-    Calculate genome coverage for fragments and write to a bigWig file.
+    Convert fragment file to BigWig format.
+
+    This function reads a fragment file, calculates coverage or cut-site signal,
+    and writes the resulting data to a BigWig file.
 
     Parameters
     ----------
     fragment_file : str
-        Path to the fragment file (e.g., fragment.tsv.gz).
+        Path to the input fragment file.
+        The file can be plain text or gzip-compressed (".gz").
     chrom_sizes : dict[str, int]
         A dictionary of chromosome sizes, e.g., {"chr1": 248956422, "chr2": 242193529, ...}.
     bw_filename : str
-        File name of the output bigWig file.
-    barcodes: list[str]
-        A list of barcodes used to filter the cells. If None, will use all cells. Default: None
+        Path to the output BigWig file.
     normalize : bool, optional
-        Whether or not normalize the signal. Default: True
-    scaling_factor : int, optional
-        Scaling factor for normalization. Default: 1000000
+        If True, normalize coverage or signal values. Default is True.
+    scaling_factor : float, optional
+        Factor to scale signal values if `normalize` is True. Default is 1.0.
+    cut_sites : bool, optional
+        If True, compute the cut-site signal instead of coverage. Default is False.
 
     Returns
     -------
     None
         Write output to bigwig file
+
+    Notes
+    -----
+    - The input fragment file should be tab-delimited and follow the format:
+    Chromosome, Start, End, Barcode, Count.
+    - Lines starting with `#` or empty lines are skipped during parsing.
+    - Uses `pyBigWig` for writing BigWig files and `polars` for efficient data manipulation.
+
+    Example
+    -------
+    >>> fragment_file = "example_fragments.tsv.gz"
+    >>> chrom_sizes = {"chr1": 248956422, "chr2": 242193529}
+    >>> bw_filename = "output.bw"
+    >>> fragment_to_bigwig(fragment_file, chrom_sizes, bw_filename, normalize=True, scaling_factor=1.0, cut_sites=False)
     """
     open_fn = gzip.open if fragment_file.endswith(".gz") else open
     skip_rows = 0
@@ -260,43 +279,50 @@ def fragment_to_bigwig(
     return None
 
 
-def split_fragment(
+def split_fragments(
     fragment_file: str,
     cell_barcodes: list[str],
     groups: list[str],
     out_dir: str,
 ) -> None:
     """
-    Split the fragment file into different groups
+    Splits a fragment file into multiple group-specific fragment files based on cell barcodes.
+
+    This function reads a fragment file, assigns each fragment to a group based on the cell barcode,
+    and writes group-specific fragments into separate files.
+    The output files are compressed and indexed using bgzip and tabix.
 
     Parameters
     ----------
     fragment_file : str
-        File name of the fragment file, optionally compressed with gzip or zstd.
-        It should have the following columns:
+        Path to the input fragment file.
+        This can be a plain text file or gzip-compressed (.gz) and
+        shouold have the following columns:
         chr1    10012   10013   TTTGCGACACCCACAG-1      1
         chr1    10066   10198   ACGAATCTCATTTGCT-1      1
         chr1    10066   10478   TCAAGAACAGTAATAG-1      1
-        chr1    10072   10191   AACCCGCAGGTAGCTT-1      1
-        chr1    10072   10203   GGTTGCTCACTTCATC-1      1
-        chr1    10073   10340   CGCATATAGGTTACGT-1      2
     cell_barcodes: list[str]
-        A list of cell barcodes used to select the fragments
+        A list of cell barcodes corresponding to the fragments.
     groups : list[str]
-        A list of strings defining the group of each barcode.
+        A list of group names corresponding to each cell barcode.
         This can represent cell types or states, or different conditions.
+        Must have the same length as `cell_barcodes`.
     out_dir : str
-        Output directory
+        Path to the output directory where the group-specific fragment files will be saved.
 
     Returns
     -------
     None
-        Write the fragment file into output directory
+        For each unique group in `groups`, a compressed and indexed fragment file is created in the output directory.
+        The files are named as `<group>.fragments.tsv.gz`.
     """
     # check if the barcodes and groups have same length
     assert len(cell_barcodes) == len(
         groups
     ), "Cell barcodes and groups have different length"
+
+    # make group name safe for use as a filename
+    groups = [santize_str_for_filename(s) for s in groups]
 
     group_barcode_dict = pd.Series(groups, index=cell_barcodes).to_dict()
 

@@ -189,27 +189,43 @@ def tf_to_gene(
     inplace: bool = True,
 ) -> None | pd.DataFrame:
     """
-    Link TFs to target genes based on TF binding sites.
+    Link transcription factors (TFs) to target genes based on TF binding sites.
 
-    For each gene, first find all associated peaks from mdata.uns["peak_to_gene"].
-    Then, it will identify which TFs are binding in these peaks.
-    To avoid modeling self-regulation, it will also check if the target gene is also a TF.
+    This function identifies potential transcription factor regulators for each gene
+    by mapping TF binding motifs in accessible chromatin regions (peaks) to target genes.
+    It avoids self-regulation by removing cases where the target gene is also a TF.
 
     Parameters
     ----------
     mdata : MuData
-        MuData object with RNA and ATAC modality.
+        A MuData object containing RNA and ATAC modalities.
     rna_mod: str, optional
-        Name of RNA modality in mdata. Default: "rna"
+        The name of the RNA modality in `mdata`. Default is "rna".
     atac_mod: str, optional
-        Name of ATAC modality in mdata. Default: "atac"
+        The name of the ATAC modality in `mdata`. Default is "atac".
+    key_added : str, optional
+        The key under which the resulting dataframe is added to `mdata[rna_mod].uns`.
+        Default is "gene_tf".
     inplace: bool, optional
-        If set, add the results to mdata, otherwise return the dataframe. Default: True
+        If True, the results are added to `mdata`. If False, the resulting dataframe
+        is returned. Default is True.
 
     Returns
     -------
-    None
-        Add a dataframe to mdata[rna_mod].uns
+    None or pd.DataFrame
+        If `inplace` is True, the function modifies `mdata` in place and returns None.
+        If `inplace` is False, it returns a dataframe linking genes to TFs.
+
+    Examples
+    --------
+    >>> tf_to_gene(mdata)
+    >>> result_df = tf_to_gene(mdata, inplace=False)
+
+    Notes
+    -----
+    - Ensure that the peak-to-gene mapping (`peak_to_gene`) has been generated using
+      `cell2net.pp.peak_to_gene` before running this function.
+    - The input `mdata` must contain motif match information in `adata_atac.varm["motif_match"]`.
     """
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]

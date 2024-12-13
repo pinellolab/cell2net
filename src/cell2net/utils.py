@@ -19,21 +19,63 @@ def set_seed(seed=42):
     torch.backends.cudnn.deterministic = True
 
 
-def random_seq(seq_len: int, bases: list[str] | None = None) -> str:
+def santize_str_for_filename(s: str) -> str:
     """
-    Generate a random DNA sequence
+    Sanitize a string to make it safe for use as a filename.
+
+    This function replaces or removes characters that are typically problematic
+    in filenames. Specifically:
+    - Spaces are replaced with underscores (`_`).
+    - Slashes (`/`) are replaced with underscores (`_`).
+    - Parentheses (`(` and `)`) are removed.
 
     Parameters
     ----------
-    seq_len : int
-        Length of the sequence
-    bases : list[str] | None, optional
-        Bases of sequence, by default ACTG
+    s : str
+        The input string to sanitize.
 
     Returns
     -------
     str
-        DNA sequence
+        The sanitized string, suitable for use as a filename.
+
+    Examples
+    --------
+    >>> sanitize_str_for_filename("example (file)/name")
+    'example_file_name'
+    """
+    return s.replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
+
+
+def random_seq(seq_len: int, bases: list[str] | None = None) -> str:
+    """
+    Generate a random nucleotide sequence of a specified length.
+
+    This function creates a random sequence of nucleotides (or other bases)
+    by selecting characters from a provided list of bases. If no base list
+    is provided, the default bases are adenine (A), cytosine (C), guanine (G),
+    and thymine (T).
+
+    Parameters
+    ----------
+    seq_len : int
+        The length of the random sequence to generate.
+    bases : list[str], optional
+        A list of characters to use as the base set for the sequence.
+        Defaults to ["A", "C", "G", "T"].
+
+    Returns
+    -------
+    str
+        A randomly generated sequence of the specified length using the
+        provided bases.
+
+    Examples
+    --------
+    >>> random_seq(10)
+    'ACGTGCTAGC'
+    >>> random_seq(5, bases=["A", "T"])
+    'TATTA'
     """
     if bases is None:
         bases = ["A", "C", "G", "T"]

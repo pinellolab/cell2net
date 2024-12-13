@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 from captum.attr import IntegratedGradients
 from mudata import MuData
-from tqdm import tqdm
 
 from cell2net._logging import logger
 from cell2net.prediction.data import get_dataloader
@@ -84,7 +83,7 @@ def _integrated_gradients(
 
     logger.info("Compute attribution for TF expression")
     attr = []
-    for data in tqdm(data_loader):
+    for data in data_loader:
         peak_seq = data["peak_seq"].to(model.device)
         peak_acc = data["peak_acc"].to(model.device)
         peak_dist = data["peak_dist"].to(model.device)
@@ -116,7 +115,7 @@ def tf_to_gene(
     n_tfs: int = 10,
 ) -> pd.DataFrame:
     """
-    Extracts TF-gene regulation base on the attribution of transcription factor expression
+    Extracts TF-gene regulation using the attribution of TF expression
 
     Parameters
     ----------

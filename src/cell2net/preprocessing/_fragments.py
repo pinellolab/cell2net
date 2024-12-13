@@ -1,7 +1,6 @@
 """Functions to process scATAC-seq fragment file"""
 
 import gzip
-import subprocess
 
 import numba
 import numpy as np
@@ -11,10 +10,28 @@ import pyBigWig
 
 from cell2net._logging import logger
 
+from ._utils import bgzip, tabix_index
+
 
 @numba.njit
 def calculate_depth(chrom_size, starts, ends):
-    """Calculate depth per basepair for a chromosome based on starts end ends of fragments on the current chromosome."""
+    """
+    Calculate depth per basepair for a chromosome based on starts end ends of fragments on the current chromosome
+
+    Parameters
+    ----------
+    chrom_size : _type_
+        _description_
+    starts : _type_
+        _description_
+    ends : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     # Initialize array for current chromosome to store the depth per basepair.
     chrom_depth = np.zeros(chrom_size, dtype=np.uint32)
 
@@ -250,27 +267,37 @@ def split_fragment(
     out_dir: str,
 ) -> None:
     """
-    Split the input fragment file using the groups
+    Split the fragment file into different groups
 
     Parameters
     ----------
     fragment_file : str
         File name of the fragment file, optionally compressed with gzip or zstd.
-        A fragment should have at least 4 columns:
-        chromosome, start, end, barcode.
-        Optionally, it can have additional column indicating the count of barcode:
-        chromosome, start, end, barcode, count
+        It should have the following columns:
+        chr1    10012   10013   TTTGCGACACCCACAG-1      1
+        chr1    10066   10198   ACGAATCTCATTTGCT-1      1
+        chr1    10066   10478   TCAAGAACAGTAATAG-1      1
+        chr1    10072   10191   AACCCGCAGGTAGCTT-1      1
+        chr1    10072   10203   GGTTGCTCACTTCATC-1      1
+        chr1    10073   10340   CGCATATAGGTTACGT-1      2
+    cell_barcodes: list[str]
+        A list of cell barcodes used to select the fragments
     groups : list[str]
         A list of strings defining the group of each barcode.
-        This can refer to cell types or states, or different conditions.
+        This can represent cell types or states, or different conditions.
     out_dir : str
         Output directory
 
     Returns
     -------
     None
-        _description_
+        Write the fragment file into output directory
     """
+    # check if the barcodes and groups have same length
+    assert len(cell_barcodes) == len(
+        groups
+    ), "Cell barcodes and groups have different length"
+
     group_barcode_dict = pd.Series(groups, index=cell_barcodes).to_dict()
 
     # create a files to write fragments
@@ -307,9 +334,13 @@ def split_fragment(
     # compress and index the fragment file using bgzip and tabix
     logger.info("Compress and index fragment files")
     for group in set(groups):
-        subprocess.run(["bgzip", f"{out_dir}/{group}.fragments.tsv"])
-        subprocess.run(
-            ["tabix", "-s1", "-b2", "-e3", f"{out_dir}/{group}.fragments.tsv.gz"]
+        bgzip(filename=f"{out_dir}/{group}.fragments.tsv")
+        tabix_index(
+            filename=f"{out_dir}/{group}.fragments.tsv.gz",
+            preset="bed",
+            chrom=1,
+            start=2,
+            end=3,
         )
 
     return None

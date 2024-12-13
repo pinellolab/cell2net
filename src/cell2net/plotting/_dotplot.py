@@ -41,7 +41,6 @@ DEFAULT_SMALLEST_DOT = 0.0
 DEFAULT_LARGEST_DOT = 200.0
 DEFAULT_DOT_EDGECOLOR = "black"
 DEFAULT_DOT_EDGELW = 0.2
-DEFAULT_SIZE_EXPONENT = 1.5
 
 # default legend parameters
 DEFAULT_SIZE_LEGEND_TITLE = "Number of target \ngenes in group"
@@ -173,7 +172,6 @@ class DotPlot(BasePlot):
         self.smallest_dot = DEFAULT_SMALLEST_DOT
         self.largest_dot = DEFAULT_LARGEST_DOT
         self.color_on = DEFAULT_COLOR_ON
-        self.size_exponent = DEFAULT_SIZE_EXPONENT
         self.grid = False
         self.plot_x_padding = DEFAULT_PLOT_X_PADDING
         self.plot_y_padding = DEFAULT_PLOT_Y_PADDING
@@ -218,7 +216,6 @@ class DotPlot(BasePlot):
         dot_min: float | None | Empty = _empty,
         dot_edge_color: ColorLike | None | Empty = _empty,
         dot_edge_lw: float | None | Empty = _empty,
-        size_exponent: float | Empty = _empty,
         grid: bool | Empty = _empty,
         x_padding: float | Empty = _empty,
         y_padding: float | Empty = _empty,
@@ -278,8 +275,6 @@ class DotPlot(BasePlot):
             self.largest_dot = largest_dot
         if color_on is not _empty:
             self.color_on = color_on
-        if size_exponent is not _empty:
-            self.size_exponent = size_exponent
         if dot_edge_color is not _empty:
             self.dot_edge_color = dot_edge_color
         if dot_edge_lw is not _empty:
@@ -303,9 +298,9 @@ class DotPlot(BasePlot):
             step = 10
         elif 60 < diff <= 100:
             step = 20
-        elif 100 < diff <= 150:
+        elif 100 < diff <= 200:
             step = 50
-        elif 150 < diff <= 300:
+        elif 200 < diff <= 300:
             step = 100
         else:
             step = 200
@@ -462,7 +457,6 @@ class DotPlot(BasePlot):
             edge_lw=self.dot_edge_lw,
             smallest_dot=self.smallest_dot,
             largest_dot=self.largest_dot,
-            size_exponent=self.size_exponent,
             grid=self.grid,
             x_padding=self.plot_x_padding,
             y_padding=self.plot_y_padding,

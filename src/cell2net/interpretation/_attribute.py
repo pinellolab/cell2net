@@ -147,7 +147,7 @@ def compute_peak_attr(
 
     logger.info("Compute attribution for peak accessibility")
     attr = []
-    for data in tqdm(data_loader):
+    for data in data_loader:
         peak_seq = data["peak_seq"].to(model.device)
         peak_acc = data["peak_acc"].to(model.device).requires_grad_()
         peak_dist = data["peak_dist"].to(model.device)

@@ -15,23 +15,50 @@ from ._utils import bgzip, tabix_index
 
 
 @numba.njit
-def calculate_depth(chrom_size, starts, ends):
+def calculate_depth(
+    chrom_size: int, starts: np.ndarray, ends: np.ndarray
+) -> np.ndarray:
     """
-    Calculate depth per basepair for a chromosome based on starts end ends of fragments on the current chromosome
+    Calculate genome depth for a given chromosome.
+
+    This function computes the depth (coverage) at each base pair of a chromosome based on
+    start and end positions of genomic fragments.
 
     Parameters
     ----------
-    chrom_size : _type_
-        _description_
-    starts : _type_
-        _description_
-    ends : _type_
-        _description_
+    chrom_size : int
+        The size of the chromosome (total number of base pairs).
+    starts : numpy.ndarray
+        An array of start positions for the genomic fragments.
+        Each value specifies the zero-based position where a fragment begins.
+    ends : numpy.ndarray
+        An array of end positions for the genomic fragments.
+        Each value specifies the zero-based position where a fragment ends (exclusive).
 
     Returns
     -------
-    _type_
-        _description_
+    numpy.ndarray
+        A one-dimensional array of length `chrom_size`, where each position contains the
+        depth (coverage) at that base pair.
+
+    Notes
+    -----
+    - The `starts` and `ends` arrays must have the same length, as each pair defines
+    a single fragment.
+    - The depth is calculated as the count of overlapping fragments for each base pair.
+    - This function uses Numba's Just-In-Time (JIT) compilation to optimize performance,
+    making it suitable for processing large datasets.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import cell2net as cn
+    >>> chrom_size = 10
+    >>> starts = np.array([0, 2, 4])
+    >>> ends = np.array([3, 6, 8])
+    >>> depth = cn.pp.calculate_depth(chrom_size, starts, ends)
+    >>> print(depth)
+    array([1, 1, 2, 1, 2, 2, 1, 1, 0, 0], dtype=uint32)
     """
     # Initialize array for current chromosome to store the depth per basepair.
     chrom_depth = np.zeros(chrom_size, dtype=np.uint32)
@@ -100,28 +127,61 @@ def fragments_to_coverage(
     normalize: bool = True,
     scaling_factor: float = 1.0,
     cut_sites: bool = False,
+    extend_cut_sites: int = 0,
 ):
     """
-    Calculate genome coverage for fragments and yield per chromosome a chroms, starts, ends and values numpy array.
+    Convert fragment data to genome coverage signal.
+
+    This function processes fragment data and generates genome coverage or cut-site
+    signal, which can be used for creating BigWig files or similar outputs.
 
     Parameters
     ----------
-    df_fragments
-        Polars DataFrame with fragments.
-    chrom_sizes
-        Dictionary with chromosome names as keys and chromosome sizes as values.
-    normalize
-        Whether to normalize the coverage by dividing by the number of fragments
-        multiplied by 1 million.
-    scaling_factor
-        Scaling factor for coverage data. If normalization is enabled, scaling is
-        applied afterwards.
-    cut_sites
+    df_fragments : pl.DataFrame
+        A Polars DataFrame containing fragment data. Must include the columns:
+        'Chromosome', 'Start', and 'End'.
+    chrom_sizes: dict[str, int]
+        Dictionary mapping chromosome names to their respective sizes.
+    normalize: bool, optional
+        If True, normalize the coverage values to Reads Per Million (RPM). Default is True.
+    scaling_factor : float, optional
+        A scaling factor to apply to the signal values. Only used if `normalize` is True.
+        Default is 1.0.
+    cut_sites: bool, optional
         Use 1 bp Tn5 cut sites (start and end of each fragment) instead of whole
         fragment length for coverage calculation.
-    verbose
-        Whether to print progress.
+    extend_cut_sites: int, optional
+        If set cut_sites, expand cut sites for both upstream and downstream, by default: 0
 
+    Yields
+    ------
+    tuple
+        A tuple containing:
+        - chroms (numpy.ndarray): Chromosome names for each coverage interval.
+        - starts (numpy.ndarray): Start positions of coverage intervals.
+        - ends (numpy.ndarray): End positions of coverage intervals.
+        - values (numpy.ndarray): Signal values for each coverage interval.
+
+    Notes
+    -----
+    - The `df_fragments` DataFrame is partitioned by chromosome for efficient processing.
+    - The `chrom_sizes` dictionary defines the size of each chromosome and is used to initialize arrays.
+    - If `cut_sites` is True, the coverage is computed at the fragment boundaries rather than the entire fragment range.
+    - Normalization scales the signal to RPM, and an additional scaling factor can further adjust the signal values.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> import cell2net as cn
+    >>> df_fragments = pl.DataFrame({
+    ...     "Chromosome": ["chr1", "chr1", "chr2"],
+    ...     "Start": [100, 200, 300],
+    ...     "End": [150, 250, 350]
+    ... })
+    >>> chrom_sizes = {"chr1": 1000, "chr2": 500}
+    >>> results = cn.pp.fragments_to_coverage(df_fragments, chrom_sizes, normalize=False)
+    >>> for chroms, starts, ends, values in results:
+    ...     print(chroms, starts, ends, values)
     """
     chrom_arrays = {}
 
@@ -151,9 +211,13 @@ def fragments_to_coverage(
 
         if cut_sites:
             # Create cut site positions (for both start and end of a fragment).
+            # starts, ends = (
+            #     np.hstack((starts, ends - 1)),
+            #     np.hstack((starts + 1, ends)),
+            # )
             starts, ends = (
-                np.hstack((starts, ends - 1)),
-                np.hstack((starts + 1, ends)),
+                np.hstack((starts - extend_cut_sites, ends - extend_cut_sites - 1)),
+                np.hstack((starts + extend_cut_sites + 1, ends + extend_cut_sites)),
             )
 
         chrom_arrays[chrom] = calculate_depth(chrom_sizes[chrom], starts, ends)
@@ -194,6 +258,7 @@ def fragment_to_bigwig(
     normalize: bool = True,
     scaling_factor: float = 1.0,
     cut_sites: bool = False,
+    extend_cut_sites: int = 0,
 ) -> None:
     """
     Convert fragment file to BigWig format.
@@ -216,6 +281,8 @@ def fragment_to_bigwig(
         Factor to scale signal values if `normalize` is True. Default is 1.0.
     cut_sites : bool, optional
         If True, compute the cut-site signal instead of coverage. Default is False.
+    extend_cut_sites: int, optional
+        If set cut_sites, expand cut sites for both upstream and downstream, by default: 0
 
     Returns
     -------
@@ -259,7 +326,6 @@ def fragment_to_bigwig(
     )
 
     logger.info(f"Number of fragments: {df_fragments.height}")
-
     with pyBigWig.open(bw_filename, "wb") as bw:
         logger.info("Add chromosome sizes to bigwig header")
         bw.addHeader(list(chrom_sizes.items()))
@@ -270,9 +336,9 @@ def fragment_to_bigwig(
             normalize=normalize,
             scaling_factor=scaling_factor,
             cut_sites=cut_sites,
+            extend_cut_sites=extend_cut_sites,
         )
 
-        logger.info("Add signal bigwig")
         for chroms, starts, ends, values in fragments_to_coverage_chrom_iter:
             bw.addEntries(chroms=chroms, starts=starts, ends=ends, values=values)
 
@@ -297,7 +363,7 @@ def split_fragments(
     fragment_file : str
         Path to the input fragment file.
         This can be a plain text file or gzip-compressed (.gz) and
-        shouold have the following columns:
+        should have the following columns:
         chr1    10012   10013   TTTGCGACACCCACAG-1      1
         chr1    10066   10198   ACGAATCTCATTTGCT-1      1
         chr1    10066   10478   TCAAGAACAGTAATAG-1      1

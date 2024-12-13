@@ -1,77 +1,62 @@
 # modified from https://github.com/kaizhang/SnapATAC2/blob/main/snapatac2-python/python/snapatac2/genome.py
 from __future__ import annotations
 
-# class Genome:
-#     def __init__(
-#         self,
-#         fasta: Path | str,
-#         annotation: Path | str,
-#         chrom_sizes: dict[str, int] | None = None,
-#     ) -> None:
-#         if callable(fasta):
-#             self._fetch_fasta = fasta
-#             self._fasta = None
-#         elif isinstance(fasta, Path) or isinstance(fasta, str):
-#             self._fasta = Path(fasta)
-#             self._fetch_fasta = None
-#         else:
-#             raise ValueError("fasta must be a Path or Callable")
+from pathlib import Path
 
-#         if callable(annotation):
-#             self._fetch_annotation = annotation
-#             self._annotation = None
-#         elif isinstance(annotation, Path) or isinstance(annotation, str):
-#             self._annotation = Path(annotation)
-#             self._fetch_annotation = None
-#         else:
-#             raise ValueError("annotation must be a Path or Callable")
+from pyfaidx import Fasta
 
-#         self._chrom_sizes = chrom_sizes
 
-#     @property
-#     def fasta(self):
-#         """
-#         The Path to the FASTA file.
+class Genome:
+    def __init__(
+        self,
+        name: str,
+        fasta: Path | str,
+        annotation: Path | str,
+        chrom_sizes: dict[str, int] | None = None,
+    ) -> None:
+        self._name = name
+        self._fasta = fasta
+        self._annotation = annotation
+        self._chrom_sizes = chrom_sizes
 
-#         Returns
-#         -------
-#         Path
-#             The path to the FASTA file.
-#         """
-#         if self._fasta is None:
-#             self._fasta = Path(self._fetch_fasta())
-#         return self._fasta
+    @property
+    def fasta(self):
+        """
+        The Path to the FASTA file.
 
-#     @property
-#     def annotation(self):
-#         """
-#         The Path to the annotation file.
+        Returns
+        -------
+        Path
+            The path to the FASTA file.
+        """
+        return self._fasta
 
-#         Returns
-#         -------
-#         Path
-#             The path to the annotation file.
-#         """
-#         if self._annotation is None:
-#             self._annotation = Path(self._fetch_annotation())
-#         return self._annotation
+    @property
+    def annotation(self):
+        """
+        The Path to the annotation file.
 
-#     @property
-#     def chrom_sizes(self):
-#         """
-#         A dictionary with chromosome names as keys and their lengths as values.
+        Returns
+        -------
+        Path
+            The path to the annotation file.
+        """
+        return self._annotation
 
-#         Returns
-#         -------
-#         dict[str, int]
-#             A dictionary of chromosome sizes.
-#         """
-#         if self._chrom_sizes is None:
-#             from pyfaidx import Fasta
+    @property
+    def chrom_sizes(self):
+        """
+        A dictionary with chromosome names as keys and their lengths as values.
 
-#             fasta = Fasta(self.fasta)
-#             self._chrom_sizes = {chr: len(fasta[chr]) for chr in fasta.keys()}
-#         return self._chrom_sizes
+        Returns
+        -------
+        dict[str, int]
+            A dictionary of chromosome sizes.
+        """
+        if self._chrom_sizes is None:
+            fasta = Fasta(self.fasta)
+            self._chrom_sizes = {chr: len(fasta[chr]) for chr in fasta.keys()}
+        return self._chrom_sizes
 
 
 # GRCh37 = Genome(

@@ -1,6 +1,7 @@
 from ._atac import binarize
 from ._fragments import (
     calculate_depth,
+    collapse_consecutive_values,
     fragment_to_bigwig,
     fragments_to_coverage,
     split_fragments,

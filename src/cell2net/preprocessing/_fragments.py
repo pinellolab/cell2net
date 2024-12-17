@@ -26,28 +26,25 @@ def calculate_depth(
 
     Parameters
     ----------
-    chrom_size : int
+    chrom_size :
         The size of the chromosome (total number of base pairs).
-    starts : numpy.ndarray
+    starts :
         An array of start positions for the genomic fragments.
         Each value specifies the zero-based position where a fragment begins.
-    ends : numpy.ndarray
+    ends :
         An array of end positions for the genomic fragments.
         Each value specifies the zero-based position where a fragment ends (exclusive).
 
     Returns
     -------
-    numpy.ndarray
         A one-dimensional array of length `chrom_size`, where each position contains the
         depth (coverage) at that base pair.
 
     Notes
     -----
-    - The `starts` and `ends` arrays must have the same length, as each pair defines
-    a single fragment.
-    - The depth is calculated as the count of overlapping fragments for each base pair.
-    - This function uses Numba's Just-In-Time (JIT) compilation to optimize performance,
-    making it suitable for processing large datasets.
+        - The `starts` and `ends` arrays must have the same length, as each pair defines a single fragment.
+        - The depth is calculated as the count of overlapping fragments for each base pair.
+        - This function uses Numba's Just-In-Time (JIT) compilation to optimize performance, making it suitable for processing large datasets.
 
     Examples
     --------
@@ -88,7 +85,8 @@ def collapse_consecutive_values(
     X : numpy.ndarray
         A 1D array of values (integers or floats) to process.
 
-    tuple
+    Returns
+    -------
         A tuple containing:
         - idx (numpy.ndarray): Start indices of each segment of consecutive identical values.
         - values (numpy.ndarray): The unique values corresponding to each segment.
@@ -96,12 +94,10 @@ def collapse_consecutive_values(
 
     Notes
     -----
-    - This function is optimized for performance using `numba.prange` for parallel
-    processing of the input array.
-    - The output `idx` array contains the indices where each segment starts in `X`.
-    - The `values` array contains the unique values from the input array, and the
-    `lengths` array contains the counts of consecutive occurrences of each value.
-    - To reconstruct the original input, use `values.repeat(lengths)`.
+        - This function is optimized for performance using `numba.prange` for parallel processing of the input array.
+        - The output `idx` array contains the indices where each segment starts in `X`.
+        - The `values` array contains the unique values from the input array, and the `lengths` array contains the counts of consecutive occurrences of each value.
+        - To reconstruct the original input, use `values.repeat(lengths)`.
 
     Examples
     --------
@@ -179,37 +175,36 @@ def fragments_to_coverage(
 
     Parameters
     ----------
-    df_fragments : pl.DataFrame
+    df_fragments :
         A Polars DataFrame containing fragment data. Must include the columns:
         'Chromosome', 'Start', and 'End'.
-    chrom_sizes: dict[str, int]
+    chrom_sizes:
         Dictionary mapping chromosome names to their respective sizes.
-    normalize: bool, optional
+    normalize:
         If True, normalize the coverage values to Reads Per Million (RPM). Default is True.
-    scaling_factor : float, optional
+    scaling_factor :
         A scaling factor to apply to the signal values. Only used if `normalize` is True.
         Default is 1.0.
-    cut_sites: bool, optional
+    cut_sites:
         Use 1 bp Tn5 cut sites (start and end of each fragment) instead of whole
         fragment length for coverage calculation.
-    extend_cut_sites: int, optional
+    extend_cut_sites:
         If set cut_sites, expand cut sites for both upstream and downstream, by default: 0
 
     Yields
     ------
-    tuple
         A tuple containing:
-        - chroms (numpy.ndarray): Chromosome names for each coverage interval.
-        - starts (numpy.ndarray): Start positions of coverage intervals.
-        - ends (numpy.ndarray): End positions of coverage intervals.
-        - values (numpy.ndarray): Signal values for each coverage interval.
+            - chroms (numpy.ndarray): Chromosome names for each coverage interval.
+            - starts (numpy.ndarray): Start positions of coverage intervals.
+            - ends (numpy.ndarray): End positions of coverage intervals.
+            - values (numpy.ndarray): Signal values for each coverage interval.
 
     Notes
     -----
-    - The `df_fragments` DataFrame is partitioned by chromosome for efficient processing.
-    - The `chrom_sizes` dictionary defines the size of each chromosome and is used to initialize arrays.
-    - If `cut_sites` is True, the coverage is computed at the fragment boundaries rather than the entire fragment range.
-    - Normalization scales the signal to RPM, and an additional scaling factor can further adjust the signal values.
+        - The `df_fragments` DataFrame is partitioned by chromosome for efficient processing.
+        - The `chrom_sizes` dictionary defines the size of each chromosome and is used to initialize arrays.
+        - If `cut_sites` is True, the coverage is computed at the fragment boundaries rather than the entire fragment range.
+        - Normalization scales the signal to RPM, and an additional scaling factor can further adjust the signal values.
 
     Examples
     --------
@@ -310,20 +305,20 @@ def fragment_to_bigwig(
 
     Parameters
     ----------
-    fragment_file : str
+    fragment_file :
         Path to the input fragment file.
         The file can be plain text or gzip-compressed (".gz").
-    chrom_sizes : dict[str, int]
+    chrom_sizes :
         A dictionary of chromosome sizes, e.g., {"chr1": 248956422, "chr2": 242193529, ...}.
-    bw_filename : str
+    bw_filename :
         Path to the output BigWig file.
-    normalize : bool, optional
+    normalize :
         If True, normalize coverage or signal values. Default is True.
     scaling_factor : float, optional
         Factor to scale signal values if `normalize` is True. Default is 1.0.
-    cut_sites : bool, optional
+    cut_sites :
         If True, compute the cut-site signal instead of coverage. Default is False.
-    extend_cut_sites: int, optional
+    extend_cut_sites:
         If set cut_sites, expand cut sites for both upstream and downstream, by default: 0
 
     Returns
@@ -333,10 +328,9 @@ def fragment_to_bigwig(
 
     Notes
     -----
-    - The input fragment file should be tab-delimited and follow the format:
-    Chromosome, Start, End, Barcode, Count.
-    - Lines starting with `#` or empty lines are skipped during parsing.
-    - Uses `pyBigWig` for writing BigWig files and `polars` for efficient data manipulation.
+        - The input fragment file should be tab-delimited and follow the format: Chromosome, Start, End, Barcode, Count.
+        - Lines starting with `#` or empty lines are skipped during parsing.
+        - Uses `pyBigWig` for writing BigWig files and `polars` for efficient data manipulation.
 
     Example
     -------

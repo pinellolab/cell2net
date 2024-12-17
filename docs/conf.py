@@ -9,32 +9,18 @@ import sys
 from datetime import datetime
 from importlib.metadata import metadata
 from pathlib import Path
-import re
-import cell2net
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 
-# -- Software version --------------------------------------------------------
-
-# The short X.Y version (including .devXXXX, rcX, b1 suffixes if present)
-version = re.sub(r"(\d+\.\d+)\.\d+(.*)", r"\1\2", cell2net.__version__)
-version = re.sub(r"(\.dev\d+).*?$", r"\1", version)
-
-# The full version, including alpha/beta/rc tags.
-release = cell2net.__version__
-
-print(
-    f"Building documentation for cell2net {release} (short version: {version}, switcher version: {switcher_version})"
-)
 
 # -- Project information -----------------------------------------------------
 
 # NOTE: If you installed your project in editable mode, this might be stale.
 #       If this is the case, reinstall it to refresh the metadata
-info = metadata("cell2net")
-project_name = info["Name"]
-author = info["Zhijian Li"]
+info = metadata("Cell2net")
+project_name = "Cell2net"
+author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
@@ -50,7 +36,7 @@ needs_sphinx = "4.0"
 
 html_context = {
     "display_github": True,  # Integrate GitHub
-    "github_user": "lzj1769",
+    "github_user": "scverse",
     "github_repo": project_name,
     "github_version": "main",
     "conf_py_path": "/docs/",
@@ -77,13 +63,14 @@ extensions = [
 ]
 
 autosummary_generate = True
-autodoc_member_order = "groupwise"
-default_role = "literal"
+autodoc_member_order = "bysource"
+# default_role = "literal"
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
 napoleon_use_rtype = True  # having a separate entry generally helps readability
 napoleon_use_param = True
+napoleon_custom_sections = [("Params", "Parameters")]
 myst_heading_anchors = 6  # create anchors for h1-h6
 myst_enable_extensions = [
     "amsmath",
@@ -108,8 +95,10 @@ source_suffix = {
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
+    "mudata": ("https://mudata.readthedocs.io/en/stable/", None),
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
 }
 
 # List of patterns, relative to source directory, that match files and

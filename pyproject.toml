@@ -63,9 +63,9 @@ optional-dependencies.test = [
   "pytest",
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
-urls.Documentation = "https://cell2net.readthedocs.io/"
-urls.Homepage = "https://github.com/lzj1769/cell2net"
-urls.Source = "https://github.com/lzj1769/cell2net"
+urls.Documentation = "https://pinellolab.github.io/cell2net/"
+urls.Homepage = "https://github.com/pinellolab/cell2net"
+urls.Source = "https://github.com/pinellolab/cell2net"
 
 [tool.hatch.envs.default]
 installer = "uv"

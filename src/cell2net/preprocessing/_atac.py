@@ -3,7 +3,9 @@ from mudata import MuData
 from scipy.sparse import issparse
 
 
-def binarize(data: AnnData | MuData, atac_mod: str = "atac", layer: str | None = None):
+def binarize(
+    data: AnnData | MuData, atac_mod: str = "atac", layer: str | None = None
+) -> None:
     """
     Binarize the data matrix in an AnnData or MuData object
 
@@ -13,18 +15,17 @@ def binarize(data: AnnData | MuData, atac_mod: str = "atac", layer: str | None =
 
     Parameters
     ----------
-    data : AnnData or MuData
+    data
         The input data object containing the matrix to be binarized.
         If a MuData object is provided, the `atac_mod` parameter specifies which modality to use.
-    atac_mod : str, optional
+    atac_mod
         The modality to use when `data` is a MuData object. Defaults to "atac".
-    layer : str | None, optional
+    layer
         The specific layer of the AnnData object to binarize.
         If None, adata.X is binarized. Defaults to None.
 
     Returns
     -------
-    None
         The input object is modified in place, with the specified matrix binarized.
 
     Raises
@@ -35,29 +36,32 @@ def binarize(data: AnnData | MuData, atac_mod: str = "atac", layer: str | None =
 
     Notes
     -----
-    - For sparse matrices, this function modifies the `.data` attribute directly to
-    ensure efficient processing without densifying the matrix.
-    - For dense matrices, non-zero values are updated directly in place.
+        - For sparse matrices, this function modifies the `.data` attribute directly to ensure efficient processing without densifying the matrix.
+        - For dense matrices, non-zero values are updated directly in place.
 
     Examples
     --------
     >>> from anndata import AnnData
     >>> import numpy as np
+    >>> from scipy.sparse import csr_matrix
     >>> import cell2net as cn
+
+    >>> # Example with a dense matrix
     >>> X = np.array([[0, 2, 0], [3, 0, 1]])
     >>> adata = AnnData(X)
     >>> cn.pp.binarize(adata)
     >>> print(adata.X)
-    [[0 1 0]
-    [1 0 1]]
 
-    >>> from scipy.sparse import csr_matrix
+    >>> # Example with a sparse matrix
     >>> X_sparse = csr_matrix([[0, 2, 0], [3, 0, 1]])
     >>> adata = AnnData(X_sparse)
-    >>> cn.pp.binarize(adata)
+    >>> binarize(adata)
     >>> print(adata.X.toarray())
-    [[0 1 0]
-    [1 0 1]]
+
+    >>> # Example with a specified layer
+    >>> adata.layers["counts"] = X
+    >>> binarize(adata, layer="counts")
+    >>> print(adata.layers["counts"])
     """
     if isinstance(data, AnnData):
         adata = data

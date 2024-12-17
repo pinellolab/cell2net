@@ -800,7 +800,6 @@ def tf_dotplot(
     var_names: _VarNames | Mapping[str, _VarNames] | None = None,
     categories_order: Sequence[str] | None = None,
     standard_scale: Literal["var", "group"] = "var",
-    # titles for main figure and legends
     title: str = "",
     colorbar_title: str = "Mean regulation \nin group",
     size_title: str = "Number of target \ngenes in group",
@@ -825,7 +824,7 @@ def tf_dotplot(
     **kwds,
 ) -> DotPlot | dict | None:
     """
-    Makes a *dot plot* of the regulation activities of `var_names`.
+    Makes a dot plot of the regulation activities of `var_names`.
 
     This function is modified from sc.pl.dotplot and provides the same interface
     to visualize TF regulation for each group which can be different cell
@@ -846,15 +845,21 @@ def tf_dotplot(
         | TF2     | Gene1     | Celltype1 |  0.42    |
         | TF1     | Gene2     | Celltype2 |  0.12    |
         +---------+-----------+-----------+----------+
-    tf_col : str, optional
+    tf_col :
         Column name for TF names, by default "tf"
-    gene_col: str, optional
+    gene_col:
         Column name for gene names, by default "gene"
-    group_col : str, optional
+    group_col :
         Column name for groups, by default "group"
-    activity_col : str, optional
+    activity_col :
         Column name for regulation activity of tf-gene in a group, by default "activity"
     var_names:
+
+    Returns
+    -------
+    DotPlot or dict or None
+        If `return_fig` is True, returns the `DotPlot` object.
+        Otherwise, generates the figure and either displays or saves it.
     """
     # prepare data for plotting
     dot_color, dot_size = prepare_dataframes_for_dotplot(

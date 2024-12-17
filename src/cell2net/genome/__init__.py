@@ -1,1 +1,1 @@
-from ._genome import get_chrom_sizes
+from ._genome import Genome, get_chrom_sizes

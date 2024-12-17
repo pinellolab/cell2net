@@ -7,6 +7,22 @@ from pyfaidx import Fasta
 
 
 class Genome:
+    """
+    A class that encapsulates information about a genome, including its FASTA sequence, its annotation, and chromosome sizes.
+
+    Attributes
+    ----------
+    name: str
+        Genome name
+    fasta
+        The path to the FASTA file.
+    annotation
+        The path to the annotation file.
+    chrom_sizes
+        A dictionary containing chromosome names and sizes.
+
+    """
+
     def __init__(
         self,
         name: str,

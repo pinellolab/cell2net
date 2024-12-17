@@ -5,21 +5,59 @@ from scipy.sparse import issparse
 
 def binarize(data: AnnData | MuData, atac_mod: str = "atac", layer: str | None = None):
     """
-    Transform peak counts to the binary matrix (all the non-zero values become 1).
+    Binarize the data matrix in an AnnData or MuData object
+
+    This function converts non-zero values in the specified data matrix (either `X` or
+    a specified `layer`) to 1, effectively binarizing the data.
+    It supports both dense and sparse matrix formats.
 
     Parameters
     ----------
-    data : AnnData | MuData
-        AnnData object with peak counts or multimodal MuData object with ATAC modality.
+    data : AnnData or MuData
+        The input data object containing the matrix to be binarized.
+        If a MuData object is provided, the `atac_mod` parameter specifies which modality to use.
     atac_mod : str, optional
-        Name of ATAC modality, by default "atac"
+        The modality to use when `data` is a MuData object. Defaults to "atac".
     layer : str | None, optional
-        Which layer to use. If None, will use adata.X, by default None
+        The specific layer of the AnnData object to binarize.
+        If None, adata.X is binarized. Defaults to None.
+
+    Returns
+    -------
+    None
+        The input object is modified in place, with the specified matrix binarized.
 
     Raises
     ------
     TypeError
-        _description_
+        If the input `data` is not an AnnData or MuData object, or if the specified
+        `atac_mod` is not found in the MuData object.
+
+    Notes
+    -----
+    - For sparse matrices, this function modifies the `.data` attribute directly to
+    ensure efficient processing without densifying the matrix.
+    - For dense matrices, non-zero values are updated directly in place.
+
+    Examples
+    --------
+    >>> from anndata import AnnData
+    >>> import numpy as np
+    >>> import cell2net as cn
+    >>> X = np.array([[0, 2, 0], [3, 0, 1]])
+    >>> adata = AnnData(X)
+    >>> cn.pp.binarize(adata)
+    >>> print(adata.X)
+    [[0 1 0]
+    [1 0 1]]
+
+    >>> from scipy.sparse import csr_matrix
+    >>> X_sparse = csr_matrix([[0, 2, 0], [3, 0, 1]])
+    >>> adata = AnnData(X_sparse)
+    >>> cn.pp.binarize(adata)
+    >>> print(adata.X.toarray())
+    [[0 1 0]
+    [1 0 1]]
     """
     if isinstance(data, AnnData):
         adata = data

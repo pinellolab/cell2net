@@ -74,8 +74,50 @@ def calculate_depth(
 
 
 @numba.njit
-def collapse_consecutive_values(X):
-    """Collapse consecutive values in array and return indices, values and lengths."""
+def collapse_consecutive_values(
+    X: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Collapse consecutive identical values in an array.
+
+    This function identifies segments of consecutive identical values in an input
+    array and returns their start indices, unique values, and lengths of each segment.
+
+    Parameters
+    ----------
+    X : numpy.ndarray
+        A 1D array of values (integers or floats) to process.
+
+    tuple
+        A tuple containing:
+        - idx (numpy.ndarray): Start indices of each segment of consecutive identical values.
+        - values (numpy.ndarray): The unique values corresponding to each segment.
+        - lengths (numpy.ndarray): The lengths (number of repetitions) of each segment.
+
+    Notes
+    -----
+    - This function is optimized for performance using `numba.prange` for parallel
+    processing of the input array.
+    - The output `idx` array contains the indices where each segment starts in `X`.
+    - The `values` array contains the unique values from the input array, and the
+    `lengths` array contains the counts of consecutive occurrences of each value.
+    - To reconstruct the original input, use `values.repeat(lengths)`.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import cell2net as cn
+    >>> X = np.array([1, 1, 2, 2, 2, 3, 1, 1])
+    >>> idx, values, lengths = cn.pp.collapse_consecutive_values(X)
+    >>> print(idx)
+    [0 2 5 6]
+    >>> print(values)
+    [1. 2. 3. 1.]
+    >>> print(lengths)
+    [2 3 1 2]
+    >>> np.array_equal(X, values.repeat(lengths))
+    True
+    """
     # Length.
     n = X.shape[0]
 

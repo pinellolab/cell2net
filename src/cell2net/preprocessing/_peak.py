@@ -1,3 +1,5 @@
+"""Functions to process scATAC-seq peaks"""
+
 import re
 
 import pandas as pd
@@ -9,6 +11,7 @@ from pysam import FastaFile
 from tqdm import tqdm
 
 from cell2net._logging import logger
+from cell2net.genome import Genome
 
 
 def add_peaks(
@@ -22,34 +25,67 @@ def add_peaks(
     summit_var_key: str = "summit",
 ) -> None:
     """
-    Add peak information to adata.var
+    Add peak metadata to an ATAC-seq modality in a MuData object.
+
+    This function parses peak information from variable names in the AnnData object of a
+    specified modality within a MuData object. It computes the genomic coordinates
+    (chromosome, start, end, and summit) for each peak and adds them as metadata in the `.var`
+    attribute of the AnnData object.
 
     Parameters
     ----------
     mdata : MuData
-        MuData object
+        A MuData object containing the ATAC-seq modality to be updated.
     mod_name : str, optional
-        Modality name, by default "atac"
+        The name of the modality containing the peak data. Defaults to "atac".
     delimiter : str, optional
-        Delimiter used to split the adata.var_names, by default "-"
+        The delimiter used to split the variable names in the AnnData object. Defaults to "-".
     peak_len : int, optional
-        Length of peaks, by default 256
+        The standardized length of the peaks. The midpoint of each peak is computed,
+        and the start and end positions are adjusted to match this length. Defaults to 256.
     chr_var_key : str, optional
-        _description_, by default "chr"
+        The key under which chromosome names will be stored in the `.var` attribute. Defaults to "chr".
     start_var_key : str, optional
-        _description_, by default "start"
+        The key under which the start positions of peaks will be stored in the `.var` attribute. Defaults to "start".
     end_var_key : str, optional
-        _description_, by default "end"
+        The key under which the end positions of peaks will be stored in the `.var` attribute. Defaults to "end".
+    summit_var_key : str, optional
+        The key under which the summit (midpoint) positions of peaks will be stored in the `.var` attribute. Defaults to "summit".
 
     Returns
     -------
-    Update `mdata`
+    None
+        The function modifies the MuData object in place by adding the computed peak
+        metadata to the `.var` attribute of the specified modality.
+
+    Raises
+    ------
+    AssertionError
+        If the specified modality (`mod_name`) is not found in the MuData object.
+
+    Notes
+    -----
+    - The variable names in the AnnData object are expected to follow the format `chromosome{delimiter}start{delimiter}end` (e.g., "chr1-100-200").
+    - The peak summit is calculated as the midpoint of the start and end positions, and the peak length is standardized to `peak_len`.
+
+    Examples
+    --------
+    >>> from mudata import MuData
+    >>> import anndata as ad
+    >>> import pandas as pd
+    >>> import cell2net as cn
+    >>> data = ad.AnnData(var=pd.DataFrame(index=["chr1-100-200", "chr2-300-400"]))
+    >>> mdata = MuData({"atac": data})
+    >>> cn.pp.add_peaks(mdata, mod_name="atac", peak_len=256)
+    >>> print(mdata["atac"].var)
+        chr  start  end  summit
+    0   chr1     72  328     150
+    1   chr2    272  528     350
     """
     assert mod_name in mdata.mod_names, f"Cannot find modality: {mod_name}"
     adata = mdata[mod_name]
 
     chrom_list, start_list, end_list, summit_list = [], [], [], []
-
     for i in range(adata.n_vars):
         peak = re.split(delimiter, adata.var_names[i])
         chrom, start, end = peak[0], int(peak[1]), int(peak[2])
@@ -81,20 +117,59 @@ def add_dna_sequence(
     end_var_key: str = "end",
     sequence_var_key: str = "dna_sequence",
 ) -> None:
-    """Add the DNA sequence of each peak to data object.
+    """
+    Add sequences to peak metadata in a MuData object.
+
+    This function retrieves DNA sequences for genomic regions specified in the `.var`
+    attribute of the AnnData object within a MuData object. The sequences are fetched
+    from a reference FASTA file and added as metadata under the specified key.
 
     Parameters
     ----------
     mdata : MuData
-        MuData object
+        A MuData object containing the modality with peak metadata.
     ref_fasta : str
-        Filename of genome reference
-    delimiter : str, optional
-        Delimiter that separates peaks, by default "-"
+        Path to the reference FASTA file. This file must be indexed (e.g., with samtools faidx).
+    mod_name : str, optional
+        The name of the modality containing peak data. Defaults to "atac".
+    chr_var_key : str, optional
+        The key in `.var` that contains chromosome names. Defaults to "chr".
+    start_var_key : str, optional
+        The key in `.var` that contains the start positions of peaks. Defaults to "start".
+    end_var_key : str, optional
+        The key in `.var` that contains the end positions of peaks. Defaults to "end".
+    sequence_var_key : str, optional
+        The key under which the retrieved DNA sequences will be stored in `.var`. Defaults to "dna_sequence".
 
     Returns
     -------
-    Update `mdata`
+    None
+        The function modifies the MuData object in place by adding DNA sequences to the
+        specified key in the `.var` attribute.
+
+    Raises
+    ------
+    AssertionError
+        If the specified modality (`mod_name`) is not found in the MuData object.
+    FileNotFoundError
+        If the `ref_fasta` file does not exist or is not properly indexed.
+
+    Examples
+    --------
+    >>> from mudata import MuData
+    >>> import anndata as ad
+    >>> import pandas as pd
+    >>> import cell2net as cn
+    >>> data = ad.AnnData(var=pd.DataFrame({
+    ...     "chr": ["chr1", "chr2"],
+    ...     "start": [100, 200],
+    ...     "end": [150, 250]
+    ... }))
+    >>> mdata = MuData({"atac": data})
+    >>> cn.pp.add_dna_sequence(mdata, ref_fasta="reference.fasta")
+    >>> print(mdata["atac"].var["dna_sequence"])
+    0    ATCGTTGAC...
+    1    TGGCCAATA...
     """
     assert mod_name in mdata.mod_names, f"Cannot find modality: {mod_name}"
     adata = mdata[mod_name]
@@ -103,7 +178,6 @@ def add_dna_sequence(
     df = adata.var[[chr_var_key, start_var_key, end_var_key]]
 
     seqs = []
-    # Loop for each chromosome
     for chrom, start, end in tqdm(
         zip(
             df[chr_var_key],
@@ -137,45 +211,93 @@ def peak_to_gene(
     inplace: bool = True,
 ) -> pd.DataFrame | None:
     """
-    For each gene, identify its associated peaks limited by up and downstream.
+    Link peaks to genes based on proximity to transcription start sites (TSS).
+
+    This function assigns ATAC-seq peaks to genes based on their proximity to
+    transcription start sites (TSS) within specified upstream and downstream
+    distances. The resulting mapping can be added to the `uns` attribute of the
+    provided MuData object or returned as a DataFrame.
 
     Parameters
     ----------
     mdata : MuData
-        Input data object, should at least containing two modalities
+        A MuData object containing RNA and ATAC modalities.
     rna_mod : str, optional
-        Name of RNA modality in mdata, by default "rna"
+        Name of the RNA modality in the MuData object. Defaults to "rna".
     atac_mod : str, optional
-        Name of ATAC modality in mdata, by default "atac"
-    gene_name_col: str, optional
-        Where to find the genome in mdata[rna_mod].var, by default "gene_names"
+        Name of the ATAC modality in the MuData object. Defaults to "atac".
+    gene_name_col : str, optional
+        Column name in the RNA `.var` attribute that contains gene names. Defaults to "gene_names".
     up_stream : int, optional
-        Distance of upstream of TSS to find associated peaks, by default 500_000
+        Distance upstream of the TSS to consider for assigning peaks. Defaults to 500,000.
     down_stream : int, optional
-        Distance of downstream of TSS to find associated peaks, by default 500_000
-    ref_fasta : str, optional
-        _description_, by default ""
+        Distance downstream of the TSS to consider for assigning peaks. Defaults to 500,000.
+    ref_fasta : str
+        Path to the reference FASTA file for determining genome bounds. The file must be indexed.
     chr_var_key : str, optional
-        Column name in mdata[atac_mod].var to get the chromosome of peaks, by default "chr"
+        Key in ATAC `.var` that contains chromosome names. Defaults to "chr".
     start_var_key : str, optional
-        Column name in mdata[atac_mod].var to get the start position of peaks, by default "start"
+        Key in ATAC `.var` that contains peak start positions. Defaults to "start".
     end_var_key : str, optional
-        Column name in mdata[atac_mod].var to get the end position of peaks, by default "end"
+        Key in ATAC `.var` that contains peak end positions. Defaults to "end".
     highly_variable : bool, optional
-        Whether or not to only use highly variable genes, by default True
-    genes : list[str] | None, optional
-        Filter peak-to-gene list using these genes, by default None. If None, no filtering is performed
-    min_n_peaks: int, optional
-        Minimum number of associated peaks. Default: 1
-    max_pct_dropout_by_counts: float, optional
-        Maximum dropout by counts. Default: 100
-    inplace: bool, optional
-        If set, add the results to mdata, otherwise return the dataframe. Default: True
+        If True, only consider highly variable genes. Defaults to True.
+    genes : list of str, optional
+        Specific genes to include in the mapping. If None, all genes are considered. Defaults to None.
+    min_n_peaks : int, optional
+        Minimum number of associated peaks required for a gene to be included. Defaults to 1.
+    max_pct_dropout_by_counts : float, optional
+        Maximum percentage of dropout by counts for filtering genes. If None, no filtering is applied. Defaults to None.
+    inplace : bool, optional
+        If True, the resulting mapping is added to the `uns` attribute of the MuData object under the key "peak_to_gene".
+        If False, the mapping is returned as a DataFrame. Defaults to True.
 
     Returns
     -------
-    _type_
-        Update mdata
+    pd.DataFrame or None
+        If `inplace` is False, returns a DataFrame with columns:
+        - `gene`: Gene name.
+        - `peak`: Peak identifier.
+        - `distance`: Distance from the TSS to the peak summit.
+        Otherwise, modifies the MuData object in place.
+
+    Raises
+    ------
+    AssertionError
+        If gene TSS coordinates are not found in the RNA modality (`adata_rna.uns["gene_tss_coord"]`).
+
+    Notes
+    -----
+    - Peaks are assigned to genes based on overlap with genomic regions defined
+    by the upstream and downstream distances from the TSS.
+    - Genes without any associated peaks are excluded from the output.
+    - Peak summits are calculated as the midpoint of their start and end positions.
+
+    Examples
+    --------
+    >>> from mudata import MuData
+    >>> import anndata as ad
+    >>> import pandas as pd
+    >>> import cell2net as cn
+    >>> mdata = MuData({
+    ...     "rna": ad.AnnData(var=pd.DataFrame({"gene_names": ["gene1", "gene2"]})),
+    ...     "atac": ad.AnnData(var=pd.DataFrame({
+    ...         "chr": ["chr1", "chr1"],
+    ...         "start": [100, 200],
+    ...         "end": [150, 250]
+    ...     }))
+    ... })
+    >>> mdata["rna"].uns["gene_tss_coord"] = pd.DataFrame({
+    ...     "gene_name": ["gene1", "gene2"],
+    ...     "tss": [125, 225],
+    ...     "strand": ["+", "-"],
+    ...     "chrom": ["chr1", "chr1"]
+    ... })
+    >>> df = peak_to_gene(mdata, ref_fasta="genome.fa", inplace=False)
+    >>> print(df.head())
+        gene  peak  distance
+    0   gene1     0        25
+    1   gene2     1        25
     """
     # Check if can find TSS coordinates in adata_rna
     adata_rna = mdata[rna_mod]
@@ -261,3 +383,14 @@ def peak_to_gene(
         mdata.uns["peak_to_gene"] = df
     else:
         return df
+
+
+def annotate_peaks(
+    mdata: MuData,
+    genome: Genome,
+    mod_name: str = "atac",
+    chr_var_key: str = "chr",
+    start_var_key: str = "start",
+    end_var_key: str = "end",
+):
+    pass

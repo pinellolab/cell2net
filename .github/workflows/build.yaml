@@ -23,7 +23,7 @@ jobs:
       - name: Install dependency
         shell: bash
         run: |
-          sudo apt-get install -y pandoc jq sphinx pydata-sphinx-theme==0.16.* pandoc nbsphinx \
+          sudo apt-get install -y pandoc jq sphinx pydata-sphinx-theme pandoc nbsphinx \
             sphinx-autodoc-typehints myst-parser
       - name: Build doc
         shell: bash

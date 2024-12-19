@@ -22,6 +22,10 @@ jobs:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: "**/pyproject.toml"
+      - name: Install dependency
+        shell: bash
+        run: |
+          sudo apt-get install -y pandoc jq
   package:
     runs-on: ubuntu-latest
     steps:

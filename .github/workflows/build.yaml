@@ -20,12 +20,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: "**/pyproject.toml"
       - name: Install dependency
         shell: bash
         run: |
-          sudo apt-get install -y pandoc jq
+          sudo apt-get install -y pandoc jq sphinx pydata-sphinx-theme==0.16.* pandoc nbsphinx \
+            sphinx-autodoc-typehints myst-parser
       - name: Build doc
         shell: bash
         run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html

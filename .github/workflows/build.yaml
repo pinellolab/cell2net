@@ -26,7 +26,7 @@ jobs:
           sudo apt-get install -y pandoc jq
           pip install sphinx pydata-sphinx-theme pandoc \
             nbsphinx sphinx-autodoc-typehints myst-parser myst_nb \
-            sphinx_copybutton sphinxcontrib.bibtex
+            sphinx_copybutton sphinxcontrib.bibtex sphinx_tabs
       - name: Build doc
         shell: bash
         run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html

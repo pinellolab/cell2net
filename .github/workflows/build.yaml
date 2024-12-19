@@ -31,6 +31,11 @@ jobs:
         shell: bash
         run: |
           pip install ${GITHUB_WORKSPACE}
+      - name: Get Cell2net version
+        shell: bash
+        run: |
+          VERSION_NUMBER=$(python -c "import cell2net;print('.'.join(cell2net.__version__.split('.')[:3]))")
+          echo $VERSION_NUMBER
       - name: Build doc
         shell: bash
         run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html

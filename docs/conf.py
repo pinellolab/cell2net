@@ -7,7 +7,6 @@
 # -- Path setup --------------------------------------------------------------
 import sys
 from datetime import datetime
-from importlib.metadata import metadata
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -15,19 +14,13 @@ sys.path.insert(0, str(HERE / "extensions"))
 
 
 # -- Project information -----------------------------------------------------
-
-# NOTE: If you installed your project in editable mode, this might be stale.
-#       If this is the case, reinstall it to refresh the metadata
-info = metadata("Cell2net")
-project_name = "Cell2net"
-author = info["Author"]
+project = "Cell2net"
+author = "Zhijian Li"
 copyright = f"{datetime.now():%Y}, {author}."
-version = info["Version"]
-urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
-repository_url = urls["Source"]
+version = "0.0.3"
 
 # The full version, including alpha/beta/rc tags
-release = info["Version"]
+release = version
 
 bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
@@ -36,8 +29,8 @@ needs_sphinx = "4.0"
 
 html_context = {
     "display_github": True,  # Integrate GitHub
-    "github_user": "scverse",
-    "github_repo": project_name,
+    "github_user": "pinellolab",
+    "github_repo": "cell2net",
     "github_version": "main",
     "conf_py_path": "/docs/",
 }
@@ -108,18 +101,16 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
 
 # -- Options for HTML output -------------------------------------------------
-
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-html_theme = "sphinx_book_theme"
+html_theme = "pydata_sphinx_theme"
+html_show_sphinx = False
+html_show_sourcelink = False
 html_static_path = ["_static"]
-html_css_files = ["css/custom.css"]
-
-html_title = project_name
+html_css_files = [
+    "css/custom.css",
+]
 
 html_theme_options = {
-    "repository_url": repository_url,
+    "github_url": "",
     "use_repository_button": True,
     "path_to_docs": "docs/",
     "navigation_with_keys": False,

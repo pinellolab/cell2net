@@ -6,10 +6,9 @@
 :hidden: true
 :maxdepth: 1
 
-changelog.md
-contributing.md
-references.md
 install.md
 notebooks/example
 api/index
+changelog.md
+references.md
 ```

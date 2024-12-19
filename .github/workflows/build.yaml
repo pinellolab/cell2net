@@ -26,6 +26,9 @@ jobs:
         shell: bash
         run: |
           sudo apt-get install -y pandoc jq
+      - name: Build doc
+        shell: bash
+        run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html
   package:
     runs-on: ubuntu-latest
     steps:

@@ -20,3 +20,19 @@ ATAC-seq fragments processing
     preprocessing.fragments_to_coverage
     preprocessing.fragment_to_bigwig
     preprocessing.split_fragments
+
+Gene processing
+=============================
+.. autosummary::
+    :toctree: _autosummary
+
+    preprocessing.add_gene_tss_coord
+    preprocessing.add_gene_tss_coord
+
+Motif processing
+=============================
+.. autosummary::
+    :toctree: _autosummary
+
+    preprocessing.get_motifs_from_jaspar
+    preprocessing.match_motif

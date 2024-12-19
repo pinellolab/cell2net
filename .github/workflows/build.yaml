@@ -24,10 +24,14 @@ jobs:
         shell: bash
         run: |
           sudo apt-get install -y pandoc jq
-          pip install sphinx pydata-sphinx-theme pandoc nbsphinx sphinx-autodoc-typehints myst-parser myst_nb
+          pip install sphinx pydata-sphinx-theme pandoc \
+            nbsphinx sphinx-autodoc-typehints myst-parser myst_nb \
+            sphinx_copybutton
       - name: Build doc
         shell: bash
         run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html
+      - name: Deploy doc
+        uses: JamesIves/github-pages-deploy-action@v4
   build_package:
     runs-on: ubuntu-latest
     steps:

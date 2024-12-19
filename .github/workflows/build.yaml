@@ -46,7 +46,6 @@ jobs:
           branch: gh-pages
           folder: _build/html
           clean: true
-          target-folder: /version/dev/
   build_package:
     runs-on: ubuntu-latest
     steps:

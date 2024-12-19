@@ -37,7 +37,9 @@ dependencies = [
   "matplotlib",
   "PyComplexHeatmap==1.7.7",
   "MOODS-python",
-  "pyBigWig"
+  "pyBigWig",
+  "torch",
+  "adpbulk"
 ]
 optional-dependencies.dev = [
   "pre-commit",
@@ -56,8 +58,7 @@ optional-dependencies.doc = [
   "sphinx-copybutton",
   "sphinx-tabs",
   "sphinxcontrib-bibtex>=1",
-  "sphinxext-opengraph",
-  "torch",
+  "sphinxext-opengraph"
 ]
 optional-dependencies.test = [
   "coverage",

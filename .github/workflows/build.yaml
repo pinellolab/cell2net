@@ -30,7 +30,7 @@ jobs:
       - name: Install cell2net
         shell: bash
         run: |
-          pip install ./ 
+          pip install ${GITHUB_WORKSPACE}
       - name: Build doc
         shell: bash
         run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html

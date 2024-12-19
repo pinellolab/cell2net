@@ -25,9 +25,9 @@ def santize_str_for_filename(s: str) -> str:
 
     This function replaces or removes characters that are typically problematic
     in filenames. Specifically:
-    - Spaces are replaced with underscores (`_`).
-    - Slashes (`/`) are replaced with underscores (`_`).
-    - Parentheses (`(` and `)`) are removed.
+        - Spaces are replaced with underscores (`_`).
+        - Slashes (`/`) are replaced with underscores (`_`).
+        - Parentheses (`(` and `)`) are removed.
 
     Parameters
     ----------
@@ -42,7 +42,7 @@ def santize_str_for_filename(s: str) -> str:
     Examples
     --------
     >>> sanitize_str_for_filename("example (file)/name")
-    'example_file_name'
+    ... 'example_file_name'
     """
     return s.replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
 

@@ -41,6 +41,12 @@ jobs:
         run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html
       - name: Deploy doc
         uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          single-commit: true
+          branch: gh-pages
+          folder: _build/html
+          clean: true
+          target-folder: /version/dev/
   build_package:
     runs-on: ubuntu-latest
     steps:

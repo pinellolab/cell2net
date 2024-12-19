@@ -46,10 +46,10 @@ def compute_enrichment(
     return enrichment
 
 
-def variant_enrichment(
-    df_p2g: pd.DataFrame,
-    df_causal_var: str,
-    df_common_var: str,
+def causal_var_enrichment_in_peaks(
+    peak_to_gene: pd.DataFrame,
+    causal_var: str,
+    common_var: str,
     gene_gtf: str,
     ref_fasta: str,
 ) -> pd.DataFrame:
@@ -76,11 +76,11 @@ def variant_enrichment(
     pd.DataFrame
         _description_
     """
-    pr_p2g = pr.PyRanges(df_p2g)
+    pr_p2g = pr.PyRanges(peak_to_gene)
 
     # read causal variates
-    pr_causal_var = pr.PyRanges(df_causal_var)
-    pr_common_var = pr.PyRanges(df_common_var)
+    pr_causal_var = pr.PyRanges(causal_var)
+    pr_common_var = pr.PyRanges(common_var)
 
     # get tss and extend by 500kb
     logger.info("Load gene coordinates")

@@ -18,7 +18,7 @@ def compute_peak_attr(
     method: Literal["IntegratedGradients"] = "IntegratedGradients",
     **kwargs,
 ) -> np.ndarray:
-    r"""
+    """
     Calculate the attribution of Peak accessibility to gene expression.
 
     Parameters
@@ -125,8 +125,6 @@ def peak_to_gene(
     mdata: MuData,
     attr: np.ndarray,
     groupby: str,
-    n_peaks: int = 50,
-    min_attr: float = 0.0,
 ) -> pd.DataFrame:
     """
     Extracts peak-to-gene links based on the attribution of peak accessibility
@@ -170,17 +168,6 @@ def peak_to_gene(
         )
         df_list.append(df)
 
-    df = pd.concat(df_list, axis=0).reset_index(drop=True)
-
-    # # filter by min_attr
-    # if min_attr:
-    #     df = df[df["avg_attr"] > min_attr].reset_index(drop=True)
-
-    # # Group by 'group_column' and select the top 20 rows within each group
-    # df = (
-    #     df.groupby(groupby)
-    #     .apply(lambda x: x.nlargest(n_peaks, "avg_attr"))
-    #     .reset_index(drop=True)
-    # )
+    df = pd.concat(df_list, axis=0)
 
     return df

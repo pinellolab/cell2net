@@ -1,1 +1,1 @@
-from ._peak_to_gene import variant_enrichment
+from ._peak_to_gene import causal_var_enrichment_in_peaks

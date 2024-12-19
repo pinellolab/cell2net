@@ -82,3 +82,7 @@ def binarize(
             adata.X.data[adata.X.data != 0] = 1  # type: ignore
         else:
             adata.X[adata.X != 0] = 1  # type: ignore
+
+
+def peaks_to_bed(data: AnnData | MuData, bed_filename: str, atac_mod: str = "atac"):
+    pass

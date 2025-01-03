@@ -82,15 +82,15 @@ def collapse_consecutive_values(
 
     Parameters
     ----------
-    X : numpy.ndarray
+    X :
         A 1D array of values (integers or floats) to process.
 
     Returns
     -------
         A tuple containing:
-        - idx (numpy.ndarray): Start indices of each segment of consecutive identical values.
-        - values (numpy.ndarray): The unique values corresponding to each segment.
-        - lengths (numpy.ndarray): The lengths (number of repetitions) of each segment.
+            - idx (numpy.ndarray): Start indices of each segment of consecutive identical values.
+            - values (numpy.ndarray): The unique values corresponding to each segment.
+            - lengths (numpy.ndarray): The lengths (number of repetitions) of each segment.
 
     Notes
     -----
@@ -396,27 +396,27 @@ def split_fragments(
 
     Parameters
     ----------
-    fragment_file : str
+    fragment_file :
         Path to the input fragment file.
         This can be a plain text file or gzip-compressed (.gz) and
         should have the following columns:
         chr1    10012   10013   TTTGCGACACCCACAG-1      1
         chr1    10066   10198   ACGAATCTCATTTGCT-1      1
         chr1    10066   10478   TCAAGAACAGTAATAG-1      1
-    cell_barcodes: list[str]
+    cell_barcodes:
         A list of cell barcodes corresponding to the fragments.
-    groups : list[str]
+    groups:
         A list of group names corresponding to each cell barcode.
         This can represent cell types or states, or different conditions.
         Must have the same length as `cell_barcodes`.
-    out_dir : str
+    out_dir:
         Path to the output directory where the group-specific fragment files will be saved.
 
     Returns
     -------
     None
-        For each unique group in `groups`, a compressed and indexed fragment file is created in the output directory.
-        The files are named as `<group>.fragments.tsv.gz`.
+        - For each unique group in `groups`, a compressed and indexed fragment file is created in the output directory.
+        - The files are named as `<group>.fragments.tsv.gz`.
     """
     # check if the barcodes and groups have same length
     assert len(cell_barcodes) == len(

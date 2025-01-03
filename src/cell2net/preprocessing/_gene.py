@@ -6,19 +6,50 @@ from mudata import MuData
 
 def get_gene_tss_coor(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
     """
-    Extract TSS coordinates for each gene from a GTF file
+    Extract transcription start site (TSS) coordinates for genes from a GTF file.
+
+    This function parses a GTF (Gene Transfer Format) file to extract the transcription
+    start site (TSS) of genes or other specified features. It returns a pandas DataFrame
+    with the chromosome, gene name, strand, and TSS for each gene.
 
     Parameters
     ----------
-    gene_gtf : str
-        GTF file including gene annotation, should have 9 columns.
-    feature_type:
-        Which feature type in the GTF file to use. Default: gene
+    gene_gtf :
+        Path to the GTF file. The file can be plain text or gzip-compressed (".gz").
+    feature_type :
+        The type of feature to extract (e.g., "gene", "transcript"). Defaults to "gene".
 
     Returns
     -------
     pd.DataFrame
-        A dataframe
+        A DataFrame containing the following columns:
+            - `chrom`: Chromosome name (str).
+            - `gene_name`: Gene name extracted from the "gene_name" attribute (str).
+            - `strand`: Strand of the gene ('+' or '-') (str).
+            - `tss`: Transcription start site position (int).
+
+    Notes
+    -----
+        - This function assumes that the "gene_name" attribute is present in the GTF file's
+        attributes field and is enclosed in double quotes.
+        - The TSS is calculated as the start position for '+' strand genes and the end
+        position for '-' strand genes.
+        - Lines in the GTF file that do not have 9 columns or do not match the specified
+        feature type are skipped.
+        - Duplicate gene names are removed, keeping only the first occurrence.
+
+    Examples
+    --------
+    Extract TSS information for genes from a GTF file:
+        >>> import pandas as pd
+        >>> gene_gtf = "path/to/genes.gtf.gz"
+        >>> df = get_gene_tss_coor(gene_gtf)
+        >>> print(df.head())
+            chrom  gene_name strand    tss
+        0    chr1      GeneA      +   1000
+        1    chr1      GeneB      -   2000
+        2    chr2      GeneC      +   3000
+        3    chr2      GeneD      -   4000
     """
     if gene_gtf.endswith(".gz"):
         file_handle = gzip.open(gene_gtf, "rt")

@@ -38,12 +38,12 @@ def compute_peak_attr(
     # create a dataloader
     match method:
         case "IntegratedGradients":
-            attr = _integrated_gradients(model=model, idx=idx, **kwargs)
+            attr = integrated_gradients(model=model, idx=idx, **kwargs)
 
     return attr
 
 
-def _integrated_gradients(
+def integrated_gradients(
     model: Cell2Net,
     idx: Sequence[int] | Sequence[str] | None = None,
     batch_size: int = 4,
@@ -124,7 +124,7 @@ def _integrated_gradients(
 def peak_to_gene(
     mdata: MuData,
     attr: np.ndarray,
-    groupby: str,
+    groupby: str | None = None,
 ) -> pd.DataFrame:
     """
     Extracts peak-to-gene links based on the attribution of peak accessibility
@@ -143,31 +143,42 @@ def peak_to_gene(
     pd.DataFrame
         Calculated t-statistic and p-value for each peak-to-gene link
     """
-    assert groupby in mdata.obs.columns, print(f"Cannot find {groupby} in mdata.obs")
-
-    groups = mdata.obs[groupby].values
-
-    assert len(groups) == attr.shape[0], print(
-        f"Length of grouby {len(groups)} is different from number of cells {attr.shape[0]}"
-    )
-
     gene = mdata["rna"].var_names[0]
-    unique_groups, group_indices = np.unique(groups, return_inverse=True)  # type: ignore
-
-    df_list = []
-    # For each group, subset the attribution and perform t-test
-    for i, unique_group in enumerate(unique_groups):
-        _attr = attr[group_indices == i]
+    if groupby is None:
+        # compute average attribution using all cells
         df = pd.DataFrame(
             data={
                 "peak": mdata.uns["peak_to_gene"]["peak"],
                 "gene": gene,
-                groupby: unique_group,
-                "avg_attr": np.mean(_attr, axis=0),
+                "avg_attr": np.mean(attr, axis=0),
             }
         )
-        df_list.append(df)
+    else:
+        # compute average attribution for each group
+        assert groupby in mdata.obs.columns, f"Cannot find {groupby} in mdata.obs"
 
-    df = pd.concat(df_list, axis=0)
+        groups = mdata.obs[groupby].values
+
+        assert (
+            len(groups) == attr.shape[0]
+        ), f"Length of grouby {len(groups)} is different from number of cells {attr.shape[0]}"
+
+        unique_groups, group_indices = np.unique(groups, return_inverse=True)  # type: ignore
+
+        df_list = []
+        # For each group, subset the attribution and perform t-test
+        for i, unique_group in enumerate(unique_groups):
+            _attr = attr[group_indices == i]
+            df = pd.DataFrame(
+                data={
+                    "peak": mdata.uns["peak_to_gene"]["peak"],
+                    "gene": gene,
+                    groupby: unique_group,
+                    "avg_attr": np.mean(_attr, axis=0),
+                }
+            )
+            df_list.append(df)
+
+        df = pd.concat(df_list, axis=0)
 
     return df

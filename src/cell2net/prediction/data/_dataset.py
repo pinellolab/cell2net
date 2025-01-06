@@ -9,18 +9,61 @@ from ._utils import encode_seq
 
 class MuTorchDataset(Dataset):
     """
-    PyTorch Dataset for MuData objects.
+    A PyTorch Dataset for single-cell multi-modal data.
+
+    This dataset is designed for multi-modal data stored in a MuData object,
+    including RNA expression, ATAC accessibility, transcription factor (TF) activity,
+    covariates, and peak-to-gene associations.
 
     Parameters
     ----------
-    mdata : MuData
-        Input MuData object containing RNA and ATAC modalities
-    rna_mod: str, optional
-        Name of RNA modality, by default "rna"
-    atac_mod: str, optional
-        Name of ATAC modality, by default "atac"
+    mdata:
+        A MuData object containing multi-modal data.
+        - RNA data should be stored in the `rna_mod` modality, with count data in `layers["counts"]`
+          and transcription factor (TF) activity in `obsm["tf"]`.
+        - ATAC data should be stored in the `atac_mod` modality, with count data in `layers["counts"]`
+          and peak sequences in `var["dna_sequence"]`.
+        - Peak-to-gene associations should be in `uns["peak_to_gene"]`, with a column "distance"
+          specifying distances from peaks to transcription start sites (TSS).
+    rna_mod:
+        The modality name for RNA data in the MuData object, by default "rna".
+    atac_mod:
+        The modality name for ATAC data in the MuData object, by default "atac".
     covariates: Sequence[str], optional
-        A list of column names in mdata.obs, by deafult None
+        A list of column names in `mdata.obs` representing covariates to include in the dataset.
+        If None, no covariates are included, by default None.
+    train:
+        Whether the dataset is used for training.
+        If True, the `target_exp` (target expression) will be included in the output, by default True.
+
+    Attributes
+    ----------
+    mdata : MuData
+        The MuData object used to create the dataset.
+
+    target_exp : np.ndarray
+        RNA expression data from the `rna_mod` modality, flattened to a 1D array.
+
+    peak_acc : np.ndarray
+        ATAC accessibility data from the `atac_mod` modality.
+
+    tf_exp : np.ndarray
+        Transcription factor activity data from the `rna_mod` modality.
+
+    covariates : np.ndarray
+        Covariate data extracted from `mdata.obs`.
+
+    peak_dist : np.ndarray
+        Peak-to-TSS distances, transformed using an exponential decay function and normalized.
+
+    peak_seq : np.ndarray
+        One-hot encoded sequences of peaks from the `atac_mod` modality.
+
+    train : bool
+        Indicates whether the dataset is for training or not.
+
+    len : int
+        The number of observations in the dataset.
     """
 
     def __init__(

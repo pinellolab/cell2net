@@ -55,8 +55,9 @@ def causal_var_enrichment_in_peaks(
     Returns
     -------
         A DataFrame summarizing the enrichment results for each gene with following columns:
-            * `gene`: Gene name.
-            * `n_causal_var_in_peak`: Number of causal variants overlapping peaks.
+
+            - `gene`: Gene name.
+            - `n_causal_var_in_peak`: Number of causal variants overlapping peaks.
             - `n_causal_var_in_gene`: Number of causal variants within the TSS window.
             - `n_common_var_in_peak`: Number of common variants overlapping peaks.
             - `n_common_var_in_gene`: Number of common variants within the TSS window.

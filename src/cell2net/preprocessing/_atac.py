@@ -46,19 +46,19 @@ def binarize(
     >>> from scipy.sparse import csr_matrix
     >>> import cell2net as cn
 
-    >>> # Example with a dense matrix
+    Example with a dense matrix
     >>> X = np.array([[0, 2, 0], [3, 0, 1]])
     >>> adata = AnnData(X)
     >>> cn.pp.binarize(adata)
     >>> print(adata.X)
 
-    >>> # Example with a sparse matrix
+    Example with a sparse matrix
     >>> X_sparse = csr_matrix([[0, 2, 0], [3, 0, 1]])
     >>> adata = AnnData(X_sparse)
     >>> binarize(adata)
     >>> print(adata.X.toarray())
 
-    >>> # Example with a specified layer
+    Example with a specified layer
     >>> adata.layers["counts"] = X
     >>> binarize(adata, layer="counts")
     >>> print(adata.layers["counts"])

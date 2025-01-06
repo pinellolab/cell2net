@@ -402,6 +402,7 @@ def split_fragments(
         Path to the input fragment file.
         This can be a plain text file or gzip-compressed (.gz) and
         should have the following formats:
+
         +-----+-------+--------+----------------------+-----+
         |chr1 | 10012 |  10013 |   TTTGCGACACCCACAG-1 |   1 |
         +-----+-------+--------+----------------------+-----+
@@ -409,6 +410,7 @@ def split_fragments(
         +-----+-------+--------+----------------------+-----+
         |chr1 | 10066 |  10478 |   TCAAGAACAGTAATAG-1 |   1 |
         +-----+-------+--------+----------------------+-----+
+
     cell_barcodes:
         A list of cell barcodes corresponding to the fragments.
     groups:

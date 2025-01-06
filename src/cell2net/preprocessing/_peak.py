@@ -34,22 +34,22 @@ def add_peaks(
 
     Parameters
     ----------
-    mdata : MuData
+    mdata :
         A MuData object containing the ATAC-seq modality to be updated.
-    mod_name : str, optional
+    mod_name :
         The name of the modality containing the peak data. Defaults to "atac".
-    delimiter : str, optional
+    delimiter :
         The delimiter used to split the variable names in the AnnData object. Defaults to "-".
-    peak_len : int, optional
+    peak_len :
         The standardized length of the peaks. The midpoint of each peak is computed,
         and the start and end positions are adjusted to match this length. Defaults to 256.
-    chr_var_key : str, optional
+    chr_var_key :
         The key under which chromosome names will be stored in the `.var` attribute. Defaults to "chr".
-    start_var_key : str, optional
+    start_var_key :
         The key under which the start positions of peaks will be stored in the `.var` attribute. Defaults to "start".
-    end_var_key : str, optional
+    end_var_key :
         The key under which the end positions of peaks will be stored in the `.var` attribute. Defaults to "end".
-    summit_var_key : str, optional
+    summit_var_key :
         The key under which the summit (midpoint) positions of peaks will be stored in the `.var` attribute. Defaults to "summit".
 
     Returns
@@ -65,8 +65,8 @@ def add_peaks(
 
     Notes
     -----
-    - The variable names in the AnnData object are expected to follow the format `chromosome{delimiter}start{delimiter}end` (e.g., "chr1-100-200").
-    - The peak summit is calculated as the midpoint of the start and end positions, and the peak length is standardized to `peak_len`.
+        - The variable names in the AnnData object are expected to follow the format `chromosome{delimiter}start{delimiter}end` (e.g., "chr1-100-200").
+        - The peak summit is calculated as the midpoint of the start and end positions, and the peak length is standardized to `peak_len`.
 
     Examples
     --------

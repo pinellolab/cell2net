@@ -325,8 +325,7 @@ def fragment_to_bigwig(
 
     Returns
     -------
-    None
-        Write output to bigwig file
+    Write output to bigwig file
 
     Notes
     -----
@@ -422,7 +421,7 @@ def split_fragments(
 
     Returns
     -------
-    None
+    Write output to fragment file
 
     Notes
     -----

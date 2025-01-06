@@ -111,11 +111,11 @@ def add_gene_tss_coord(
 
     Parameters
     ----------
-    mdata : MuData
+    mdata :
         Input MuData object containing gene expression
-    gene_gtf : str
+    gene_gtf :
         GTF file including gene annotation, which should have 9 columns.
-    feature_type : str
+    feature_type :
         Which feature type in the GTF file to use. Default: gene
     """
     assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"

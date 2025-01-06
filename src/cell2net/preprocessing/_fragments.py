@@ -415,6 +415,10 @@ def split_fragments(
     Returns
     -------
     None
+        Write output to fragment files
+
+    Notes
+    -----
         - For each unique group in `groups`, a compressed and indexed fragment file is created in the output directory.
         - The files are named as `<group>.fragments.tsv.gz`.
     """

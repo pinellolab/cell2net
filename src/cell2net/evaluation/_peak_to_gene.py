@@ -5,7 +5,7 @@ import pyranges.genomicfeatures as gf
 from tqdm import tqdm
 
 from cell2net._logging import logger
-from cell2net.preprocessing import get_gene_tss_coor
+from cell2net.preprocessing import get_gene_tss_coord
 
 
 def causal_var_enrichment_in_peaks(
@@ -116,7 +116,7 @@ def causal_var_enrichment_in_peaks(
 
     # get tss for each gene
     logger.info("Get TSS coordinates to create background regions")
-    df_tss = get_gene_tss_coor(gene_gtf=gene_gtf, feature_type="gene")
+    df_tss = get_gene_tss_coord(gene_gtf=gene_gtf, feature_type="gene")
     df_tss["Start"] = df_tss["tss"] - 1
     df_tss["End"] = df_tss["tss"]
     df_tss["Score"] = 0

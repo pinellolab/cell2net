@@ -223,9 +223,9 @@ def tf_to_gene(
 
     Notes
     -----
-    - Ensure that the peak-to-gene mapping (`peak_to_gene`) has been generated using
-      `cell2net.pp.peak_to_gene` before running this function.
-    - The input `mdata` must contain motif match information in `adata_atac.varm["motif_match"]`.
+        - Ensure that the peak-to-gene mapping (`peak_to_gene`) has been generated using
+        `cell2net.pp.peak_to_gene` before running this function.
+        - The input `mdata` must contain motif match information in `adata_atac.varm["motif_match"]`.
     """
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]

@@ -88,6 +88,7 @@ def collapse_consecutive_values(
     Returns
     -------
         A tuple containing:
+
             - idx (numpy.ndarray): Start indices of each segment of consecutive identical values.
             - values (numpy.ndarray): The unique values corresponding to each segment.
             - lengths (numpy.ndarray): The lengths (number of repetitions) of each segment.
@@ -106,13 +107,13 @@ def collapse_consecutive_values(
     >>> X = np.array([1, 1, 2, 2, 2, 3, 1, 1])
     >>> idx, values, lengths = cn.pp.collapse_consecutive_values(X)
     >>> print(idx)
-    [0 2 5 6]
+    ... [0 2 5 6]
     >>> print(values)
-    [1. 2. 3. 1.]
+    ... [1. 2. 3. 1.]
     >>> print(lengths)
-    [2 3 1 2]
+    ... [2 3 1 2]
     >>> np.array_equal(X, values.repeat(lengths))
-    True
+    ... True
     """
     # Length.
     n = X.shape[0]
@@ -194,6 +195,7 @@ def fragments_to_coverage(
     Yields
     ------
         A tuple containing:
+
             - chroms (numpy.ndarray): Chromosome names for each coverage interval.
             - starts (numpy.ndarray): Start positions of coverage intervals.
             - ends (numpy.ndarray): End positions of coverage intervals.
@@ -399,10 +401,14 @@ def split_fragments(
     fragment_file :
         Path to the input fragment file.
         This can be a plain text file or gzip-compressed (.gz) and
-        should have the following columns:
-        chr1    10012   10013   TTTGCGACACCCACAG-1      1
-        chr1    10066   10198   ACGAATCTCATTTGCT-1      1
-        chr1    10066   10478   TCAAGAACAGTAATAG-1      1
+        should have the following formats:
+        +-----+-------+--------+----------------------+-----+
+        |chr1 | 10012 |  10013 |   TTTGCGACACCCACAG-1 |   1 |
+        +-----+-------+--------+----------------------+-----+
+        |chr1 | 10066 |  10198 |   ACGAATCTCATTTGCT-1 |   1 |
+        +-----+-------+--------+----------------------+-----+
+        |chr1 | 10066 |  10478 |   TCAAGAACAGTAATAG-1 |   1 |
+        +-----+-------+--------+----------------------+-----+
     cell_barcodes:
         A list of cell barcodes corresponding to the fragments.
     groups:
@@ -415,7 +421,6 @@ def split_fragments(
     Returns
     -------
     None
-        Write output to fragment files
 
     Notes
     -----

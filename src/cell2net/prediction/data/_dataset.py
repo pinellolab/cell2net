@@ -64,6 +64,25 @@ class MuTorchDataset(Dataset):
 
     len : int
         The number of observations in the dataset.
+
+    Example
+    -------
+    >>> dataset = MuTorchDataset(
+    ...     mdata=mdata,
+    ...     rna_mod="rna",
+    ...     atac_mod="atac",
+    ...     covariates=["age", "sex"],
+    ...     train=True
+    ... )
+    >>> print(len(dataset))
+    10000
+    >>> data = dataset[0]
+    >>> print(data["peak_acc"].shape)
+    (500,)
+    >>> print(data["peak_seq"].shape)
+    (500, 4)
+    >>> print(data["target_exp"].shape)
+    (1,)
     """
 
     def __init__(

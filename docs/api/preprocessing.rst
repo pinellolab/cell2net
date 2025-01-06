@@ -3,15 +3,20 @@ Preprocessing: `pp`
 ===================
 .. currentmodule:: cell2net
 
-ATAC-seq matrix processing
+ATAC-seq matrix
 ==========================
 .. autosummary::
     :toctree: _autosummary
 
     preprocessing.binarize
+    preprocessing.calculate_depth
+    preprocessing.collapse_consecutive_values
+    preprocessing.fragments_to_coverage
+    preprocessing.fragment_to_bigwig
+    preprocessing.split_fragments
 
-ATAC-seq fragments processing
-=============================
+ATAC-seq fragment
+==========================
 .. autosummary::
     :toctree: _autosummary
 
@@ -21,15 +26,15 @@ ATAC-seq fragments processing
     preprocessing.fragment_to_bigwig
     preprocessing.split_fragments
 
-Gene processing
+Gene
 =============================
 .. autosummary::
     :toctree: _autosummary
 
-    preprocessing.add_gene_tss_coord
+    preprocessing.get_gene_tss_coord
     preprocessing.add_gene_tss_coord
 
-Motif processing
+Motif
 =============================
 .. autosummary::
     :toctree: _autosummary

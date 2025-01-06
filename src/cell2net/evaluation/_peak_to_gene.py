@@ -58,19 +58,19 @@ def causal_var_enrichment_in_peaks(
 
             - `gene`: Gene name.
             - `n_causal_var_in_peak`: Number of causal variants overlapping peaks.
-            - `n_causal_var_in_gene`: Number of causal variants within the TSS window.
+            - `n_causal_var_in_background`: Number of causal variants within the background regions.
             - `n_common_var_in_peak`: Number of common variants overlapping peaks.
-            - `n_common_var_in_gene`: Number of common variants within the TSS window.
-            - `enrichment`: Enrichment score (ratio of causal-to-common variants in peaks vs. TSS window).
+            - `n_common_var_in_background`: Number of common variants within the background regions.
+            - `enrichment`: Enrichment score (ratio of causal-to-common variants in peaks vs. background regions).
 
     Notes
     -----
         - The function utilizes PyRanges for efficient genomic range operations.
-        - Variants not overlapping the TSS window or peaks are excluded from the enrichment calculation.
-        - If no common variants are found within a gene's TSS window, that gene is skipped.
+        - Variants not overlapping the background regions or peaks are excluded from the enrichment calculation.
+        - If no common variants are found within a gene's background regions, that gene is skipped.
         - Enrichment is computed as:
-            `enrichment = (n_causal_var_in_peak / n_causal_var_in_gene) / (n_common_var_in_peak / n_common_var_in_gene)`,
-            with a default of 0 when no common variants overlap peaks or causal variants overlap the TSS window.
+            `enrichment = (n_causal_var_in_peak / n_causal_var_in_background) / (n_common_var_in_peak / n_common_var_in_background)`,
+        - When no common variants overlap peaks or causal variants overlap the background regions.
 
     Example
     -------
@@ -95,7 +95,7 @@ def causal_var_enrichment_in_peaks(
         ...     df_p2g, causal_var, common_var, gene_gtf, ref_fasta
         ... )
         >>> print(result)
-            gene  n_causal_var_in_peak  n_causal_var_in_gene  n_common_var_in_peak  n_common_var_in_gene  enrichment
+            gene  n_causal_var_in_peak  n_causal_var_in_background  n_common_var_in_peak  n_common_var_in_background  enrichment
         0    GeneA                     1                    1                     1                    1    1.000000
         1    GeneB                     1                    1                     1                    1    1.000000
     """

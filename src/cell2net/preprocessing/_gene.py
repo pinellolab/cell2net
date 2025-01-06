@@ -4,7 +4,7 @@ import pandas as pd
 from mudata import MuData
 
 
-def get_gene_tss_coor(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
+def get_gene_tss_coord(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
     """
     Extract transcription start site (TSS) coordinates for genes from a GTF file.
 
@@ -23,6 +23,7 @@ def get_gene_tss_coor(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame
     -------
     pd.DataFrame
         A DataFrame containing the following columns:
+
             - `chrom`: Chromosome name (str).
             - `gene_name`: Gene name extracted from the "gene_name" attribute (str).
             - `strand`: Strand of the gene ('+' or '-') (str).
@@ -120,7 +121,7 @@ def add_gene_tss_coord(
     assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
     adata = mdata[mod_names]
 
-    df = get_gene_tss_coor(gene_gtf=gene_gtf, feature_type=feature_type)
+    df = get_gene_tss_coord(gene_gtf=gene_gtf, feature_type=feature_type)
 
     adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)]
 

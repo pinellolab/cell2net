@@ -9,11 +9,6 @@ ATAC-seq matrix
     :toctree: _autosummary
 
     preprocessing.binarize
-    preprocessing.calculate_depth
-    preprocessing.collapse_consecutive_values
-    preprocessing.fragments_to_coverage
-    preprocessing.fragment_to_bigwig
-    preprocessing.split_fragments
 
 ATAC-seq fragment
 ==========================

@@ -46,7 +46,11 @@ class AttentionBlock(nn.Module):
 
 class PeaksTF2GeneExpressionPoisson(nn.Module):
     """
-    Predict gene expression using peak sequences, accessibility and TF expression
+    A PyTorch module to predict gene expression using peaks, transcription factors, and covariates.
+
+    This model predicts the log(lambda) of a Poisson distribution for gene expression. It integrates
+    sequence-based information, peak accessibility, transcription factor (TF) expression,
+    and covariates through a combination of convolutional, attention, and fully connected layers.
 
     Parameters
     ----------

@@ -49,7 +49,7 @@ class Cell2Net(BaseModel):
         peak_to_gene = peak_to_gene.reset_index(drop=True)
 
         self.n_peaks = len(peak_to_gene)
-        assert self.n_peaks > 0, print("Cannot find any associated peaks!")
+        assert self.n_peaks > 0, "Cannot find any associated peaks!"
 
         self.covariates = covariates
         if covariates is not None:

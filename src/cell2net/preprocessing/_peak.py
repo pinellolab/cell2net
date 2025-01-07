@@ -220,45 +220,46 @@ def peak_to_gene(
 
     Parameters
     ----------
-    mdata : MuData
+    mdata :
         A MuData object containing RNA and ATAC modalities.
-    rna_mod : str, optional
+    rna_mod :
         Name of the RNA modality in the MuData object. Defaults to "rna".
-    atac_mod : str, optional
+    atac_mod :
         Name of the ATAC modality in the MuData object. Defaults to "atac".
-    gene_name_col : str, optional
+    gene_name_col :
         Column name in the RNA `.var` attribute that contains gene names. Defaults to "gene_names".
-    up_stream : int, optional
+    up_stream :
         Distance upstream of the TSS to consider for assigning peaks. Defaults to 500,000.
-    down_stream : int, optional
+    down_stream :
         Distance downstream of the TSS to consider for assigning peaks. Defaults to 500,000.
-    ref_fasta : str
+    ref_fasta :
         Path to the reference FASTA file for determining genome bounds. The file must be indexed.
-    chr_var_key : str, optional
+    chr_var_key :
         Key in ATAC `.var` that contains chromosome names. Defaults to "chr".
-    start_var_key : str, optional
+    start_var_key :
         Key in ATAC `.var` that contains peak start positions. Defaults to "start".
-    end_var_key : str, optional
+    end_var_key :
         Key in ATAC `.var` that contains peak end positions. Defaults to "end".
-    highly_variable : bool, optional
+    highly_variable :
         If True, only consider highly variable genes. Defaults to True.
-    genes : list of str, optional
+    genes :
         Specific genes to include in the mapping. If None, all genes are considered. Defaults to None.
-    min_n_peaks : int, optional
+    min_n_peaks :
         Minimum number of associated peaks required for a gene to be included. Defaults to 1.
-    max_pct_dropout_by_counts : float, optional
+    max_pct_dropout_by_counts :
         Maximum percentage of dropout by counts for filtering genes. If None, no filtering is applied. Defaults to None.
-    inplace : bool, optional
+    inplace :
         If True, the resulting mapping is added to the `uns` attribute of the MuData object under the key "peak_to_gene".
         If False, the mapping is returned as a DataFrame. Defaults to True.
 
     Returns
     -------
-    pd.DataFrame or None
         If `inplace` is False, returns a DataFrame with columns:
-        - `gene`: Gene name.
-        - `peak`: Peak identifier.
-        - `distance`: Distance from the TSS to the peak summit.
+
+            - `gene`: Gene name.
+            - `peak`: Peak identifier.
+            - `distance`: Distance from the TSS to the peak summit.
+
         Otherwise, modifies the MuData object in place.
 
     Raises
@@ -269,7 +270,7 @@ def peak_to_gene(
     Notes
     -----
     - Peaks are assigned to genes based on overlap with genomic regions defined
-    by the upstream and downstream distances from the TSS.
+        by the upstream and downstream distances from the TSS.
     - Genes without any associated peaks are excluded from the output.
     - Peak summits are calculated as the midpoint of their start and end positions.
 

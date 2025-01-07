@@ -36,3 +36,12 @@ Motif
 
     preprocessing.get_motifs_from_jaspar
     preprocessing.match_motif
+
+Peaks
+=============================
+.. autosummary::
+    :toctree: _autosummary
+
+    preprocessing.add_peaks
+    preprocessing.peak_to_gene
+    preprocessing.add_dna_sequence

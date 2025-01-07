@@ -30,17 +30,14 @@ def get_gene_tss_coord(gene_gtf: str, feature_type: str = "gene") -> pd.DataFram
 
     Notes
     -----
-        - This function assumes that the "gene_name" attribute is present in the GTF file's
-        attributes field and is enclosed in double quotes.
-        - The TSS is calculated as the start position for '+' strand genes and the end
-        position for '-' strand genes.
-        - Lines in the GTF file that do not have 9 columns or do not match the specified
-        feature type are skipped.
+        - This function assumes that the "gene_name" attribute is present in the GTF file's attributes field and is enclosed in double quotes.
+        - The TSS is calculated as the start position for '+' strand genes and the end position for '-' strand genes.
+        - Lines in the GTF file that do not have 9 columns or do not match the specified feature type are skipped.
         - Duplicate gene names are removed, keeping only the first occurrence.
 
     Examples
     --------
-    Extract TSS information for genes from a GTF file:
+    >>> Extract TSS information for genes from a GTF file:
     >>> import pandas as pd
     >>> gene_gtf = "path/to/genes.gtf.gz"
     >>> df = get_gene_tss_coor(gene_gtf)

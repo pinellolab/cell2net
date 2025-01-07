@@ -194,7 +194,7 @@ def fragments_to_coverage(
 
     Yields
     ------
-        A tuple containing:
+    A tuple containing:
 
             - chroms (numpy.ndarray): Chromosome names for each coverage interval.
             - starts (numpy.ndarray): Start positions of coverage intervals.

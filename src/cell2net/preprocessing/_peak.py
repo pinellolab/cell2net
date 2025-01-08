@@ -254,13 +254,12 @@ def peak_to_gene(
 
     Returns
     -------
-        If `inplace` is False, returns a DataFrame with columns:
+    If `inplace` is False, returns a DataFrame with columns:
+        - `gene`: Gene name.
+        - `peak`: Peak identifier.
+        - `distance`: Distance from the TSS to the peak summit.
 
-            - `gene`: Gene name.
-            - `peak`: Peak identifier.
-            - `distance`: Distance from the TSS to the peak summit.
-
-        Otherwise, modifies the MuData object in place.
+    Otherwise, modifies the MuData object in place.
 
     Raises
     ------
@@ -269,8 +268,7 @@ def peak_to_gene(
 
     Notes
     -----
-    - Peaks are assigned to genes based on overlap with genomic regions defined
-        by the upstream and downstream distances from the TSS.
+    - Peaks are assigned to genes based on overlap with genomic regions defined by the upstream and downstream distances from the TSS.
     - Genes without any associated peaks are excluded from the output.
     - Peak summits are calculated as the midpoint of their start and end positions.
 

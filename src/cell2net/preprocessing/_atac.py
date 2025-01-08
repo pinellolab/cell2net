@@ -52,13 +52,13 @@ def binarize(
     >>> cn.pp.binarize(adata)
     >>> print(adata.X)
 
-    >>> Example with a sparse matrix
+    >>> # Example with a sparse matrix
     >>> X_sparse = csr_matrix([[0, 2, 0], [3, 0, 1]])
     >>> adata = AnnData(X_sparse)
     >>> binarize(adata)
     >>> print(adata.X.toarray())
 
-    >>> Example with a specified layer
+    >>> # Example with a specified layer
     >>> adata.layers["counts"] = X
     >>> binarize(adata, layer="counts")
     >>> print(adata.layers["counts"])

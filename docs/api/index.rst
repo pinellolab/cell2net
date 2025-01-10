@@ -8,3 +8,5 @@ This page gives an overview of all public cell2net objects, functions and method
 
    preprocessing
    evaluation
+   prediction
+   interpretation

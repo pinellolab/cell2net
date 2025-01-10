@@ -7,7 +7,7 @@
 :maxdepth: 1
 
 install.md
-notebooks/example
+tutorials/example
 api/index
 changelog.md
 references.md

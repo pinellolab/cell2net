@@ -126,19 +126,19 @@ def add_dna_sequence(
 
     Parameters
     ----------
-    mdata : MuData
+    mdata :
         A MuData object containing the modality with peak metadata.
-    ref_fasta : str
+    ref_fasta :
         Path to the reference FASTA file. This file must be indexed (e.g., with samtools faidx).
-    mod_name : str, optional
+    mod_name :
         The name of the modality containing peak data. Defaults to "atac".
-    chr_var_key : str, optional
+    chr_var_key :
         The key in `.var` that contains chromosome names. Defaults to "chr".
-    start_var_key : str, optional
+    start_var_key :
         The key in `.var` that contains the start positions of peaks. Defaults to "start".
-    end_var_key : str, optional
+    end_var_key :
         The key in `.var` that contains the end positions of peaks. Defaults to "end".
-    sequence_var_key : str, optional
+    sequence_var_key :
         The key under which the retrieved DNA sequences will be stored in `.var`. Defaults to "dna_sequence".
 
     Returns
@@ -247,7 +247,8 @@ def peak_to_gene(
     min_n_peaks :
         Minimum number of associated peaks required for a gene to be included. Defaults to 1.
     max_pct_dropout_by_counts :
-        Maximum percentage of dropout by counts for filtering genes. If None, no filtering is applied. Defaults to None.
+        Maximum percentage of dropout by counts for filtering genes.
+        If None, no filtering is applied and all genes are used. Defaults to None.
     inplace :
         If True, the resulting mapping is added to the `uns` attribute of the MuData object under the key "peak_to_gene".
         If False, the mapping is returned as a DataFrame. Defaults to True.
@@ -304,7 +305,7 @@ def peak_to_gene(
 
     assert "gene_tss_coord" in adata_rna.uns, "Cannot find gene TSS coordinates"
 
-    logger.info("Fetch gene coordinates")
+    logger.info("Fetch TSS coordinates")
     df_tss = adata_rna.uns["gene_tss_coord"]
     df_tss["Start"] = df_tss["tss"] - 1
     df_tss["End"] = df_tss["tss"]
@@ -322,7 +323,9 @@ def peak_to_gene(
         df_tss = df_tss[df_tss["Name"].isin(df_var[gene_name_col])]
 
     if max_pct_dropout_by_counts is not None:
-        logger.info("Filter genes by pct_dropout_by_counts")
+        logger.info(
+            f"Filter genes by pct_dropout_by_counts: {max_pct_dropout_by_counts}"
+        )
         df_var = df_var[df_var["pct_dropout_by_counts"] < max_pct_dropout_by_counts]
         df_tss = df_tss[df_tss["Name"].isin(df_var[gene_name_col])]
 

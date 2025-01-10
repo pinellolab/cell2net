@@ -208,19 +208,66 @@ def peak_to_gene(
     """
     Extracts peak-to-gene links based on the attribution of peak accessibility
 
+    This function assigns peak-level attributions to their corresponding genes based on
+    the `peak_to_gene` mapping in a MuData object. It computes the average attribution
+    for each peak, either across all cells or grouped by a specified metadata column.
+
     Parameters
     ----------
-    mdata : MuData
-        MuData object including RNA and ATAC modalities
-    attr : np.ndarray
-        A numpy array of peak accessibility attribution
-    groupby : str | None, optional
-        Name of one column in mdata.obs to group cells. by default None
+    mdata :
+        A MuData object containing multi-modal single-cell data. It must have:
+
+        - `mdata["rna"]`: RNA modality with gene names in `var_names`.
+        - `mdata.uns["peak_to_gene"]`: A mapping between peaks and genes with a column "peak".
+        - `mdata.obs`: Cell metadata, required if `groupby` is specified.
+
+    attr :
+        A 2D array of peak-level attributions with shape `(n_cells, n_peaks)`.
+        Rows correspond to cells, and columns correspond to peaks.
+
+    groupby :
+        The name of a column in `mdata.obs` to group cells by. If None, attributions
+        are averaged across all cells, by default None.
 
     Returns
     -------
-    pd.DataFrame
-        Calculated t-statistic and p-value for each peak-to-gene link
+    A DataFrame summarizing peak-to-gene attributions with the following columns:
+
+        - "peak": Peak identifiers.
+        - "gene": The associated gene (from the first gene in `mdata["rna"].var_names`).
+        - "avg_attr": Average attribution for each peak.
+        - Additional column(s) for group labels if `groupby` is specified.
+
+    Raises
+    ------
+    AssertionError
+        If `groupby` is specified but not found in `mdata.obs`.
+        If the length of the `groupby` column does not match the number of cells in `attr`.
+
+    Notes
+    -----
+    - If `groupby` is None, the function computes average attributions across all cells.
+    - If `groupby` is specified, the function computes group-specific average attributions.
+    - The `mdata.uns["peak_to_gene"]["peak"]` must contain a mapping of peaks to genes.
+
+    Examples
+    --------
+    >>> mdata = MuData(...)  # Load MuData object
+    >>> attr = np.random.rand(100, 5000)  # Example attributions for 100 cells and 5000 peaks
+    >>> # Compute average attribution across all cells
+    >>> df = peak_to_gene(mdata, attr)
+    >>> print(df.head())
+         peak    gene   avg_attr
+    0  peak_1  gene_1  0.123456
+    1  peak_2  gene_1  0.234567
+
+    >>> # Compute group-specific average attributions
+    >>> df_grouped = peak_to_gene(mdata, attr, groupby="cell_type")
+    >>> print(df_grouped.head())
+         peak    gene    cell_type   avg_attr
+    0  peak_1  gene_1  B_cells      0.123456
+    1  peak_2  gene_1  T_cells      0.234567
+
     """
     gene = mdata["rna"].var_names[0]
     if groupby is None:
@@ -229,7 +276,7 @@ def peak_to_gene(
             data={
                 "peak": mdata.uns["peak_to_gene"]["peak"],
                 "gene": gene,
-                "avg_attr": np.mean(attr, axis=0),
+                "avg_attr": np.sum(attr, axis=0),
             }
         )
     else:

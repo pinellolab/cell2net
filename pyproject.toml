@@ -39,7 +39,8 @@ dependencies = [
   "MOODS-python",
   "pyBigWig",
   "torch",
-  "adpbulk"
+  "adpbulk",
+  "pooch"
 ]
 optional-dependencies.dev = [
   "pre-commit",

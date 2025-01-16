@@ -9,6 +9,44 @@ from adpbulk import ADPBulk
 _VarNames = str | Sequence[str]
 
 
+def check_if_igraph():
+    """
+    Verify that the `igraph` library is installed and meets the version requirement.
+
+    This function checks if the `igraph` library is installed. If not, it raises an
+    ImportError with instructions for installation. Additionally, it ensures that
+    the installed version of `igraph` is at least 0.10.0. If the version is lower,
+    an ImportError is raised with instructions to install the correct version.
+
+    Returns
+    -------
+    The imported `igraph` module if the library is installed and meets the version requirement.
+
+    Raises
+    ------
+    If `igraph` is not installed or its version is less than 0.10.0.
+
+    Notes
+    -----
+    - This function is useful for ensuring compatibility when using `igraph`-dependent code.
+    - To install `igraph`, use the following command: `pip install igraph`
+    - To install a specific version of `igraph`, use: `pip install igraph==0.10.0`
+    """
+    try:
+        import igraph as ig
+    except Exception:  # noqa: BLE001
+        raise ImportError(  # noqa: B904
+            "igraph is not installed. Please install it with: pip install igraph"
+        )
+    from packaging.version import Version
+
+    if Version(ig.__version__) < Version("0.10.0"):
+        raise ImportError(
+            "igraph version needs to be at least 0.10.0. Please install it with: pip install igraph==0.10.0"
+        )
+    return ig
+
+
 def process_var_names(var_names: _VarNames | Mapping[str, _VarNames]):
     has_var_groups = False
     if isinstance(var_names, Mapping):

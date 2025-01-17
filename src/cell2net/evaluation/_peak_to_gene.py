@@ -17,7 +17,7 @@ def causal_var_enrichment_in_peaks(
     up_stream: int = 500_000,
     down_stream: int = 500_000,
 ) -> pd.DataFrame:
-    """
+    r"""
     Compute the enrichment of causal variants in peak regions linked to genes.
 
     For each gene, this function calculates the enrichment of causal variants in
@@ -69,7 +69,9 @@ def causal_var_enrichment_in_peaks(
         - Variants not overlapping the background regions or peaks are excluded from the enrichment calculation.
         - If no common variants are found within a gene's background regions, that gene is skipped.
         - Enrichment is computed as:
-            `enrichment = (n_causal_var_in_peak / n_causal_var_in_background) / (n_common_var_in_peak / n_common_var_in_background)`,
+            .. math::
+            enrichment = \\frac{\\frac{n_{\\text{causal var in peak}}}{n_{\\text{causal var in background}}}}{\\frac{n_{\\text{common var in peak}}}{n_{\\text{common var in background}}}
+
         - When no common variants overlap peaks or causal variants overlap the background regions.
 
     Example

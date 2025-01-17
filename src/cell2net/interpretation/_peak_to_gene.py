@@ -163,8 +163,9 @@ def peak_to_gene(
     Raises
     ------
     AssertionError
-        If `groupby` is specified but not found in `mdata.obs`.
-        If the length of the `groupby` column does not match the number of cells in `attr`.
+
+        - If `groupby` is specified but not found in `mdata.obs`.
+        - If the length of the `groupby` column does not match the number of cells in `attr`.
 
     Notes
     -----
@@ -198,7 +199,7 @@ def peak_to_gene(
             data={
                 "peak": mdata.uns["peak_to_gene"]["peak"],
                 "gene": gene,
-                "avg_attr": np.sum(attr, axis=0),
+                "avg_attr": np.mean(attr, axis=0),
             }
         )
     else:
@@ -222,7 +223,7 @@ def peak_to_gene(
                     "peak": mdata.uns["peak_to_gene"]["peak"],
                     "gene": gene,
                     groupby: unique_group,
-                    "avg_attr": np.sum(_attr, axis=0),
+                    "avg_attr": np.mean(_attr, axis=0),
                 }
             )
             df_list.append(df)

@@ -47,6 +47,16 @@ def check_if_igraph():
     return ig
 
 
+def check_if_adjustText():
+    try:
+        import adjustText as at  # type: ignore
+    except Exception:
+        raise ImportError(
+            "adjustText is not installed. Please install it with: pip install adjustText"
+        )
+    return at
+
+
 def process_var_names(var_names: _VarNames | Mapping[str, _VarNames]):
     has_var_groups = False
     if isinstance(var_names, Mapping):

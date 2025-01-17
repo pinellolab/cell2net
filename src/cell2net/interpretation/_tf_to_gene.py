@@ -12,57 +12,62 @@ from cell2net.prediction.model import Cell2Net
 def compute_tf_attr(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
-    method: str = "IntegratedGradients",
-    **kwargs,
+    batch_size=4,
+    num_workers=1,
+    n_steps=100,
+    multiply_by_inputs=True,
 ) -> np.ndarray:
-    r"""
-    Calculate the attribution of TF expression to target gene expression.
+    """
+    Compute transcription factor (TF) attribution using Integrated Gradients
+
+    This function calculates the attribution of TF expression to the output of
+    a `Cell2Net` model using the Integrated Gradients method. The attributions
+    are computed over a specified dataset and returned as a NumPy array.
 
     Parameters
     ----------
-    model : Cell2Net
-        Model that has been trained
-    idx : list[int] | list[str] | None, optional
-        A list of int or string to indicate, by default None
+    model :
+        The trained `Cell2Net` model. It must have a `mdata` attribute for metadata
+        and a `covariates` attribute for covariate information.
+    idx :
+        Indices or identifiers specifying the subset of the data to compute
+        attributions for. If `None`, the entire dataset is used.
+    batch_size :
+        The batch size to use for data loading.
+    num_workers :
+        Number of worker processes for data loading.
+    n_steps :
+        The number of steps to use for the Integrated Gradients computation.
+        Larger values provide more accurate estimates but increase computation time.
+    multiply_by_inputs :
+        Whether to multiply the attributions by the inputs.
+        This is recommended to preserve implementation invariance.
 
     Returns
     -------
-    np.ndarray
-        An numpy array of TF attribution with a shape of (n_cells, n_tfs)
-    """
-    # create a dataloader
-    match method:
-        case "IntegratedGradients":
-            attr = _integrated_gradients(model=model, idx=idx, **kwargs)
+        A NumPy array containing the attributions for TF expression. The shape
+        of the output depends on the dataset and the number of TFs modeled.
 
-    return attr
+    Notes
+    -----
+    - This function uses the Integrated Gradients algorithm for attribution computation. The `captum` library is required to perform this calculation.
+    - The attributions are computed for the `tf_exp` input (transcription factor expression) while keeping other inputs (peak sequence, accessibility, and distance) fixed.
+    - The model is set to training mode (`model.module.train()`) during computation.
 
-
-def _integrated_gradients(
-    model, idx, batch_size=4, num_workers=1, n_steps=100, multiply_by_inputs=True
-) -> np.ndarray:
-    """
-    Compute TF attribution using integrated gradients
-
-    Parameters
-    ----------
-    model : _type_
-        _description_
-    idx : _type_
-        _description_
-    batch_size : int, optional
-        _description_, by default 4
-    num_workers : int, optional
-        _description_, by default 1
-    n_steps : int, optional
-        _description_, by default 100
-    multiply_by_inputs : bool, optional
-        _description_, by default True
-
-    Returns
-    -------
-    np.ndarray
-        _description_
+    Examples
+    --------
+    >>> model = Cell2Net(...)
+    >>> idx = [0, 1, 2, 3]  # Indices of samples to compute attributions for
+    >>> attributions = compute_tf_attr(
+    ...     model=model,
+    ...     idx=idx,
+    ...     batch_size=4,
+    ...     num_workers=2,
+    ...     n_steps=50,
+    ...     multiply_by_inputs=True,
+    ... )
+    >>> attributions.shape
+    (4, num_tfs)
     """
     data_loader = get_dataloader(
         mdata=model.mdata,

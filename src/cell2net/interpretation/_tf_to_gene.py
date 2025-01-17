@@ -120,21 +120,67 @@ def tf_to_gene(
     n_tfs: int = 10,
 ) -> pd.DataFrame:
     """
-    Extracts TF-gene regulation using the attribution of TF expression
+    Aggregate transcription factor (TF) attributions and link them to genes for each group.
+
+    This function computes the mean TF regulation values for each group specified in
+    the metadata, links them to a single gene (default RNA dataset), and selects the
+    top `n_tfs` most regulated TFs for each group. The results are returned as a
+    pandas DataFrame.
 
     Parameters
     ----------
-    mdata : MuData
-        MuData object including RNA and ATAC modalities
-    attr : np.ndarray
-        A numpy array of TF expression attribution
-    groupby : str | None, optional
-        Name of one column in mdata.obs to group cells. by default None
+    mdata :
+         A `MuData` object containing the metadata and RNA dataset. The object must have:
+
+            - `obs` (metadata) with the column specified by `groupby`.
+            - `uns["tfs"]` containing the list of transcription factors.
+            - `["rna"].var_names` containing gene names.
+
+    attr :
+        A 2D NumPy array of shape `(n_cells, n_tfs)` containing TF attributions. Each
+        row corresponds to a cell, and each column corresponds to a TF.
+    groupby :
+        The column name in `mdata.obs` to group cells by (e.g., cell type, cluster ID).
+    n_tfs :
+        The number of top transcription factors to select for each group based on their
+        mean regulation values.
 
     Returns
     -------
-    pd.DataFrame
-        Calculated t-statistic and p-value for each tf-gene pair
+        A pandas DataFrame with the following columns:
+
+        - `tf`: The transcription factor name.
+        - `gene`: The linked gene (from `mdata["rna"].var_names[0]`).
+        - `groupby`: The group name (e.g., cell type or cluster).
+        - `regulation`: The mean regulation value of the TF within the group.
+
+        The DataFrame is grouped by the `groupby` column, with the top `n_tfs` TFs
+        included for each group.
+
+    Raises
+    ------
+    AssertionError
+        If the `groupby` column is not present in `mdata.obs`, or if the length of the
+        `groupby` column does not match the number of rows in `attr`.
+
+    Notes
+    -----
+    - The function assumes that `mdata.uns["tfs"]` contains a list of transcription factor names, and `mdata["rna"].var_names[0]` provides the associated gene name.
+    - Within each group, TF regulation values are aggregated by their mean, and the top `n_tfs` with the highest mean regulation are retained.
+
+    Examples
+    --------
+    >>> mdata = MuData(...)  # MuData object with metadata and RNA data
+    >>> attr = np.random.rand(100, 20)  # Example attribution array (100 cells, 20 TFs)
+    >>> groupby = "cell_type"
+    >>> df = tf_to_gene(mdata, attr, groupby, n_tfs=5)
+    >>> df.head()
+       tf      gene      cell_type  regulation
+    0  TF1     Gene1    Type1      0.1234
+    1  TF2     Gene1    Type1      0.1123
+    2  TF3     Gene1    Type1      0.0987
+    3  TF4     Gene1    Type1      0.0876
+    4  TF5     Gene1    Type1      0.0765
     """
     assert groupby in mdata.obs.columns, print(f"Cannot find {groupby} in mdata.obs")
 
@@ -159,10 +205,6 @@ def tf_to_gene(
         df_list.append(df)
 
     df = pd.concat(df_list, axis=0).reset_index(drop=True)
-
-    # # filter by min_attr
-    # if min_attr:
-    #     df = df[df["avg_attribution"] > min_attr].reset_index(drop=True)
 
     # Group by 'group_column' and select the top 20 rows within each group
     df = (

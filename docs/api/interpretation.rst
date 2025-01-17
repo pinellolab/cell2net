@@ -3,14 +3,27 @@ Interpretation: `ip`
 ===================
 .. currentmodule:: cell2net
 
-Peak accessibility
+TF expression
 ==========================
 .. autosummary::
     :toctree: _autosummary
 
     interpretation.compute_tf_attr
-    interpretation.compute_peak_attr
     interpretation.tf_to_gene
+
+Peak accessibility
+==========================
+.. autosummary::
+    :toctree: _autosummary
+
+    interpretation.compute_peak_attr
     interpretation.peak_to_gene
+
+Peak sequence
+==========================
+.. autosummary::
+    :toctree: _autosummary
+
     interpretation.dinucleotide_shuffle
     interpretation.dinucleotide_one_hot_shuffle
+

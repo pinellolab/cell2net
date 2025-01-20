@@ -3,8 +3,6 @@ from collections.abc import Sequence
 from mudata import MuData
 from torch.utils.data import DataLoader
 
-from cell2net._setting import settings
-
 from ._dataset import MuTorchDataset
 
 
@@ -14,8 +12,8 @@ def get_dataloader(
     atac_mod: str = "atac",
     idx: Sequence[int] | Sequence[str] | None = None,
     covariates: Sequence[str] | None = None,
-    batch_size: int = settings.batch_size,
-    num_workers: int = settings.dl_num_works,
+    batch_size: int = 128,
+    num_workers: int = 4,
     pin_memory: bool = True,
     shuffle: bool = True,
     drop_last: bool = True,
@@ -23,38 +21,52 @@ def get_dataloader(
     **kwargs,
 ) -> DataLoader:
     """
-    Create a dataloader to iterate through the mudata object.
+    Creates a PyTorch DataLoader from a `MuData` object.
+
+    This function converts a `MuData` object into a PyTorch `DataLoader` for
+    training or evaluation. It allows customization of data loading parameters,
+    such as batch size, shuffling, and number of workers.
 
     Parameters
     ----------
-    mdata : Mudata
-        Mudata object. Must include RNA and ATAC modalities
-    rna_mod: str, optional
-        Name of RNA modality. Default: "rna"
-    atac_mod: str, optional
-        Name of ATAC modality. Default: "atac"
-    idx : list[str] | None, optional
-        List of cell barcodes used to subset the mdata
-        If None, will use all cells. Default: None
-    batch_size : int, optional
-        Batch size of the dataloader. Default: 128
-    num_workers : int, optional
-        Number of cpus used to prepare data. Default: 4
-    pin_memory : bool, optional
-        _description_, by default True
-    shuffle : bool, optional
-        _description_, by default True
-    drop_last : bool, optional
-        _description_, by default True
-    persistent_workers : bool, optional
-        _description_, by default True
-    **kwargs:
-        Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.
+    mdata :
+        A `MuData` object containing multimodal data.
+    rna_mod :
+        The name of the RNA modality in the `MuData` object. Default is "rna".
+    atac_mod :
+        The name of the ATAC modality in the `MuData` object. Default is "atac".
+    idx :
+        Indices or keys to subset the `MuData` object. If `None`, the entire dataset is used.
+        Default is `None`.
+    covariates :
+        Covariates to include from the `MuData` object. Default is `None`.
+    batch_size :
+        The number of samples per batch. Default is 128.
+    num_workers :
+        The number of worker processes for data loading. Default is 4.
+    pin_memory :
+        Whether to pin memory in DataLoader for faster GPU transfers. Default is `True`.
+    shuffle :
+        Whether to shuffle the dataset. Default is `True`.
+    drop_last :
+        Whether to drop the last incomplete batch. Default is `True`.
+    persistent_workers :
+        Whether to keep data loading workers alive between epochs. Default is `True`.
+    **kwargs :
+        Additional keyword arguments passed to `torch.utils.data.DataLoader`.
 
     Returns
     -------
-    DataLoader
-        A dataloader instance
+    A PyTorch DataLoader for the specified `MuData` dataset.
+
+    Examples
+    --------
+    >>> from mudata import MuData
+    >>> from cell2net.pd.data import get_dataloader
+    >>> mdata = MuData("data.h5mu")
+    >>> dataloader = get_dataloader(mdata, batch_size=32, shuffle=True)
+    >>> for batch in dataloader:
+    >>>     print(batch)
     """
     if idx:
         _mdata = mdata[idx]

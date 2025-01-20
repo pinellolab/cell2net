@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from ._utils import check_if_adjustText
+
 
 def tf_activity_variance(
     df: pd.DataFrame,
@@ -9,7 +11,9 @@ def tf_activity_variance(
     label_color: str = "red",
     frameon: bool = True,
     figsize: tuple[float, float] | None = None,
-) -> None:
+    save_plot: bool = False,
+    return_df: bool = False,
+) -> None | pd.DataFrame:
     """
     Plot TF regulation variance across cell types
 
@@ -18,29 +22,29 @@ def tf_activity_variance(
     df : pd.DataFrame
         Input dataframe where each row is a TF, and each column is a cell type
     """
-    # copy the dataframe
+    at = check_if_adjustText()
+
     df_act = df.copy()
-
-    df_act["var"] = df_act.var(axis=1)
-    df_act = df_act.sort_values(by="var", ascending=True)
-
+    df_act["std"] = df_act.std(axis=1)
+    df_act = df_act.sort_values(by="std", ascending=True)
     df_act["tf"] = df_act.index
+
     # Map strings to evenly spaced numbers
     df_act["rank"] = range(len(df_act))
 
     # Identify the top 3 categories by value
-    labels = df_act.nlargest(n_labels, "var")
+    labels = df_act.nlargest(n_labels, "std")
 
     # plot TF variances
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    sns.scatterplot(data=df_act, x="rank", y="var", ax=ax)
+    sns.scatterplot(data=df_act, x="rank", y="std", ax=ax)
 
     # Add text annotations for the top 3 categories
     for _, row in labels.iterrows():
         ax.text(
             row["rank"],
-            row["var"] + 0.5,  # Slightly offset the label above the point
+            row["std"] + 0.5,  # Slightly offset the label above the point
             row["tf"],
             fontsize=10,
             color=label_color,
@@ -50,7 +54,22 @@ def tf_activity_variance(
     ax.set_xlabel("Ranked TFs", fontsize=12)
     ax.set_ylabel("Variance of regulation activity", fontsize=12)
 
-    plt.show()
+    if return_df:
+        return df_act
+    # elif save_plot:
+    #     save_plot()
+
+    #     for ext in ["", ".png"]:
+    #         fig.savefig(
+    #             f"{rainbow_plot_path}{ext}",
+    #             facecolor=fig.get_facecolor(),
+    #             bbox_inches="tight",
+    #             edgecolor="none",
+    #             dpi=300,
+    #         )
+    #     plt.close(fig)
+    else:
+        plt.show()
 
 
 def n_peaks_per_gene(

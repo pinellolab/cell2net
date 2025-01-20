@@ -19,12 +19,9 @@ class MuTorchDataset(Dataset):
     ----------
     mdata:
         A MuData object containing multi-modal data.
-        - RNA data should be stored in the `rna_mod` modality, with count data in `layers["counts"]`
-          and transcription factor (TF) activity in `obsm["tf"]`.
-        - ATAC data should be stored in the `atac_mod` modality, with count data in `layers["counts"]`
-          and peak sequences in `var["dna_sequence"]`.
-        - Peak-to-gene associations should be in `uns["peak_to_gene"]`, with a column "distance"
-          specifying distances from peaks to transcription start sites (TSS).
+        - RNA data should be stored in the `rna_mod` modality, with count data in `layers["counts"]` and transcription factor (TF) activity in `obsm["tf"]`.
+        - ATAC data should be stored in the `atac_mod` modality, with count data in `layers["counts"]` and peak sequences in `var["dna_sequence"]`.
+        - Peak-to-gene associations should be in `uns["peak_to_gene"]`, with a column "distance" specifying distances from peaks to transcription start sites (TSS).
     rna_mod:
         The modality name for RNA data in the MuData object, by default "rna".
     atac_mod:

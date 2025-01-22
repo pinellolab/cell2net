@@ -40,19 +40,19 @@ def causal_var_enrichment_in_peaks(
     causal_var :
         DataFrame containing causal variant information with
         columns ['Chromosome', 'Start', 'End', 'Gene'].
-        Each row presents a link between causal variant and its target gene
+        Each row presents a link between causal variant and its target gene.
     common_var :
         DataFrame containing common variant information with
         columns ['Chromosome', 'Start', 'End'].
     gene_gtf :
         File path to the gene annotation GTF file which will be used to extract TSS
-        for each gene to create background regions
+        for each gene to create background regions.
     ref_fasta :
-        File path to the reference genome FASTA file
+        File path to the reference genome FASTA file.
     up_stream :
-        Number of base pairs upstream of the TSS to include in the background region, by default 500,000.
+        Number of base pairs upstream of the TSS to include in the background region.
     down_stream :
-        Number of base pairs downstream of the TSS to include in the background region, by default 500,000
+        Number of base pairs downstream of the TSS to include in the background region.
 
     Returns
     -------
@@ -72,7 +72,7 @@ def causal_var_enrichment_in_peaks(
         - If no common variants are found within a gene's background regions, that gene is skipped.
         - Enrichment is computed as follows:
 
-            :math: `log2`
+            :math: `\frac{1}{2}`
 
         - When no common variants overlap peaks or causal variants overlap the background regions.
 

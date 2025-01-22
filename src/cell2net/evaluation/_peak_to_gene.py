@@ -68,8 +68,11 @@ def causal_var_enrichment_in_peaks(
         - The function utilizes PyRanges for efficient genomic range operations.
         - Variants not overlapping the background regions or peaks are excluded from the enrichment calculation.
         - If no common variants are found within a gene's background regions, that gene is skipped.
-        - Enrichment is computed as:.. math::
+        - Enrichment is computed as follows:
+
+            .. math::
             enrichment = \\frac{\\frac{n_{\\text{causal var in peak}}}{n_{\\text{causal var in background}}}}{\\frac{n_{\\text{common var in peak}}}{n_{\\text{common var in background}}}
+
         - When no common variants overlap peaks or causal variants overlap the background regions.
 
     Example

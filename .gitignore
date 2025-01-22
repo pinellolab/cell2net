@@ -19,6 +19,7 @@ __pycache__/
 /docs/generated/
 /docs/_build/
 /docs/api/_autosummary/
+docs/tutorials/.ipynb_checkpoints/
 
 # workspace
 src/cell2net/prediction/model/cell2net.code-workspace

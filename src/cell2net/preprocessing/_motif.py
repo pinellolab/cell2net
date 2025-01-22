@@ -51,39 +51,101 @@ def match_motif(
     motifs: Iterable,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
-    pseudocounts=0.0001,
-    p_value=5e-05,
+    pseudocounts: float = 0.0001,
+    p_value: float = 5e-05,
     background: _BACKGROUND = "even",
     key_added: str = "motif_match",
 ) -> None:
     """
-    Perform motif matching to predict binding sites using MOODS
+    Matches transcription factor motifs to accessible DNA sequences and links them with expressed genes.
+
+    This function identifies transcription factor (TF) binding motifs that are relevant to genes expressed in scRNA-seq data.
+    It uses accessible DNA sequences from ATAC-seq data and computationally scans for TF motifs using the MOODS library.
+    Results are stored as a sparse matrix in the ATAC modality.
 
     Parameters
     ----------
-    mdata : MuData
-        MuData object with RNA and ATAC modality.
-    motifs : _type_
-        List of motifs
-    rna_mod: str, optional
-        Name of RNA modality in mdata. Default: "rna"
-    atac_mod: str, optional
-        Name of ATAC modality in mdata. Default: "atac"
-    pseudocounts : float, optional
-        Pseudocounts for each nucleotide when performing motif matching. Default 0.0001
-    p_value : _type_, optional
-        P-value cut-off used to determine significant bidning sites. Default: 5e-05
-    background : _BACKGROUND, optional
-        Background distribution of nucleotides for computing thresholds from p-value.
-        Three options are available: "subject" to use the subject sequences, "genome" to use the
-        whole genome (need to provide a genome file), or even using 0.25 for each base,
-        by default "even"
-    genome_file : str, optional
-        If background is set to genome, a genome file must be provided, by default None
+    mdata :
+        Multimodal data object containing both RNA and ATAC modalities.
+    motifs :
+        A collection of motif objects. Each motif must have attributes `name`, `matrix_id`, and `counts` representing
+        the motif's name, unique identifier, and nucleotide frequencies respectively.
+    rna_mod :
+        Key for the RNA modality in `mdata`, by default "rna".
+        This modality should contain gene expression information.
+    atac_mod :
+        Key for the ATAC modality in `mdata`, by default "atac".
+        This modality should contain DNA accessibility data and DNA sequences in `.var["dna_sequence"]`.
+    pseudocounts :
+        Small value added to motif counts to avoid division by zero in log-odds computations.
+    p_value :
+         P-value threshold for motif matching.
+         Lower values result in stricter matches.
+    background :
+        Background nucleotide distribution for motif scoring. Choices:
+
+        - `"even"`: Assumes uniform nucleotide frequency.
+        - `"subject"`: Uses nucleotide frequencies from accessible DNA sequences in the dataset.
+        - `"genome"`: (Not implemented) Placeholder for using genome-wide nucleotide frequencies.
+
+        By default, `"even"`.
+
+    key_added :
+        Name of the key to store the resulting motif match matrix in `adata_atac.varm`.
 
     Returns
     -------
-    Update mdata.
+    Results are added to the `mdata` object in place:
+
+        - `mdata.uns["motifs"]`: DataFrame with overlapping motif and gene information.
+        - `adata_atac.varm[key_added]`: Sparse matrix indicating motif matches for each accessible DNA sequence.
+
+    Raises
+    ------
+    AssertionError
+        If the DNA sequence information (`"dna_sequence"`) is missing in `adata_atac.var`.
+    AssertionError
+        If the number of motifs does not match the number of overlapping genes after filtering.
+    ValueError
+        If the `background` parameter is not one of the predefined choices (`"even"`, `"subject"`, or `"genome"`).
+
+    Notes
+    -----
+    - This function first overlaps TF motifs with expressed genes using case-insensitive matching of gene names.
+    - It computes motif log-odds scores based on the provided background nucleotide frequencies.
+    - Motif matching is performed on accessible DNA sequences using the MOODS library, which allows for efficient scanning and p-value thresholding.
+    - The resulting sparse matrix is binary (0 or 1), where 1 indicates the presence of a significant motif match.
+
+    Examples
+    --------
+    Match TF motifs to accessible regions and associate them with expressed genes:
+
+    >>> match_motif(
+    ...     mdata,
+    ...     motifs=motif_list,
+    ...     rna_mod="rna",
+    ...     atac_mod="atac",
+    ...     pseudocounts=0.0001,
+    ...     p_value=5e-05,
+    ...     background="even",
+    ...     key_added="motif_match"
+    ... )
+
+    Access overlapping motifs and genes:
+
+    >>> mdata.uns["motifs"]
+
+    Access motif match results:
+
+    >>> mdata["atac"].varm["motif_match"]
+
+    Customize background nucleotide frequencies:
+
+    >>> match_motif(
+    ...     mdata,
+    ...     motifs=motif_list,
+    ...     background="subject"
+    ... )
     """
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]

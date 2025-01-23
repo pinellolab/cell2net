@@ -72,7 +72,7 @@ def causal_var_enrichment_in_peaks(
         - If no common variants are found within a gene's background regions, that gene is skipped.
         - Enrichment is computed as follows:
 
-            :math: `\frac{1}{2}`
+            :math:`enrichment = \frac{n\_causal\_var\_in\_peak}{n\_causal\_var\_in\_background} / \frac{n\_common\_var\_in\_peak}{n\_common\_var\_in\_background}`
 
         - When no common variants overlap peaks or causal variants overlap the background regions.
 

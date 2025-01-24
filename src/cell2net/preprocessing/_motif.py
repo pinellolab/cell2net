@@ -96,8 +96,71 @@ def get_motifs_from_jaspar(
     return motifs
 
 
-def match_motif_to_gene(motifs: Iterable, gene_names: list[str]) -> pd.DataFrame:
+def filter_motifs_by_genes(
+    motifs: Iterable,
+    mdata: MuData,
+    rna_mod: str = "rna",
+    inplace: bool = True,
+) -> pd.DataFrame | None:
+    """
+    Filter motifs by matching their names to expressed gene names in the RNA modality.
 
+    This function identifies transcription factor (TF) motifs whose names overlap
+    with the expressed genes in the RNA modality of a multimodal `MuData` object.
+    The filtered motifs are returned or stored in `mdata.uns["motifs"]`
+
+    Parameters
+    ----------
+    motifs :
+        A collection of motif objects to be filtered.
+        Can be obtained using `get_motifs_from_jaspar`.
+        Each motif should have:
+
+        - `name`: Motif name (string).
+        - `matrix_id`: Unique identifier for the motif.
+
+    mdata :
+        A multimodal data object containing at least an RNA modality.
+        The RNA modality should have genes stored in `.var_names`.
+    rna_mod :
+        The key for the RNA modality in `mdata`.
+    inplace :
+        If `True`, stores the filtered motifs in `mdata.uns["motifs"]`.
+        If `False`, returns the filtered DataFrame.
+
+    Returns
+    -------
+        - If `inplace=True`: Returns `None`. The filtered motifs are stored in `mdata.uns["motifs"]`.
+        - If `inplace=False`: Returns a DataFrame with filtered motifs and their corresponding genes. The DataFrame has the following columns:
+
+            - `"motif_name"`: Name of the motif.
+            - `"motif_id"`: Unique identifier of the motif.
+            - `"gene_name"`: Name of the matching gene.
+
+    Notes
+    -----
+    - Gene names from the RNA modality are converted to uppercase for case-insensitive matching with motif names.
+    - Duplicate motifs are removed based on their uppercased names, retaining the last occurrence.
+    - The filtered DataFrame or stored result includes only motifs with names matching gene names.
+
+    Examples
+    --------
+    Filter motifs by genes and store the results in `mdata.uns`:
+
+    >>> filter_motifs_by_genes(motifs, mdata, rna_mod="rna", inplace=True)
+    >>> mdata.uns["motifs"]
+
+    Filter motifs by genes and return the filtered DataFrame:
+
+    >>> df_filtered = filter_motifs_by_genes(motifs, mdata, inplace=False)
+    >>> print(df_filtered)
+
+    Access filtered motifs after storing in `mdata`:
+
+    >>> mdata.uns["motifs"]
+    >>> mdata.uns["motifs"].head()
+
+    """
     # collect motif names and ids
     motif_names, motif_ids = [], []
     for motif in motifs:
@@ -109,6 +172,7 @@ def match_motif_to_gene(motifs: Iterable, gene_names: list[str]) -> pd.DataFrame
     df_motif.drop_duplicates(subset=["motif_name_upper"], keep="last", inplace=True)
 
     # filter motifs by gene names
+    gene_names = mdata[rna_mod].var_names.tolist()
     df_gene = pd.DataFrame(data={"gene_name": gene_names})
     df_gene["gene_name_upper"] = df_gene["gene_name"].str.upper()
 
@@ -135,7 +199,10 @@ def match_motif_to_gene(motifs: Iterable, gene_names: list[str]) -> pd.DataFrame
 
     logger.info(f"Number of motifs overlapped with genes: {len(df_motif)}")
 
-    return df_motif
+    if inplace:
+        mdata.uns["motifs"] = df_motif
+    else:
+        return df_motif
 
 
 def match_motif(
@@ -353,18 +420,17 @@ def tf_to_gene(
 
     Parameters
     ----------
-    mdata : MuData
+    mdata :
         A MuData object containing RNA and ATAC modalities.
-    rna_mod: str, optional
-        The name of the RNA modality in `mdata`. Default is "rna".
-    atac_mod: str, optional
-        The name of the ATAC modality in `mdata`. Default is "atac".
-    key_added : str, optional
+    rna_mod:
+        The name of the RNA modality in `mdata`.
+    atac_mod:
+        The name of the ATAC modality in `mdata`.
+    key_added :
         The key under which the resulting dataframe is added to `mdata[rna_mod].uns`.
-        Default is "gene_tf".
-    inplace: bool, optional
-        If True, the results are added to `mdata`. If False, the resulting dataframe
-        is returned. Default is True.
+    inplace:
+        If True, the results are added to `mdata`.
+        If False, the resulting dataframe is returned.
 
     Returns
     -------
@@ -372,16 +438,16 @@ def tf_to_gene(
         If `inplace` is True, the function modifies `mdata` in place and returns None.
         If `inplace` is False, it returns a dataframe linking genes to TFs.
 
+    Notes
+    -----
+        - Ensure that the peak-to-gene mapping (`peak_to_gene`) has been generated using `cell2net.pp.peak_to_gene` before running this function.
+        - The input `mdata` must contain motif match information in `adata_atac.varm["motif_match"]`.
+
     Examples
     --------
     >>> tf_to_gene(mdata)
     >>> result_df = tf_to_gene(mdata, inplace=False)
-
-    Notes
-    -----
-        - Ensure that the peak-to-gene mapping (`peak_to_gene`) has been generated using
-        `cell2net.pp.peak_to_gene` before running this function.
-        - The input `mdata` must contain motif match information in `adata_atac.varm["motif_match"]`.
+    >>> print(result_df)
     """
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]

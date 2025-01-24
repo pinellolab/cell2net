@@ -35,7 +35,9 @@ Motif
     :toctree: _autosummary
 
     preprocessing.get_motifs_from_jaspar
+    preprocessing.filter_motifs_by_genes
     preprocessing.match_motif
+    preprocessing.tf_to_gene
 
 Peaks
 =============================

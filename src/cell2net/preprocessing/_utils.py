@@ -11,6 +11,12 @@ def bgzip(filename: str):
     filename : str
         Input filename
     """
+    # check if bgzip is installed
+    try:
+        subprocess.run(["bgzip", "--version"], stdout=subprocess.DEVNULL)
+    except FileNotFoundError:
+        raise FileNotFoundError("bgzip not found. Please install bgzip from") from None
+
     subprocess.run(["bgzip", "-f", filename])
 
 

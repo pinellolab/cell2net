@@ -6,7 +6,6 @@ import MOODS.tools
 import numpy as np
 import pandas as pd
 from mudata import MuData
-from pyjaspar import jaspardb
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
@@ -19,31 +18,124 @@ def get_motifs_from_jaspar(
     release: str = "JASPAR2024",
     collection: str = "CORE",
     tax_group: list[str] | None = None,
-):
+    all_versions: bool = False,
+) -> Iterable | None:
     """
-    Fetch motifs from JASPAR database
+    Fetch transcription factor motifs from the JASPAR database.
+
+    This function retrieves transcription factor binding motifs from the JASPAR database using the `pyjaspar` library.
+    It allows filtering by JASPAR release, motif collection, taxonomic group, and version.
 
     Parameters
     ----------
-    release : str, optional
-        _description_, by default "JASPAR2024"
-    collection : str, optional
-        _description_, by default "CORE"
-    tax_group : list[str] | None, optional
-        _description_, by default None
+    release :
+        The release version ( e.g. JASPAR2020, JASPAR2024) of the JASPAR database to query.
+    collection :
+        The collection of motifs to query. Common options include:
+
+            - `"CORE"`: High-quality, manually curated collection.
+            - `"UNVALIDATED"`: Computationally predicted motifs.
+
+    tax_group :
+        A list of taxonomic groups to filter motifs. For example:
+
+        - `["vertebrates"]`
+        - `["plants", "insects"]`
+
+        If `None`, defaults to `["vertebrates"]`.
+
+    all_versions :
+        Whether to fetch all versions of each motif. If `True`, retrieves all motif versions;
+        otherwise, retrieves only the latest version.
 
     Returns
     -------
-    _type_
-        _description_
+        An iterable of motif objects fetched from the JASPAR database.
+        Returns `None` if the `pyjaspar` library is not installed or an error occurs.
+
+    Raises
+    ------
+    ImportError
+        If the `pyjaspar` library is not installed.
+
+    Notes
+    -----
+    - Requires the `pyjaspar` library to interact with the JASPAR database. Install it via `pip install pyjaspar`.
+    - The motifs fetched are represented as objects with attributes like `name`, `matrix_id`, and `counts`, which can be used for downstream analysis.
+
+    Examples
+    --------
+    Fetch all motifs from the JASPAR2024 CORE collection for vertebrates:
+
+    >>> motifs = get_motifs_from_jaspar(
+    ...     release="JASPAR2024",
+    ...     collection="CORE",
+    ...     tax_group=["vertebrates"],
+    ... )
+    >>> print(len(motifs))
     """
+    # check if JASPAR is installed
+    try:
+        from pyjaspar import jaspardb
+    except ImportError:
+        logger.error(
+            "pyjaspar is not installed. Please install it first: pip install pyjaspar"
+        )
+        return None
+
     if tax_group is None:
         tax_group = ["vertebrates"]
 
     jdb_obj = jaspardb(release=release)
-    motifs = jdb_obj.fetch_motifs(collection=collection, tax_group=tax_group)
+    motifs = jdb_obj.fetch_motifs(
+        collection=collection, tax_group=tax_group, all_versions=all_versions
+    )
+
+    logger.info(f"Number of motifs fetched: {len(motifs)}")
 
     return motifs
+
+
+def match_motif_to_gene(motifs: Iterable, gene_names: list[str]) -> pd.DataFrame:
+
+    # collect motif names and ids
+    motif_names, motif_ids = [], []
+    for motif in motifs:
+        motif_names.append(motif.name)
+        motif_ids.append(motif.matrix_id)
+
+    df_motif = pd.DataFrame(data={"motif_name": motif_names, "motif_id": motif_ids})
+    df_motif["motif_name_upper"] = df_motif["motif_name"].str.upper()
+    df_motif.drop_duplicates(subset=["motif_name_upper"], keep="last", inplace=True)
+
+    # filter motifs by gene names
+    df_gene = pd.DataFrame(data={"gene_name": gene_names})
+    df_gene["gene_name_upper"] = df_gene["gene_name"].str.upper()
+
+    sel_genes = list(
+        set(df_gene["gene_name_upper"].values.tolist())
+        & set(df_motif["motif_name_upper"].values.tolist())
+    )
+
+    df_motif = df_motif[df_motif["motif_name_upper"].isin(sel_genes)].reset_index(
+        drop=True
+    )
+    df_gene = df_gene[df_gene["gene_name_upper"].isin(sel_genes)].reset_index(drop=True)
+
+    assert len(df_motif) == len(df_gene), "Number of motifs and genes are different!"
+
+    df_motif = pd.merge(
+        df_motif,
+        df_gene,
+        left_on="motif_name_upper",
+        right_on="gene_name_upper",
+        how="inner",
+    )
+    df_motif = df_motif[["motif_name", "motif_id", "gene_name"]]
+
+    logger.info(f"Number of motifs overlapped with genes: {len(df_motif)}")
+
+    return df_motif
 
 
 def match_motif(
@@ -162,7 +254,9 @@ def match_motif(
         motif_ids.append(motif.matrix_id)
 
     df_motif = pd.DataFrame(data={"motif_name": motif_names, "motif_id": motif_ids})
-    df_motif.drop_duplicates(subset=["motif_name"], keep="last", inplace=True)
+
+    df_motif["gene_name_upper"] = df_motif["gene_name"].str.upper()
+    df_motif.drop_duplicates(subset=["motif_name_upper"], keep="last", inplace=True)
 
     df_gene = pd.DataFrame(data={"gene_name": adata_rna.var_names})
     df_gene["gene_name_upper"] = df_gene["gene_name"].str.upper()

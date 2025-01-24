@@ -7,8 +7,6 @@ from tqdm import tqdm
 from cell2net._logging import logger
 from cell2net.preprocessing import get_gene_tss_coord
 
-# enrichment = \frac{\frac{n_{\text{causal var in peak}}}{n_{\text{causal var in background}}}}{\frac{n_{\text{common var in peak}}}{n_{\text{common var in background}}}
-
 
 def causal_var_enrichment_in_peaks(
     df_p2g: pd.DataFrame,

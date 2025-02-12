@@ -31,6 +31,7 @@ def tf_gene_network(
         import igraph as ig
     except ImportError:
         logger.error("igraph is not installed. Please install it with: pip install igraph")
+        return None
 
     if Version(ig.__version__) < Version("0.10.0"):
         logger.error("igraph version needs to be at least 0.10.0. Please install it with: pip install igraph==0.10.0")
@@ -56,6 +57,7 @@ def tf_gene_network(
     # rename the dataframe columns to source, target, and weight
     # to be consistent with igraph
     net.columns = ["source", "target", "weight"]
+
 
     # create the node list
 

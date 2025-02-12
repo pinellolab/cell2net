@@ -434,7 +434,6 @@ def tf_to_gene(
 
     Returns
     -------
-    None or pd.DataFrame
         If `inplace` is True, the function modifies `mdata` in place and returns None.
         If `inplace` is False, it returns a dataframe linking genes to TFs.
 

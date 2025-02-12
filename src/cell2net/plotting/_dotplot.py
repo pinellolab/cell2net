@@ -23,7 +23,7 @@ from scanpy.plotting._utils import (
 
 from cell2net._logging import logger
 
-from ._utils import _VarNames
+_VarNames = str | Sequence[str]
 
 if TYPE_CHECKING:
     from typing import Literal, Self

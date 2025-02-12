@@ -8,10 +8,29 @@
 import sys
 from datetime import datetime
 from pathlib import Path
+import re
+import cell2net
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 
+# The short X.Y version (including .devXXXX, rcX, b1 suffixes if present)
+version = re.sub(r"(\d+\.\d+)\.\d+(.*)", r"\1\2", cell2net.__version__)
+version = re.sub(r"(\.dev\d+).*?$", r"\1", version)
+
+# The full version, including alpha/beta/rc tags.
+release = cell2net.__version__
+
+# pyData/Sphinx-Theme version switcher
+if ".dev" in version:
+    switcher_version = "dev"
+else:
+    switcher_version = f"{version}"
+
+
+print(
+    f"Building documentation for Cell2net {release} (short version: {version}, switcher version: {switcher_version})"
+)
 
 # -- Project information -----------------------------------------------------
 project = "Cell2net"

@@ -491,3 +491,10 @@ def tf_to_gene(
         adata_rna.uns[key_added] = df
     else:
         return df
+
+
+def get_motif_counts(motifs: Iterable, motif_name) -> dict:
+
+    counts = dict()
+
+    return counts

@@ -5,9 +5,11 @@ requires = [ "hatchling" ]
 [project]
 name = "cell2net"
 version = "0.0.3-dev0"
-description = "cell2net"
-readme = "README.md"
 license = { file = "LICENSE" }
+
+description = "Inferring multi-scale gene regulatory networks"
+readme = "README.md"
+
 maintainers = [
   { name = "Zhijian Li", email = "lzj1769@gmail.com" },
 ]
@@ -20,7 +22,12 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Operating System :: POSIX",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
 ]
+
 dependencies = [
   "torch>=2.2.2",
   "mudata>=0.3.1",

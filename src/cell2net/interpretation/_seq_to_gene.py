@@ -74,7 +74,7 @@ def dinucleotide_one_hot_shuffle(one_hot_sequence: np.ndarray) -> np.ndarray:
     ----------
     one_hot_sequence:
         A 2D array of shape (L, 4), where L is the sequence length, and each row is a
-        one-hot encoded nucleotide. Each row should contain exactly one `1` and three `0`s,
+        one-hot encoded nucleotide. Each row should contain exactly one 1 and three 0s,
         corresponding to the nucleotides "A", "C", "G", and "T".
 
     Returns
@@ -84,9 +84,9 @@ def dinucleotide_one_hot_shuffle(one_hot_sequence: np.ndarray) -> np.ndarray:
 
     Notes
     -----
-    - The function assumes the input sequence is valid one-hot encoding. Behavior is undefined if the input contains invalid rows.
-    - Shuffling is performed on the nucleotide sequence derived from the one-hot input, and the shuffled sequence is converted back to one-hot encoding.
-    - The function uses the `dinucleotide_shuffle` helper function to handle the shuffling of the nucleotide sequence.
+        - The function assumes the input sequence is valid one-hot encoding. Behavior is undefined if the input contains invalid rows.
+        - Shuffling is performed on the nucleotide sequence derived from the one-hot input, and the shuffled sequence is converted back to one-hot encoding.
+        - The function uses the dinucleotide_shuffle helper function to handle the shuffling of the nucleotide sequence.
 
     Examples
     --------
@@ -101,7 +101,7 @@ def dinucleotide_one_hot_shuffle(one_hot_sequence: np.ndarray) -> np.ndarray:
     ... ])
     >>> shuffled_one_hot = dinucleotide_one_hot_shuffle(one_hot_sequence)
     >>> shuffled_one_hot
-    array([[0., 1., 0., 0.],  # Example shuffled result: "C"
+    array([[0., 1., 0., 0.],  # "C"
            [1., 0., 0., 0.],  # "A"
            [0., 0., 0., 1.],  # "T"
            [0., 0., 1., 0.]]) # "G"

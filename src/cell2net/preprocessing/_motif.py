@@ -208,7 +208,6 @@ def filter_motifs_by_genes(
 def match_motif(
     mdata: MuData,
     motifs: Iterable,
-    rna_mod: str = "rna",
     atac_mod: str = "atac",
     pseudocounts: float = 0.0001,
     p_value: float = 5e-05,
@@ -229,9 +228,6 @@ def match_motif(
     motifs :
         A collection of motif objects. Each motif must have attributes `name`, `matrix_id`, and `counts` representing
         the motif's name, unique identifier, and nucleotide frequencies respectively.
-    rna_mod :
-        Key for the RNA modality in `mdata`, by default "rna".
-        This modality should contain gene expression information.
     atac_mod :
         Key for the ATAC modality in `mdata`, by default "atac".
         This modality should contain DNA accessibility data and DNA sequences in `.var["dna_sequence"]`.
@@ -270,7 +266,6 @@ def match_motif(
 
     Notes
     -----
-    - This function first overlaps TF motifs with expressed genes using case-insensitive matching of gene names.
     - It computes motif log-odds scores based on the provided background nucleotide frequencies.
     - Motif matching is performed on accessible DNA sequences using the MOODS library, which allows for efficient scanning and p-value thresholding.
     - The resulting sparse matrix is binary (0 or 1), where 1 indicates the presence of a significant motif match.
@@ -306,51 +301,20 @@ def match_motif(
     ...     background="subject"
     ... )
     """
-    adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]
 
     assert (
         "dna_sequence" in adata_atac.var.columns
     ), "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
 
-    # overlap motifs and genes
-    logger.info("Overlap motifs and genes")
-    motif_names, motif_ids = [], []
-    for motif in motifs:
-        motif_names.append(motif.name)
-        motif_ids.append(motif.matrix_id)
-
-    df_motif = pd.DataFrame(data={"motif_name": motif_names, "motif_id": motif_ids})
-
-    df_motif["gene_name_upper"] = df_motif["gene_name"].str.upper()
-    df_motif.drop_duplicates(subset=["motif_name_upper"], keep="last", inplace=True)
-
-    df_gene = pd.DataFrame(data={"gene_name": adata_rna.var_names})
-    df_gene["gene_name_upper"] = df_gene["gene_name"].str.upper()
-
-    sel_genes = list(
-        set(df_gene["gene_name_upper"].values.tolist())
-        & set(df_motif["motif_name"].values.tolist())
-    )
-    df_motif = df_motif[df_motif["motif_name"].isin(sel_genes)].reset_index(drop=True)
-    df_gene = df_gene[df_gene["gene_name_upper"].isin(sel_genes)].reset_index(drop=True)
-
-    assert len(df_motif) == len(df_gene), "Number of motifs and genes are different!"
-
-    df_motif = pd.merge(
-        df_motif, df_gene, left_on="motif_name", right_on="gene_name_upper", how="inner"
-    )
-    df_motif = df_motif[["motif_name", "motif_id", "gene_name"]]
-    mdata.uns["motifs"] = df_motif
-
     # subset motifs
-    motif_ids = df_motif["motif_id"].values.tolist()
+    motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
     motifs_sub = []
     for motif in motifs:
         if motif.matrix_id in motif_ids:
             motifs_sub.append(motif)
 
-    logger.info(f"Number of motifs overlapped with genes: {len(motifs_sub)}")
+    logger.info(f"Number of motifs: {len(motifs_sub)}")
 
     logger.info("Find TF binding sites")
     # motif matching

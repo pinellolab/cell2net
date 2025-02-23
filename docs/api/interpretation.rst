@@ -1,6 +1,6 @@
-===================
+====================
 Interpretation: `ip`
-===================
+====================
 .. currentmodule:: cell2net
 
 TF expression

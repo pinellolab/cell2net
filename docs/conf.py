@@ -8,19 +8,35 @@
 import sys
 from datetime import datetime
 from pathlib import Path
+import re
+import cell2net as cn
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
-
 
 # -- Project information -----------------------------------------------------
 project = "Cell2net"
 author = "Zhijian Li"
 copyright = f"{datetime.now():%Y}, {author}."
-version = "0.0.3"
 
-# The full version, including alpha/beta/rc tags
-release = version
+# The short X.Y.Z version (including .devXXXX, rcX, b1 suffixes if present)
+version = re.sub(r"(\d+\.\d+.\d+)\.\d+(.*)", r"\1\2", cn.__version__)
+version = re.sub(r"(\.dev\d+).*?$", r"\1", version)
+
+# The full version, including alpha/beta/rc tags.
+release = cn.__version__
+
+# pyData/Sphinx-Theme version switcher
+if ".dev" in version:
+    switcher_version = "dev"
+else:
+    switcher_version = f"{version}"
+
+
+print(
+    f"Building documentation for Cell2net {release} (short version: {version}, switcher version: {switcher_version})"
+)
+
 
 bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
@@ -109,11 +125,32 @@ html_css_files = [
     "css/custom.css",
 ]
 
+# Define the json_url for our version switcher.
+json_url = "https://pydata-sphinx-theme.readthedocs.io/en/latest/_static/switcher.json"
+
+# Define the version we use for matching in the version switcher.
+release = cn.__version__
+
 html_theme_options = {
-    "github_url": "",
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/pinellolab/cell2net",
+            "icon": "fa-brands fa-github",
+        }
+    ],
+    #
+    "use_edit_page_button": True,
+    "show_toc_level": 1,
+    "navbar_align": "left",
+    "navbar_center": ["version-switcher", "navbar-nav"],
     "use_repository_button": True,
     "path_to_docs": "docs/",
     "navigation_with_keys": False,
+    "switcher": {
+        "version_match": switcher_version,
+        "json_url": "https://raw.githubusercontent.com/pinellolab/cell2net/main/docs/_static/versions.json",
+    },
 }
 
 pygments_style = "default"

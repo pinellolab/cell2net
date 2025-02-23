@@ -4,10 +4,12 @@ requires = [ "hatchling" ]
 
 [project]
 name = "cell2net"
-version = "0.0.3"
-description = "cell2net"
-readme = "README.md"
+version = "0.0.3-dev0"
 license = { file = "LICENSE" }
+
+description = "Inferring multi-scale gene regulatory networks"
+readme = "README.md"
+
 maintainers = [
   { name = "Zhijian Li", email = "lzj1769@gmail.com" },
 ]
@@ -20,33 +22,43 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Operating System :: POSIX",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
 ]
+
 dependencies = [
-  "mudata==0.3.1",
-  "anndata==0.10.9",
-  "pandas==2.2.3",
-  "scanpy==1.10.3",
-  "pyfaidx==0.8.1.2",
-  "pyranges==0.1.2",
+  "torch>=2.2.2",
+  "mudata>=0.3.1",
+  "anndata>=0.10.9",
+  "pandas>=2.2.3",
+  "scanpy>=1.10.3",
+  "pyfaidx>=0.8.1.2",
+  "pyranges>=0.1.2",
   "muon==0.1.6",
   "session-info",
   "pyjaspar==3.0.0",
-  "pysam==0.22.1",
+  "pysam>=0.22.1",
+  "numpy>=2.0.0",
   "captum",
   "polars",
-  "matplotlib",
-  "PyComplexHeatmap==1.7.7",
+  "matplotlib>=3.10.0",
   "MOODS-python",
   "pyBigWig",
-  "torch",
-  "adpbulk",
   "pooch"
 ]
-optional-dependencies.dev = [
+
+# Optional dependencies
+[project.optional-dependencies]
+plot = [
+  "PyComplexHeatmap",
+]
+dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-optional-dependencies.doc = [
+doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
   "ipython",
@@ -61,14 +73,17 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph"
 ]
-optional-dependencies.test = [
+test = [
   "coverage",
   "pytest",
 ]
+
 # https://docs.pypi.org/project_metadata/#project-urls
-urls.Documentation = "https://pinellolab.github.io/cell2net/"
-urls.Homepage = "https://github.com/pinellolab/cell2net"
-urls.Source = "https://github.com/pinellolab/cell2net"
+[project.urls]
+Homepage = "https://pinellolab.github.io/cell2net/index.html"
+Documentation = "https://pinellolab.github.io/cell2net/index.html"
+Repository = "https://github.com/pinellolab/cell2net"
+Issues = "https://github.com/pinellolab/cell2net/issues"
 
 [tool.hatch.envs.default]
 installer = "uv"

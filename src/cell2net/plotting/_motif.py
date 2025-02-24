@@ -41,8 +41,9 @@ def motif_logo(
     show :
         Whether to display the plot.
     save :
-         If a string, saves the figure to the given file path. If True, saves with
-        the default prefix. If None or False, the figure is not saved.
+        If a string is provided, the figure is saved with this filename.
+        If True, the figure is saved with the default filename.
+        If False or None, the figure is not saved.
     save_prefix :
         Prefix for the saved figure filename.
     return_fig :
@@ -67,7 +68,9 @@ def motif_logo(
     try:
         import logomaker
     except ImportError:
-        logger.error("logomaker is not installed. Please install it with: pip install logomaker")
+        logger.error(
+            "logomaker is not installed. Please install it with: pip install logomaker"
+        )
         return None
 
     # compute information content matrix

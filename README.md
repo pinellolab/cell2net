@@ -42,16 +42,14 @@ See the [changelog][changelog].
 
 ## Contact
 
-For questions and help requests, you can reach out in the [scverse discourse][scverse-discourse].
 If you found a bug, please use the [issue tracker][issue-tracker].
 
 ## Citation
 
 > t.b.a
 
-[scverse-discourse]: https://discourse.scverse.org/
-[issue-tracker]: https://github.com/lzj1769/cell2net/issues
-[changelog]: https://cell2net.readthedocs.io/latest/changelog.html
-[link-docs]: https://cell2net.readthedocs.io
-[link-api]: https://cell2net.readthedocs.io/latest/api.html
+[issue-tracker]: https://github.com/pinellolab/cell2net/issues
+[changelog]: https://pinellolab.github.io/cell2net/changelog.html
+[link-docs]: https://pinellolab.github.io/cell2net/
+[link-api]: https://pinellolab.github.io/cell2net/api/index.html
 [link-pypi]: https://pypi.org/project/cell2net

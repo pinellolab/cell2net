@@ -152,7 +152,7 @@ def tf_to_gene(
         - `tf`: The transcription factor name.
         - `gene`: The linked gene (from `mdata["rna"].var_names[0]`).
         - `groupby`: The group name (e.g., cell type or cluster).
-        - `regulation`: The mean regulation value of the TF within the group.
+        - `attribution`: The mean attribution value of the TF within the group.
 
         The DataFrame is grouped by the `groupby` column, with the top `n_tfs` TFs
         included for each group.
@@ -175,7 +175,7 @@ def tf_to_gene(
     >>> groupby = "cell_type"
     >>> df = tf_to_gene(mdata, attr, groupby, n_tfs=5)
     >>> df.head()
-       tf      gene      cell_type  regulation
+       tf      gene      cell_type  attribution
     0  TF1     Gene1    Type1      0.1234
     1  TF2     Gene1    Type1      0.1123
     2  TF3     Gene1    Type1      0.0987
@@ -199,7 +199,7 @@ def tf_to_gene(
                 "tf": mdata.uns["tfs"],
                 "gene": mdata["rna"].var_names[0],
                 groupby: unique_group,
-                "regulation": np.mean(_attr, axis=0),
+                "attribution": np.mean(_attr, axis=0),
             }
         )
         df_list.append(df)
@@ -209,7 +209,7 @@ def tf_to_gene(
     # Group by 'group_column' and select the top 20 rows within each group
     df = (
         df.groupby(groupby)
-        .apply(lambda x: x.nlargest(n_tfs, "regulation"))
+        .apply(lambda x: x.nlargest(n_tfs, "attribution"))
         .reset_index(drop=True)
     )
 

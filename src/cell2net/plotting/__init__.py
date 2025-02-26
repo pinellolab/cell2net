@@ -1,5 +1,4 @@
 from ._dotplot import (
-    DotPlot,
     prepare_dataframes_for_dotplot,
     tf_dotplot,
 )

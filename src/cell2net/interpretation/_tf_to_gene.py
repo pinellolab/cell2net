@@ -165,8 +165,8 @@ def tf_to_gene(
 
     Notes
     -----
-    - The function assumes that `mdata.uns["tfs"]` contains a list of transcription factor names, and `mdata["rna"].var_names[0]` provides the associated gene name.
-    - Within each group, TF regulation values are aggregated by their mean, and the top `n_tfs` with the highest mean regulation are retained.
+        - The function assumes that `mdata.uns["tfs"]` contains a list of transcription factor names, and `mdata["rna"].var_names[0]` provides the associated gene name.
+        - Within each group, TF regulation values are aggregated by their mean, and the top `n_tfs` with the highest mean regulation are retained.
 
     Examples
     --------
@@ -216,5 +216,65 @@ def tf_to_gene(
     return df
 
 
-def get_top_regulator():
-    pass
+def get_top_tfs(
+    df: pd.DataFrame, n_top_tfs: int = 5, var_cutoff: float = 0.5
+) -> pd.DataFrame:
+    """
+    Identifies the top transcription factors (TFs) with the highest variability and returns the top `n_top_tfs` TFs for each sample/column.
+
+    The function follows these steps:
+    1. Computes the variance of each row (TF) and filters the top `var_cutoff` fraction
+       based on variance.
+    2. Performs z-score normalization across each row (TF).
+    3. Selects the `n_top_tfs` most highly expressed TFs for each column (sample).
+
+    Parameters
+    ----------
+    df :
+        A DataFrame where rows represent transcription factors (TFs) and columns represent samples.
+    n_top_tfs :
+        The number of top TFs to retrieve per sample/column, by default 5.
+    var_cutoff :
+        The fraction of TFs to retain based on variance ranking (0 to 1), by default 0.5.
+
+    Returns
+    -------
+        A DataFrame where each column corresponds to a sample, and each row contains
+        the top `n_top_tfs` TFs with the highest normalized expression.
+
+    Notes
+    -----
+        - The function normalizes each TF across samples using z-score transformation.
+        - TFs with the highest variability are prioritized based on the `var_cutoff` threshold.
+        - If `var_cutoff=1.0`, all TFs are considered; if `var_cutoff=0.5`, only the top 50% most variable TFs are used for ranking.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> impot cell2net as cn
+    >>> df = pd.DataFrame(np.random.rand(10, 5),
+    ...                   index=[f'TF{i}' for i in range(10)],
+    ...                   columns=[f'Sample{j}' for j in range(5)])
+    >>> cn.ip.get_top_tfs(df, n_top_tfs=3, var_cutoff=0.5)
+    """
+    # copy the dataframe
+    df_act = df.copy()
+
+    df_act["tf_var"] = df_act.var(axis=1)
+    df_act = df_act.sort_values(by="tf_var", ascending=False)
+    df_act = df_act.head(int(len(df_act) * var_cutoff))
+    df_act = df_act.drop(columns=["tf_var"])
+
+    # z-score normalization
+    df_norm = df_act.apply(lambda row: (row - row.mean()) / row.std(), axis=1)
+    df_norm = pd.DataFrame(df_norm, columns=df_act.columns, index=df_act.index)
+
+    top_tfs = {}
+    for col in df_norm.columns:
+        df_top = df_norm.sort_values(by=col, ascending=False).head(n_top_tfs)
+        top_tfs[col] = df_top.index.values.tolist()
+
+    df = pd.DataFrame(data=top_tfs)
+
+    return df

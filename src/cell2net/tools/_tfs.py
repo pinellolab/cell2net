@@ -36,4 +36,6 @@ def get_top_tfs(
         df_top = df_norm.sort_values(by=col, ascending=False).head(n_top_tfs)
         top_tfs[col] = df_top.index.values.tolist()
 
-    return pd.DataFrame(data=top_tfs)
+    df = pd.DataFrame(data=top_tfs)
+
+    return df

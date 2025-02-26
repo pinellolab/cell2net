@@ -215,7 +215,7 @@ def peak_to_gene(
         unique_groups, group_indices = np.unique(groups, return_inverse=True)  # type: ignore
 
         df_list = []
-        # For each group, subset the attribution and perform t-test
+        # For each group, average the attribution of peaks to genes
         for i, unique_group in enumerate(unique_groups):
             _attr = attr[group_indices == i]
             df = pd.DataFrame(

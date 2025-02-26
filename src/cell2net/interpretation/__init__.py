@@ -4,4 +4,4 @@ from ._seq_to_gene import (
     dinucleotide_one_hot_shuffle,
     dinucleotide_shuffle,
 )
-from ._tf_to_gene import compute_tf_attr, tf_to_gene
+from ._tf_to_gene import compute_tf_attr, get_top_tfs, tf_to_gene

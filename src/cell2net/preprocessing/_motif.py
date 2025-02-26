@@ -78,14 +78,18 @@ def get_motifs_from_jaspar(
     try:
         from pyjaspar import jaspardb
     except ImportError:
-        logger.error("pyjaspar is not installed. Please install it first: pip install pyjaspar")
+        logger.error(
+            "pyjaspar is not installed. Please install it first: pip install pyjaspar"
+        )
         return None
 
     if tax_group is None:
         tax_group = ["vertebrates"]
 
     jdb_obj = jaspardb(release=release)
-    motifs = jdb_obj.fetch_motifs(collection=collection, tax_group=tax_group, all_versions=all_versions)
+    motifs = jdb_obj.fetch_motifs(
+        collection=collection, tax_group=tax_group, all_versions=all_versions
+    )
 
     logger.info(f"Number of motifs fetched: {len(motifs)}")
 
@@ -173,10 +177,13 @@ def filter_motifs_by_genes(
     df_gene["gene_name_upper"] = df_gene["gene_name"].str.upper()
 
     sel_genes = list(
-        set(df_gene["gene_name_upper"].values.tolist()) & set(df_motif["motif_name_upper"].values.tolist())
+        set(df_gene["gene_name_upper"].values.tolist())
+        & set(df_motif["motif_name_upper"].values.tolist())
     )
 
-    df_motif = df_motif[df_motif["motif_name_upper"].isin(sel_genes)].reset_index(drop=True)
+    df_motif = df_motif[df_motif["motif_name_upper"].isin(sel_genes)].reset_index(
+        drop=True
+    )
     df_gene = df_gene[df_gene["gene_name_upper"].isin(sel_genes)].reset_index(drop=True)
 
     assert len(df_motif) == len(df_gene), "Number of motifs and genes are different!"
@@ -404,7 +411,9 @@ def tf_to_gene(
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]
 
-    assert "peak_to_gene" in mdata.uns, "Cannot find peak-to-gene, please first run cell2net.pp.peak_to_gene"
+    assert (
+        "peak_to_gene" in mdata.uns
+    ), "Cannot find peak-to-gene, please first run cell2net.pp.peak_to_gene"
 
     genes = mdata.uns["peak_to_gene"]["gene"].unique().tolist()
 
@@ -442,9 +451,3 @@ def tf_to_gene(
         adata_rna.uns[key_added] = df
     else:
         return df
-
-
-def get_motif_counts(motifs: Iterable, motif_name) -> dict:
-    counts = dict()
-
-    return counts

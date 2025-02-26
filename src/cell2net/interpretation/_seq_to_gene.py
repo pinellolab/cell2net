@@ -37,12 +37,13 @@ def dinucleotide_shuffle(sequence: str) -> str:
     Examples
     --------
     >>> import random
+    >>> import cell2net as cn
     >>> random.seed(42)  # For reproducibility
-    >>> dinucleotide_shuffle("ATCG")
+    >>> cn.ip.dinucleotide_shuffle("ATCG")
     'TACG'
-    >>> dinucleotide_shuffle("A")
+    >>> cn.ip.dinucleotide_shuffle("A")
     'A'
-    >>> dinucleotide_shuffle("")
+    >>> cn.ip.dinucleotide_shuffle("")
     ''
     """
     if len(sequence) < 2:
@@ -91,6 +92,7 @@ def dinucleotide_one_hot_shuffle(one_hot_sequence: np.ndarray) -> np.ndarray:
     Examples
     --------
     >>> import numpy as np
+    >>> import cell2net as cn
     >>> import random
     >>> random.seed(42)
     >>> one_hot_sequence = np.array([
@@ -99,7 +101,7 @@ def dinucleotide_one_hot_shuffle(one_hot_sequence: np.ndarray) -> np.ndarray:
     ...     [0, 0, 1, 0],  # G
     ...     [0, 0, 0, 1]   # T
     ... ])
-    >>> shuffled_one_hot = dinucleotide_one_hot_shuffle(one_hot_sequence)
+    >>> shuffled_one_hot = cn.ip.dinucleotide_one_hot_shuffle(one_hot_sequence)
     >>> shuffled_one_hot
     array([[0., 1., 0., 0.],  # "C"
            [1., 0., 0., 0.],  # "A"
@@ -126,6 +128,7 @@ def compute_seq_attr(
     idx: Sequence[int] | Sequence[str] | None = None,
     batch_size: int = 4,
     num_workers: int = 1,
+    shuffle_n: int = 30,
 ) -> np.ndarray:
     # create a dataloader
     logger.info("Create dataloader")
@@ -152,7 +155,6 @@ def compute_seq_attr(
         bs = peak_seq.shape[0]
         n_peaks = peak_seq.shape[1]
         peak_len = peak_seq.shape[2]
-        shuffle_n = 30
 
         attr_all = np.zeros((bs, n_peaks, peak_len, 4))
         dl = DeepLift(model.module)

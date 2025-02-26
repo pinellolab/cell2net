@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Literal
 
 import matplotlib.pyplot as plt
@@ -14,7 +15,8 @@ _COLOR_SCHEMES = Literal["classic", "grays", "base_pairing", "colorblind_safe"]
 
 
 def motif_logo(
-    counts: dict,
+    motifs: Iterable,
+    motif_name: str,
     color_scheme: str | _COLOR_SCHEMES = "classic",
     figsize: tuple[float, float] | None = None,
     show: bool | None = True,
@@ -31,9 +33,12 @@ def motif_logo(
 
     Parameters
     ----------
-    counts :
-        A dictionary where keys represent sequence characters (e.g., 'A', 'C', 'G', 'T')
-        and values are lists of counts across motif positions.
+    motifs :
+        An iterable of motif objects, each containing a `counts` attribute.
+        The `counts` attribute should be a dictionary where keys represent sequence characters
+        (e.g., 'A', 'C', 'G', 'T') and values are lists of counts across motif positions.
+    motif_name :
+        The name of the motif to be visualized.
     color_scheme :
         The color scheme used for visualization, by default "classic".
     figsize :
@@ -73,8 +78,18 @@ def motif_logo(
         )
         return None
 
+    # get motif counts
+    for motif in motifs:
+        if motif_name.upper() == motif.name.upper():
+            counts = motif.counts
+            break
+    else:
+        logger.error(f"Motif {motif_name} not found in the motifs list.")
+        return None
+
     # compute information content matrix
     pwm = pd.DataFrame(data=counts)
+    # add a small value to avoid division by zero
     pwm = pwm.add(0.0001)
     pwm_prob = (pwm.T / pwm.T.sum()).T
     pwm_prob_log = np.log2(pwm_prob)

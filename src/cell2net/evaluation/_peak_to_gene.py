@@ -194,3 +194,38 @@ def causal_var_enrichment_in_peaks(
     )
 
     return df
+
+
+def compare_connections(
+    df_pred: pd.DataFrame, df_true: pd.DataFrame, max_gap: int = 0
+) -> pd.DataFrame:
+    """
+    Compare predicted and true peak-to-gene connections.
+
+    Parameters
+    ----------
+    df_pred : pd.DataFrame
+        _description_
+    df_true : pd.DataFrame
+        _description_
+    max_gap : int, optional
+        _description_, by default 0
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
+    df_pred[["Chromosome", "Start", "End"]] = df_pred["peak"].str.split(
+        "-", expand=True
+    )
+
+    result = pd.merge(
+        df_pred,
+        df_true,
+        on="gene",
+        suffixes=("_1", "_2"),
+        how="outer",
+    )
+
+    return result

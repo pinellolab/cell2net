@@ -126,6 +126,7 @@ def peak_to_gene(
     mdata: MuData,
     attr: np.ndarray,
     groupby: str | None = None,
+    n_peaks: int = 50,
 ) -> pd.DataFrame:
     """
     Extracts peak-to-gene links based on the attribution of peak accessibility
@@ -180,14 +181,14 @@ def peak_to_gene(
     >>> # Compute average attribution across all cells
     >>> df = peak_to_gene(mdata, attr)
     >>> print(df.head())
-         peak    gene   avg_attr
+         peak    gene   attribution
     0  peak_1  gene_1  0.123456
     1  peak_2  gene_1  0.234567
 
     >>> # Compute group-specific average attributions
     >>> df_grouped = peak_to_gene(mdata, attr, groupby="cell_type")
     >>> print(df_grouped.head())
-         peak    gene    cell_type   avg_attr
+         peak    gene    cell_type   attribution
     0  peak_1  gene_1  B_cells      0.123456
     1  peak_2  gene_1  T_cells      0.234567
 
@@ -199,9 +200,10 @@ def peak_to_gene(
             data={
                 "peak": mdata.uns["peak_to_gene"]["peak"],
                 "gene": gene,
-                "avg_attr": np.mean(attr, axis=0),
+                "attribution": np.mean(attr, axis=0),
             }
         )
+
     else:
         # compute average attribution for each group
         assert groupby in mdata.obs.columns, f"Cannot find {groupby} in mdata.obs"
@@ -223,11 +225,12 @@ def peak_to_gene(
                     "peak": mdata.uns["peak_to_gene"]["peak"],
                     "gene": gene,
                     groupby: unique_group,
-                    "avg_attr": np.mean(_attr, axis=0),
+                    "attribution": np.mean(_attr, axis=0),
                 }
             )
             df_list.append(df)
 
+        # Concatenate all dataframes
         df = pd.concat(df_list, axis=0)
 
     return df

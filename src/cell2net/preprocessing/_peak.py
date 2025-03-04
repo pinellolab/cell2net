@@ -378,7 +378,7 @@ def peak_to_gene(
     grouped_df = df.groupby("gene").count()
     grouped_df = grouped_df[grouped_df["peak"] > min_n_peaks]
 
-    df = df[df["gene"].isin(grouped_df.index)]
+    df = df[df["gene"].isin(grouped_df.index)].reset_index(drop=True)
 
     n_genes = len(df["gene"].unique())
     logger.info(f"Number of genes: {n_genes}")

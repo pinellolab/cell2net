@@ -229,7 +229,7 @@ def fragments_to_coverage(
 
     n_fragments = 0
 
-    logger.info("Split fragments df by chromosome")
+    logger.info("Split fragments by chromosome")
     per_chrom_fragments_dfs = {
         str(chrom): fragments_chrom_df_pl
         for (chrom,), fragments_chrom_df_pl in df_fragments.partition_by(
@@ -241,7 +241,7 @@ def fragments_to_coverage(
     logger.info("Calculate depth per chromosome:")
     for chrom in per_chrom_fragments_dfs:
         if chrom not in chrom_sizes:
-            logger.warning(f"   Skipping {chrom} as it is not in chrom sizes file.")
+            logger.warning(f"Skipping {chrom} as it is not in chrom sizes file.")
             continue
 
         starts, ends = (
@@ -298,6 +298,7 @@ def fragment_to_bigwig(
     scaling_factor: float = 1.0,
     cut_sites: bool = False,
     extend_cut_sites: int = 0,
+    cell_barcodes: list[str] | None = None,
 ) -> None:
     """
     Convert fragment file to BigWig format.
@@ -362,7 +363,13 @@ def fragment_to_bigwig(
         new_columns=["Chromosome", "Start", "End", "Barcode", "Count"],
     )
 
+    # filter out cell barcodes if provided
+    if cell_barcodes is not None:
+        logger.info("Filtering fragments by cell barcodes")
+        df_fragments = df_fragments.filter(pl.col("Barcode").is_in(cell_barcodes))
+
     logger.info(f"Number of fragments: {df_fragments.height}")
+
     with pyBigWig.open(bw_filename, "wb") as bw:
         logger.info("Add chromosome sizes to bigwig header")
         bw.addHeader(list(chrom_sizes.items()))

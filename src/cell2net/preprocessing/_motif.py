@@ -364,6 +364,19 @@ def match_motif(
     return None
 
 
+def match_motif_with_snp(
+    mdata: MuData,
+    motifs: Iterable,
+    atac_mod: str = "atac",
+    pseudocounts: float = 0.0001,
+    p_value: float = 5e-05,
+    background: _BACKGROUND = "even",
+    key_added: str = "motif_match",
+) -> None:
+
+    return None
+
+
 def tf_to_gene(
     mdata: MuData,
     rna_mod: str = "rna",

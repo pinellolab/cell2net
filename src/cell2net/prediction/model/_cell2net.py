@@ -118,7 +118,7 @@ class Cell2Net(BaseModel):
             f"n_dims: {self.n_dims}"
         )
 
-    def _train(self) -> tuple[float, float]:
+    def _train(self) -> tuple[float, float, np.ndarray, np.ndarray]:
         self.module.train()
 
         train_loss = 0.0
@@ -155,9 +155,9 @@ class Cell2Net(BaseModel):
         rna_pred = torch.concat(rna_pred).numpy()
         res = stats.spearmanr(rna_true, rna_pred)
 
-        return train_loss, res.statistic  # type: ignore
+        return train_loss, res.statistic, rna_true, rna_pred  # type: ignore
 
-    def _valid(self) -> tuple[float, float]:
+    def _valid(self) -> tuple[float, float, np.ndarray, np.ndarray]:
         self.module.eval()
 
         valid_loss = 0.0
@@ -192,7 +192,7 @@ class Cell2Net(BaseModel):
         rna_pred = torch.concat(rna_pred).numpy()
         res = stats.spearmanr(rna_true, rna_pred)
 
-        return valid_loss, res.statistic  # type: ignore
+        return valid_loss, res.statistic, rna_true, rna_pred  # type: ignore
 
     def train(
         self,
@@ -272,8 +272,8 @@ class Cell2Net(BaseModel):
         epochs, train_losses, valid_losses = [], [], []
         train_corrs, valid_corrs = [], []
         for epoch in range(max_epochs):
-            train_loss, train_corr = self._train()
-            valid_loss, valid_corr = self._valid()
+            train_loss, train_corr, train_true, train_pred = self._train()
+            valid_loss, valid_corr, valid_true, valid_pred = self._valid()
 
             epochs.append(epoch)
             train_losses.append(train_loss)
@@ -286,6 +286,16 @@ class Cell2Net(BaseModel):
                 self.best_score = valid_corr
                 self.best_epoch = epoch
                 self.check_point = self.module.state_dict()
+
+                self.train_loss = train_loss
+                self.train_corr = train_corr
+                self.train_pred = np.exp(train_pred)
+                self.train_true = train_true
+
+                self.valid_loss = valid_loss
+                self.valid_corr = valid_corr
+                self.valid_pred = np.exp(valid_pred)
+                self.valid_true = valid_true
 
             lr_scheduler.step(valid_corr)  # type: ignore
 

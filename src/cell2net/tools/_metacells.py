@@ -1,3 +1,5 @@
+from typing import Literal
+
 import anndata as ad
 import numpy as np
 import scanpy as sc
@@ -16,47 +18,91 @@ def get_metacells(
     n_neighbors: int = 15,
     use_rep: str = "X_pca",
     groupby: str | None = None,
+    sampling: Literal["random", "geosketch"] = "geosketch",
 ) -> MuData:
     """
-    Create meta cells for single-cell multi-modal data
+    Generate metacells from a multimodal MuData object using random selection or geosketch sampling.
 
-    It has been known that single cell has the sparsity issue, which means that
-    many of the elements in the count matrix are zeros which poise challenges for
-    data interpretation. To address this issue, a number of algorithms were developed
-    to group cells based on their similarities,
-    for example SEACells (Persad, Sitara, et al.) and Metacell2 (Ben-Kiki, Oren, et al.)
-
-    We here use knn-based approach to group cells and then aggregate the profiles for scRNA-seq
-    and scATAC-seq to enhance the signal for model interpretation.
+    This function selects `n_metacells` representative cells from the input `mdata` and
+    aggregates gene expression (RNA) and chromatin accessibility (ATAC) data to form metacells.
+    Optionally, metacells can be grouped based on a categorical annotation.
 
     Parameters
     ----------
-    data : MuData | AnnData
-        Input data, can be an MuData or AnnData object
-    mod_key: str
-        If the input data is an Mudata object, which modality to use
-    n_metacells : int
-        How many meta cells to create
-    n_neighbors : int, optional
-        _description_, by default 15
-    n_pcs : int, optional
-        _description_, by default 30
-    use_rep : str | None, optional
-        _description_, by default "X_pca"
-    groupby : str | None, optional
-        _description_, by default None
+    mdata :
+        The input MuData object containing RNA and ATAC modalities.
+    n_metacells :
+        The number of metacells to generate.
+    rna_mod :
+        The key for the RNA modality in `mdata`.
+    atac_mod :
+        The key for the ATAC modality in `mdata`.
+    n_neighbors :
+        The number of neighbors to use for metacell construction.
+    use_rep :
+        The representation to use for metacell selection.
+    groupby :
+        If provided, cells are grouped by this categorical column in `mdata.obs` before
+        generating metacells, by default `None`.
+    sampling :
+        The sampling method used to select metacells:
+
+        - `"random"`: Randomly selects `n_metacells` from all cells.
+        - `"geosketch"`: Uses geosketch to select representative cells.
+
+        By default, `"geosketch"` is used.
 
     Returns
     -------
-    MuData
-        An Mudata object with metacells, where each observation represents an aggregated metacell.
+        A new MuData object containing metacells for RNA and ATAC modalities. The `obs` attribute
+        retains metadata for the selected metacells.
+
+    Raises
+    ------
+    ImportError
+        If `sampling="geosketch"` is chosen but the `geosketch` package is not installed.
+    ValueError
+        If an invalid sampling method is provided.
+
+    Notes
+    -----
+        - The metacell selection process is influenced by the choice of `use_rep`, which determines the feature space used for sampling.
+        - When `groupby` is provided, metacells are generated separately for each group in `mdata.obs[groupby]`.
+        - The `_get_metacells` function is used internally to aggregate data for the selected metacells.
+
+    Examples
+    --------
+    >>> import muon as mu
+    >>> import cell2net as cn
+    >>> from mudata import MuData
+    >>> mdata = mu.read("multimodal_data.h5mu")
+    >>> mdata_metacells = cn.pp.get_metacells(mdata, n_metacells=500)
+    >>> print(mdata_metacells)
+
+    Grouping metacells by a metadata column:
+    >>> mdata_metacells = get_metacells(mdata, n_metacells=500, groupby="cell_type")
+    >>> print(mdata_metacells.obs["cell_type"].value_counts())
+
+    Using random sampling instead of geosketch:
+    >>> mdata_metacells = get_metacells(mdata, n_metacells=500, sampling="random")
+
     """
-    # randome select number of cells that will be used as metacells
     logger.info(f"Select {n_metacells} metacells")
 
-    metacell_indices = np.random.choice(
-        mdata.n_obs, size=n_metacells, replace=False
-    ).tolist()
+    if sampling == "random":
+        metacell_indices = np.random.choice(
+            mdata.n_obs, size=n_metacells, replace=False
+        ).tolist()
+    elif sampling == "geosketch":
+        # Check if geosketch is installed
+        try:
+            from geosketch import gs  # type: ignore
+        except ImportError:
+            logger.error("Please install geosketch: pip install geosketch")
+
+        metacell_indices = gs(mdata[rna_mod].obsm[use_rep], n_metacells, replace=False)
+    else:
+        raise ValueError(f"Unknown sampling method: {sampling}")
 
     metacell_names = mdata.obs_names[metacell_indices]
 

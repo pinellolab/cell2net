@@ -7,7 +7,7 @@ from ._fragments import (
     split_fragments,
 )
 from ._gene import add_gene_tss_coord, get_gene_tss_coord
-from ._genotype import add_genotype
+from ._genotype import add_genomic_variants
 from ._motif import (
     filter_motifs_by_genes,
     get_motifs_from_jaspar,

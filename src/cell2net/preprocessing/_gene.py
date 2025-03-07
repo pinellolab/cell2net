@@ -119,6 +119,8 @@ def add_gene_tss_coord(
 
     df = get_gene_tss_coord(gene_gtf=gene_gtf, feature_type=feature_type)
 
-    adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)]
+    adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)].reset_index(
+        drop=True
+    )
 
     return None

@@ -1,21 +1,106 @@
-import re
+from pathlib import Path
 
+import numpy as np
 import pandas as pd
+import vcfpy
 from mudata import MuData
-from pysam import FastaFile
 
 
-def add_genotype(mdata: MuData, vcf_file: str) -> None:
-    assert mod_name in mdata.mod_names, f"Cannot find modality: {mod_name}"
-    adata = mdata[mod_name]
+def add_genomic_variants(
+    mdata: MuData, vcf_file: str | Path, variants_key: str = "variants"
+) -> None:
+    """
+    Adds genomic variant information from a VCF file to a MuData object.
 
-    fasta = FastaFile(filename=ref_fasta)
-    peaks, seqs = [], []
-    for i in range(adata.n_vars):
-        peak = re.split(delimiter, adata.var_names[i])
-        chrom, start, end = peak[0], int(peak[1]), int(peak[2])
-        peaks.append(adata.var_names[i])
-        seqs.append(fasta.fetch(chrom, start, end).upper())
+    This function reads single nucleotide variants (SNVs) from a VCF file and stores the
+    variant information and genotype data in the `uns` attribute of the MuData object.
 
-    adata.uns["peak_seq"] = pd.DataFrame(data={"peak": peaks, "seq": seqs})
+    Parameters
+    ----------
+    mdata :
+        A MuData object to which variant and genotype information will be added.
+    vcf_file :
+        Path to the VCF file containing genomic variant data
+    variants_key :
+        Key under which the variant information will be stored in `mdata.uns`.
+        Default is "variants_info".
+
+    Notes
+    -----
+        - Only single nucleotide variants (SNVs) are considered.
+        - Variants with multiple alternative alleles are ignored.
+        - The extracted genotype data is encoded as:
+
+            - 0 for homozygous reference (0/0)
+            - 1 for heterozygous (0/1)
+            - 2 for homozygous alternative (1/1)
+
+        - The variant information is stored in `mdata.uns[variants]` as a pandas DataFrame with columns: `id`, `chrom`, `pos`, `ref`, and `alt`.
+        - The genotype information is stored in `mdata.uns["genotype"]` as a pandas DataFrame where rows correspond to SNPs and columns correspond to samples.
+
+    Returns
+    -------
+        The function modifies `mdata` in place by adding variant and genotype information.
+
+    Raises
+    ------
+    AssertionError
+        If a SNP with multiple alternative alleles is encountered.
+
+    Examples
+    --------
+    >>> import muon as mu
+    >>> import cell2net as cn
+    >>> mdata = mu.MuData({})
+    >>> cn.pp.add_genomic_variants(mdata, "variants.vcf")
+    >>> mdata.uns["variants_info"].head()
+    >>> mdata.uns["genotype"].head()
+    """
+    reader = vcfpy.Reader.from_path(vcf_file)
+
+    sample_ids = reader.header.samples.names  # type: ignore
+    sample_ids = [str(x) for x in sample_ids]  # Ensure all elements are strings
+
+    snp_ids, snp_chroms, snp_positions, snp_refs, snp_alts = [], [], [], [], []
+    genotypes = []
+    for record in reader:
+        if record is None or not record.is_snv():
+            continue
+
+        assert (
+            len(record.ALT) == 1
+        ), f"find multiple alternatives for a SNP {record.ID[0]} "
+
+        snp_ids.append(record.ID[0])
+        snp_chroms.append(record.CHROM)
+        snp_positions.append(record.POS)
+        snp_refs.append(record.REF)
+        snp_alts.append(record.ALT[0].value)
+
+        # Extract genotype information
+        genotype = [call.data.get("GT") or "./." for call in record.calls]
+        genotype = [str(x) for x in genotype]  # Ensure all elements are strings
+        genotype = [
+            0 if x == "0/0" else 1 if x == "0/1" else 2 if x == "1/1" else np.nan
+            for x in genotype
+        ]
+
+        genotypes.append(genotype)
+
+    # Add SNP information to mdata
+    mdata.uns[variants_key] = pd.DataFrame(
+        data={
+            "id": snp_ids,
+            "chrom": snp_chroms,
+            "pos": snp_positions,
+            "ref": snp_refs,
+            "alt": snp_alts,
+        }
+    )
+
+    # Add donor information to mdata
+    mdata.uns["genotype"] = pd.DataFrame(
+        data=genotypes, columns=sample_ids, index=snp_ids
+    ).astype("Int8")
+
     return None

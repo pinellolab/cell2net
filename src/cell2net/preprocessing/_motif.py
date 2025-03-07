@@ -213,6 +213,8 @@ def match_motif(
     p_value: float = 5e-05,
     background: _BACKGROUND = "even",
     key_added: str = "motif_match",
+    save_bed: bool = False,
+    bed_file: str = "motif_match.bed",
 ) -> None:
     """
     Matches transcription factor motifs to accessible DNA sequences and links them with expressed genes.
@@ -364,7 +366,7 @@ def match_motif(
     return None
 
 
-def match_motif_with_snp(
+def match_motif_with_variants(
     mdata: MuData,
     motifs: Iterable,
     atac_mod: str = "atac",
@@ -417,6 +419,8 @@ def tf_to_gene(
 
     Examples
     --------
+    >>> import cell2net as cn
+    >>> mdata = cn.example_data()
     >>> tf_to_gene(mdata)
     >>> result_df = tf_to_gene(mdata, inplace=False)
     >>> print(result_df)
@@ -437,7 +441,7 @@ def tf_to_gene(
 
     logger.info("Find potential TFs for each gene")
     motif_names = df_motifs["gene_name"].values.tolist()
-    for i, gene in tqdm(enumerate(genes)):
+    for i, gene in enumerate(tqdm(genes)):
         df_p2g = mdata.uns["peak_to_gene"][mdata.uns["peak_to_gene"]["gene"] == gene]
         peaks = df_p2g["peak"].values.tolist()
 

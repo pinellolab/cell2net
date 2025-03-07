@@ -196,29 +196,47 @@ def causal_var_enrichment_in_peaks(
     return df
 
 
+# Convert genomic coordinates into PyRanges format
+def ranges_for_coords(peaks):
+    """Converts a list of genomic coordinates into PyRanges format."""
+    chroms, starts, ends = zip(*[p.split("-") for p in peaks], strict=False)
+    starts, ends = zip(*[map(int, s.split("-")) for s in starts], strict=False)
+    return pr.PyRanges(
+        pd.DataFrame({"Chromosome": chroms, "Start": starts, "End": ends})
+    )
+
+
 def compare_connections(
     df_pred: pd.DataFrame, df_true: pd.DataFrame, max_gap: int = 0
 ) -> pd.DataFrame:
-    """
-    Compare predicted and true peak-to-gene connections.
 
-    Parameters
-    ----------
-    df_pred : pd.DataFrame
-        _description_
-    df_true : pd.DataFrame
-        _description_
-    max_gap : int, optional
-        _description_, by default 0
+    # Process predicted connections
+    df_pred_peak1 = df_pred["peak1"].str.split("-", expand=True)
+    df_pred_peak2 = df_pred["peak2"].str.split("-", expand=True)
+    df_pred_peak1.columns = ["Chromosome", "Start", "End"]
+    df_pred_peak2.columns = ["Chromosome", "Start", "End"]
+    gr_pred_peak1 = pr.PyRanges(df_pred_peak1)
+    gr_pred_peak2 = pr.PyRanges(df_pred_peak2)
 
-    Returns
-    -------
-    pd.DataFrame
-        _description_
-    """
-    df_pred[["Chromosome", "Start", "End"]] = df_pred["peak"].str.split(
-        "-", expand=True
-    )
+    # Process true connections
+    _df_true = df_true.copy()
+    _df_true.columns = ["peak2", "peak1"]
+    df_true = pd.concat([df_true, _df_true]).drop_duplicates()
+
+    df_true_peak1 = df_true["peak1"].str.split("-", expand=True)
+    df_true_peak2 = df_true["peak2"].str.split("-", expand=True)
+    df_true_peak1.columns = ["Chromosome", "Start", "End"]
+    df_true_peak2.columns = ["Chromosome", "Start", "End"]
+    gr_true_peak1 = pr.PyRanges(df_true_peak1)
+    gr_true_peak2 = pr.PyRanges(df_true_peak2)
+
+    # Find overlapping connections
+    # ol1 = gr_pred_peak1.join(gr_true_peak1, how="overlap", slack=max_gap)
+    # ol2 = gr_pred_peak2.overlap(gr_true_peak2, how="overlap", slack=max_gap)
+
+    # # Convert overlap results into lists
+    # ol1_dict = ol1.to_dict()
+    # ol2_dict = ol2.to_dict()
 
     result = pd.merge(
         df_pred,

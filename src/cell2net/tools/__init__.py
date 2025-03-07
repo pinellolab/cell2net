@@ -1,1 +1,1 @@
-from ._metacells import _get_metacells, get_metacells
+from ._metacells import get_metacells

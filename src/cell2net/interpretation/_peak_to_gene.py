@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 from captum.attr import IntegratedGradients
 from mudata import MuData
+from scipy.stats import norm
 
 from cell2net._logging import logger
 from cell2net.prediction.data import get_dataloader
@@ -196,13 +197,18 @@ def peak_to_gene(
     gene = mdata["rna"].var_names[0]
     if groupby is None:
         # compute average attribution using all cells
+        avg_attr = np.mean(attr, axis=0)
+
         df = pd.DataFrame(
             data={
                 "peak": mdata.uns["peak_to_gene"]["peak"],
                 "gene": gene,
-                "attribution": np.mean(attr, axis=0),
+                "avg_attribution": avg_attr,
+                "z_score": (avg_attr - np.mean(avg_attr)) / np.std(avg_attr),
             }
         )
+
+        df["p_value"] = 2 * (1 - norm.cdf(abs(df["z_score"])))
 
     else:
         # compute average attribution for each group
@@ -220,14 +226,19 @@ def peak_to_gene(
         # For each group, average the attribution of peaks to genes
         for i, unique_group in enumerate(unique_groups):
             _attr = attr[group_indices == i]
+            avg_attr = np.mean(_attr, axis=0)
+
             df = pd.DataFrame(
                 data={
                     "peak": mdata.uns["peak_to_gene"]["peak"],
                     "gene": gene,
                     groupby: unique_group,
-                    "attribution": np.mean(_attr, axis=0),
+                    "avg_attribution": avg_attr,
+                    "z_score": (avg_attr - np.mean(avg_attr)) / np.std(avg_attr),
                 }
             )
+            df["p_value"] = 2 * (1 - norm.cdf(abs(df["z_score"])))
+
             df_list.append(df)
 
         # Concatenate all dataframes

@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Literal, get_args
+from typing import Literal
 
 import MOODS.scan
 import MOODS.tools
@@ -408,15 +408,15 @@ def match_motif_with_variants(
 ) -> None:
     adata_atac = mdata[atac_mod]
 
+    if sequence_var_key not in mdata[atac_mod].var.columns:
+        logger.error(
+            "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
+        )
+
     # Check if variants are present
     if variants_key not in mdata.uns or genotype_key not in mdata.uns:
         logger.error(
             "Cannot find variants, please first run cell2net.pp.add_genomic_variants"
-        )
-
-    if sequence_var_key not in mdata[atac_mod].var.columns:
-        logger.error(
-            "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
         )
 
     # Get motifs
@@ -433,6 +433,7 @@ def match_motif_with_variants(
         motifs=motifs_sub, pseudocounts=pseudocounts, p_value=p_value
     )
     # Get DNA sequences for each peak and donor
+    sequences = adata_atac.var[sequence_var_key].values
 
     return None
 

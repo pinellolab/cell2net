@@ -108,3 +108,21 @@ def add_genomic_variants(
     ).astype("Int8")
 
     return None
+
+
+def variant_to_peak(
+    mdata: MuData,
+    mod_name: str = "atac",
+    variants_key: str = "variants",
+    peak_key: str = "peak",
+) -> None:
+
+    mdata["atac"].var["peak"] = (
+        mdata["atac"].var["chrom"]
+        + ":"
+        + mdata["atac"].var["start"].astype(str)
+        + "-"
+        + mdata["atac"].var["end"].astype(str)
+    )
+
+    pass

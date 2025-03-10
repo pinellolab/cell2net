@@ -46,7 +46,8 @@ dependencies = [
   "matplotlib>=3.10.0",
   "MOODS-python",
   "pyBigWig",
-  "pooch"
+  "pooch",
+  "vcfpy"  
 ]
 
 # Optional dependencies

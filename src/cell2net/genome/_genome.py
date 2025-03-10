@@ -131,7 +131,7 @@ class Genome:
         return self._chrom_sizes
 
 
-GRCh37 = Genome(
+hg19 = Genome(
     name="hg19",
     fasta=lambda: register_datasets().fetch(  # type: ignore
         "gencode_v41_GRCh37.fa.gz",
@@ -142,9 +142,8 @@ GRCh37 = Genome(
         "gencode_v41_GRCh37.gff3.gz", progressbar=True
     ),
 )
-hg19 = GRCh37
 
-GRCh38 = Genome(
+hg38 = Genome(
     name="hg38",
     fasta=lambda: register_datasets().fetch(  # type: ignore
         "gencode_v41_GRCh38.fa.gz",
@@ -182,9 +181,8 @@ GRCh38 = Genome(
         "chrM": 16569,
     },
 )
-hg38 = GRCh38
 
-GRCm39 = Genome(
+mm39 = Genome(
     name="mm39",
     fasta=lambda: register_datasets().fetch(  # type: ignore
         "gencode_vM30_GRCm39.fa.gz",
@@ -219,9 +217,8 @@ GRCm39 = Genome(
         "chrM": 16299,
     },
 )  # type: ignore
-mm39 = GRCm39
 
-GRCm38 = Genome(
+mm10 = Genome(
     name="mm10",
     fasta=lambda: register_datasets().fetch(  # type: ignore
         "gencode_vM25_GRCm38.fa.gz",
@@ -255,5 +252,4 @@ GRCm38 = Genome(
         "chrY": 91744698,
         "chrM": 16299,
     },
-)
-mm10 = GRCm38
+)  # type: ignore

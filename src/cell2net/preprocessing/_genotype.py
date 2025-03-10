@@ -7,7 +7,10 @@ from mudata import MuData
 
 
 def add_genomic_variants(
-    mdata: MuData, vcf_file: str | Path, variants_key: str = "variants"
+    mdata: MuData,
+    vcf_file: str | Path,
+    variants_key: str = "variants",
+    genotype_key: str = "genotype",
 ) -> None:
     """
     Adds genomic variant information from a VCF file to a MuData object.
@@ -23,7 +26,8 @@ def add_genomic_variants(
         Path to the VCF file containing genomic variant data
     variants_key :
         Key under which the variant information will be stored in `mdata.uns`.
-        Default is "variants_info".
+    genotype_key :
+        Key under which the genotype information will be stored in `mdata.uns`.
 
     Notes
     -----
@@ -35,8 +39,8 @@ def add_genomic_variants(
             - 1 for heterozygous (0/1)
             - 2 for homozygous alternative (1/1)
 
-        - The variant information is stored in `mdata.uns[variants]` as a pandas DataFrame with columns: `id`, `chrom`, `pos`, `ref`, and `alt`.
-        - The genotype information is stored in `mdata.uns["genotype"]` as a pandas DataFrame where rows correspond to SNPs and columns correspond to samples.
+        - The variant information is stored in `mdata.uns[variants_key]` as a pandas DataFrame with columns: `id`, `chrom`, `pos`, `ref`, and `alt`.
+        - The genotype information is stored in `mdata.uns[genotype_key]` as a pandas DataFrame where rows correspond to SNPs and columns correspond to samples.
 
     Returns
     -------
@@ -53,7 +57,7 @@ def add_genomic_variants(
     >>> import cell2net as cn
     >>> mdata = mu.MuData({})
     >>> cn.pp.add_genomic_variants(mdata, "variants.vcf")
-    >>> mdata.uns["variants_info"].head()
+    >>> mdata.uns["variants"].head()
     >>> mdata.uns["genotype"].head()
     """
     reader = vcfpy.Reader.from_path(vcf_file)
@@ -99,7 +103,7 @@ def add_genomic_variants(
     )
 
     # Add donor information to mdata
-    mdata.uns["genotype"] = pd.DataFrame(
+    mdata.uns[genotype_key] = pd.DataFrame(
         data=genotypes, columns=sample_ids, index=snp_ids
     ).astype("Int8")
 

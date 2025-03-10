@@ -1,6 +1,8 @@
 """Functions to process scATAC-seq fragment file"""
 
 import gzip
+import os
+import subprocess as sp
 
 import numba
 import numpy as np
@@ -390,7 +392,7 @@ def fragment_to_bigwig(
 
 
 def split_fragments(
-    fragment_file: str,
+    fragment_files: str | list[str],
     cell_barcodes: list[str],
     groups: list[str],
     out_dir: str,
@@ -404,9 +406,9 @@ def split_fragments(
 
     Parameters
     ----------
-    fragment_file :
-        Path to the input fragment file.
-        This can be a plain text file or gzip-compressed (.gz) and
+    fragment_files :
+        Path to the input fragment files.
+        Each file can be a plain text or gzip-compressed (.gz) file and
         should have the following formats:
 
         +-----+-------+--------+----------------------+-----+
@@ -449,36 +451,45 @@ def split_fragments(
     logger.info("Create output files")
     file_handles = {}
     for group in set(groups):
-        file_name = f"{out_dir}/{group}.fragments.tsv"
+        file_name = f"{out_dir}/{group}.fragments.unsort.tsv"
         file_handles[group] = open(file_name, "w")
 
     logger.info("Split fragments by groups")
-    open_fn = gzip.open if fragment_file.endswith(".gz") else open
-    with open_fn(fragment_file, "rt") as f:
-        for line in f:
-            # Remove newlines and spaces.
-            line = line.strip()
+    if isinstance(fragment_files, str):
+        fragment_files = [fragment_files]
 
-            # Skip lines with #
-            if not line or line.startswith("#"):
-                continue
+    for fragment_file in fragment_files:
+        open_fn = gzip.open if fragment_file.endswith(".gz") else open
+        with open_fn(fragment_file, "rt") as f:
+            for line in f:
+                # Remove newlines and spaces.
+                line = line.strip()
 
-            # Assuming the 4th column is the cell barcode
-            columns = line.strip().split("\t")
-            cell_barcode = columns[3]
+                # Skip lines with #
+                if not line or line.startswith("#"):
+                    continue
 
-            # Get the corresponding cell type and write to the respective file
-            if cell_barcode in group_barcode_dict:
-                cell_type = group_barcode_dict[cell_barcode]
-                file_handles[cell_type].write(line + "\n")
+                # Assuming the 4th column is the cell barcode
+                columns = line.strip().split("\t")
+                cell_barcode = columns[3]
+
+                # Get the corresponding cell type and write to the respective file
+                if cell_barcode in group_barcode_dict:
+                    cell_type = group_barcode_dict[cell_barcode]
+                    file_handles[cell_type].write(line + "\n")
 
     # Close output files
     for group in set(groups):
         file_handles[group].close()
 
-    # compress and index the fragment file using bgzip and tabix
-    logger.info("Compress and index fragment files")
+    # sort, compress and index the fragment file
+    logger.info("Sort, compress and index the fragment files")
     for group in set(groups):
+        sp.run(
+            f"sort -k1,1 -k2,2n {out_dir}/{group}.fragments.unsort.tsv > {out_dir}/{group}.fragments.tsv",
+            shell=True,
+            check=True,
+        )
         bgzip(filename=f"{out_dir}/{group}.fragments.tsv")
         tabix_index(
             filename=f"{out_dir}/{group}.fragments.tsv.gz",
@@ -487,5 +498,6 @@ def split_fragments(
             start=2,
             end=3,
         )
+        os.remove(f"{out_dir}/{group}.fragments.unsort.tsv")
 
     return None

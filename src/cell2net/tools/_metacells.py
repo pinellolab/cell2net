@@ -80,16 +80,17 @@ def get_metacells(
     >>> print(mdata_metacells)
 
     Grouping metacells by a metadata column:
+
     >>> mdata_metacells = get_metacells(mdata, n_metacells=500, groupby="cell_type")
     >>> print(mdata_metacells.obs["cell_type"].value_counts())
 
     Using random sampling instead of geosketch:
+
     >>> mdata_metacells = get_metacells(mdata, n_metacells=500, sampling="random")
 
     """
-    logger.info(f"Select {n_metacells} metacells")
-
     if sampling == "random":
+        logger.info(f"Randomly select {n_metacells} metacells")
         metacell_indices = np.random.choice(
             mdata.n_obs, size=n_metacells, replace=False
         ).tolist()
@@ -100,9 +101,10 @@ def get_metacells(
         except ImportError:
             logger.error("Please install geosketch: pip install geosketch")
 
+        logger.info(f"Select {n_metacells} metacells using geosketch")
         metacell_indices = gs(mdata[rna_mod].obsm[use_rep], n_metacells, replace=False)
     else:
-        raise ValueError(f"Unknown sampling method: {sampling}")
+        logger.error(f"Unknown sampling method: {sampling}")
 
     metacell_names = mdata.obs_names[metacell_indices]
 
@@ -150,7 +152,7 @@ def get_metacells(
         )
 
     mdata_metacells = MuData({rna_mod: adata_rna, atac_mod: adata_atac})
-    mdata_metacells.obs = mdata.obs.iloc[metacell_indices].copy()
+    mdata_metacells.obs = mdata.obs.iloc[metacell_indices].copy()  # type: ignore
 
     logger.info("Done")
 

@@ -205,13 +205,81 @@ def filter_motifs_by_genes(
         return df_motif
 
 
+def prepare_scaner(
+    motifs: list,
+    pseudocounts: float = 0.0001,
+    p_value: float = 5e-05,
+) -> MOODS.scan.Scanner:
+    """
+    Prepares a MOODS scanner for motif scanning.
+
+    This function initializes a `MOODS.scan.Scanner` object with the given motifs,
+    applying log-odds transformation to the motif counts and computing motif-specific
+    score thresholds based on a given p-value. It also generates reverse complement
+    motifs for scanning both DNA strands.
+
+
+    Parameters
+    ----------
+    motifs :
+         A list of motif objects containing nucleotide frequency counts
+        (expected to have `.counts` attribute with keys "A", "C", "G", and "T").
+    pseudocounts :
+        A small pseudocount added to avoid zero probabilities in log-odds calculation.
+    p_value :
+        The statistical significance threshold for computing motif scoring thresholds.
+
+    Returns
+    -------
+        A `MOODS.scan.Scanner` object initialized with the provided motifs and
+        scoring thresholds, ready for scanning DNA sequences.
+
+    Notes
+    -----
+        - The function creates both **original** and **reverse complement** motifs for scanning.
+        - The background nucleotide frequency is assumed to be uniform (flat background).
+        - `MOODS.tools.threshold_from_p()` is used to compute the score thresholds.
+
+    Examples
+    --------
+    >>> import cell2net as cn
+    >>> motifs = [some_motif_object1, some_motif_object2]  # Assume motif objects are loaded
+    >>> scanner = cn.pp.prepare_scaner(motifs)
+    >>> type(scanner)
+    <class 'MOODS.scan.Scanner'>
+    """
+    n_motifs = len(motifs)
+    bg = MOODS.tools.flat_bg(4)
+
+    matrices = [None] * 2 * n_motifs
+    thresholds = [None] * 2 * n_motifs
+    for i, motif in enumerate(motifs):
+        counts = (
+            tuple(motif.counts["A"]),
+            tuple(motif.counts["C"]),
+            tuple(motif.counts["G"]),
+            tuple(motif.counts["T"]),
+        )
+
+        matrices[i] = MOODS.tools.log_odds(counts, bg, pseudocounts)
+        matrices[i + n_motifs] = MOODS.tools.reverse_complement(matrices[i])
+
+        thresholds[i] = MOODS.tools.threshold_from_p(matrices[i], bg, p_value)
+        thresholds[i + n_motifs] = thresholds[i]
+
+    scanner = MOODS.scan.Scanner(7)
+    scanner.set_motifs(matrices=matrices, bg=bg, thresholds=thresholds)
+
+    return scanner
+
+
 def match_motif(
     mdata: MuData,
     motifs: Iterable,
     atac_mod: str = "atac",
     pseudocounts: float = 0.0001,
     p_value: float = 5e-05,
-    background: _BACKGROUND = "even",
+    sequence_var_key: str = "dna_sequence",
     key_added: str = "motif_match",
     save_bed: bool = False,
     bed_file: str = "motif_match.bed",
@@ -238,14 +306,6 @@ def match_motif(
     p_value :
          P-value threshold for motif matching.
          Lower values result in stricter matches.
-    background :
-        Background nucleotide distribution for motif scoring. Choices:
-
-        - `"even"`: Assumes uniform nucleotide frequency.
-        - `"subject"`: Uses nucleotide frequencies from accessible DNA sequences in the dataset.
-        - `"genome"`: (Not implemented) Placeholder for using genome-wide nucleotide frequencies.
-
-        By default, `"even"`.
 
     key_added :
         Name of the key to store the resulting motif match matrix in `adata_atac.varm`.
@@ -301,67 +361,35 @@ def match_motif(
     """
     adata_atac = mdata[atac_mod]
 
-    assert (
-        "dna_sequence" in adata_atac.var.columns
-    ), "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
+    if sequence_var_key not in mdata[atac_mod].var.columns:
+        logger.error(
+            "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
+        )
 
-    # subset motifs
+    # Subset motifs
     motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
     motifs_sub = []
     for motif in motifs:
         if motif.matrix_id in motif_ids:
             motifs_sub.append(motif)
 
-    logger.info(f"Number of motifs: {len(motifs_sub)}")
-
-    logger.info("Find TF binding sites")
-    # motif matching
-    options = get_args(_BACKGROUND)
-    assert background in options, f"'{background}' is not in {options}"
-
-    # compute background distribution
-    seq = ""
-    if background == "subject":
-        for i in range(adata_atac.n_vars):
-            seq += adata_atac.uns["peak_seq"][i]
-        _bg = MOODS.tools.bg_from_sequence_dna(seq, 0)
-    elif background == "genome":
-        # TODO
-        _bg = MOODS.tools.flat_bg(4)
-    else:
-        _bg = MOODS.tools.flat_bg(4)
-
-    # prepare motif data
     n_motifs = len(motifs_sub)
+    logger.info(f"Number of motifs: {n_motifs}")
 
-    matrices = [None] * 2 * n_motifs
-    thresholds = [None] * 2 * n_motifs
-    for i, motif in enumerate(motifs_sub):
-        counts = (
-            tuple(motif.counts["A"]),
-            tuple(motif.counts["C"]),
-            tuple(motif.counts["G"]),
-            tuple(motif.counts["T"]),
-        )
+    logger.info("Matching TF motifs")
+    scanner = prepare_scaner(
+        motifs=motifs_sub, pseudocounts=pseudocounts, p_value=p_value
+    )
 
-        matrices[i] = MOODS.tools.log_odds(counts, _bg, pseudocounts)
-        matrices[i + n_motifs] = MOODS.tools.reverse_complement(matrices[i])
-
-        thresholds[i] = MOODS.tools.threshold_from_p(matrices[i], _bg, p_value)
-        thresholds[i + n_motifs] = thresholds[i]
-
-    # create scanner
-    scanner = MOODS.scan.Scanner(7)
-    scanner.set_motifs(matrices=matrices, bg=_bg, thresholds=thresholds)
     motif_match = np.zeros(shape=(adata_atac.n_vars, n_motifs), dtype=np.uint8)
-
     for i in tqdm(range(adata_atac.n_vars)):
-        results = scanner.scan(adata_atac.var["dna_sequence"].iloc[i])
+        results = scanner.scan(adata_atac.var[sequence_var_key].iloc[i])
         for j in range(n_motifs):
             if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
                 motif_match[i, j] = 1  # type: ignore
 
     adata_atac.varm[key_added] = csr_matrix(motif_match)
+    logger.info("Motif matching is done!")
 
     return None
 
@@ -373,8 +401,38 @@ def match_motif_with_variants(
     pseudocounts: float = 0.0001,
     p_value: float = 5e-05,
     background: _BACKGROUND = "even",
+    variants_key: str = "variants",
+    genotype_key: str = "genotype",
+    sequence_var_key: str = "dna_sequence",
     key_added: str = "motif_match",
 ) -> None:
+    adata_atac = mdata[atac_mod]
+
+    # Check if variants are present
+    if variants_key not in mdata.uns or genotype_key not in mdata.uns:
+        logger.error(
+            "Cannot find variants, please first run cell2net.pp.add_genomic_variants"
+        )
+
+    if sequence_var_key not in mdata[atac_mod].var.columns:
+        logger.error(
+            "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
+        )
+
+    # Get motifs
+    motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
+    motifs_sub = []
+    for motif in motifs:
+        if motif.matrix_id in motif_ids:
+            motifs_sub.append(motif)
+
+    logger.info(f"Number of motifs: {len(motifs_sub)}")
+
+    logger.info("Matching TF motifs")
+    scanner = prepare_scaner(
+        motifs=motifs_sub, pseudocounts=pseudocounts, p_value=p_value
+    )
+    # Get DNA sequences for each peak and donor
 
     return None
 

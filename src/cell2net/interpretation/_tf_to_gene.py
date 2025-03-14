@@ -81,7 +81,7 @@ def compute_tf_attr(
         persistent_workers=False,
     )
 
-    model.module.train()
+    model.module.eval()
 
     # Use Integrated Gradients to estimate feature importances
     ig = IntegratedGradients(model.module, multiply_by_inputs=multiply_by_inputs)

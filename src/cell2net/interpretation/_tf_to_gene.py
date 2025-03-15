@@ -116,7 +116,7 @@ def compute_tf_attr(
 def tf_to_gene(
     mdata: MuData,
     attr: np.ndarray,
-    groupby: str,
+    groupby: str | None = None,
     n_tfs: int = 10,
 ) -> pd.DataFrame:
     """
@@ -182,36 +182,50 @@ def tf_to_gene(
     3  TF4     Gene1    Type1      0.0876
     4  TF5     Gene1    Type1      0.0765
     """
-    assert groupby in mdata.obs.columns, print(f"Cannot find {groupby} in mdata.obs")
-
-    groups = mdata.obs[groupby].values
-
-    assert len(groups) == attr.shape[0], print(
-        f"Length of grouby {len(groups)} is different from number of cells {attr.shape[0]}"
-    )
-    unique_groups, group_indices = np.unique(groups, return_inverse=True)  # type: ignore
-
-    df_list = []
-    for i, unique_group in enumerate(unique_groups):
-        _attr = attr[group_indices == i]
+    gene = mdata["rna"].var_names[0]
+    if groupby is None:
         df = pd.DataFrame(
             data={
                 "tf": mdata.uns["tfs"],
-                "gene": mdata["rna"].var_names[0],
-                groupby: unique_group,
-                "attribution": np.mean(_attr, axis=0),
+                "gene": gene,
+                "mean_attr": np.mean(attr, axis=0),
+                "std_attr": np.std(attr, axis=0),
             }
         )
-        df_list.append(df)
+    else:
+        assert groupby in mdata.obs.columns, print(
+            f"Cannot find {groupby} in mdata.obs"
+        )
 
-    df = pd.concat(df_list, axis=0).reset_index(drop=True)
+        groups = mdata.obs[groupby].values
 
-    # Group by 'group_column' and select the top 20 rows within each group
-    df = (
-        df.groupby(groupby)
-        .apply(lambda x: x.nlargest(n_tfs, "attribution"))
-        .reset_index(drop=True)
-    )
+        assert len(groups) == attr.shape[0], print(
+            f"Length of grouby {len(groups)} is different from number of cells {attr.shape[0]}"
+        )
+        unique_groups, group_indices = np.unique(groups, return_inverse=True)  # type: ignore
+
+        df_list = []
+        for i, unique_group in enumerate(unique_groups):
+            _attr = attr[group_indices == i]
+            df = pd.DataFrame(
+                data={
+                    "tf": mdata.uns["tfs"],
+                    "gene": gene,
+                    groupby: unique_group,
+                    "mean_attr": np.mean(_attr, axis=0),
+                    "std_attr": np.std(_attr, axis=0),
+                }
+            )
+            df_list.append(df)
+
+        df = pd.concat(df_list, axis=0).reset_index(drop=True)
+
+        # Group by 'group_column' and select the top 20 rows within each group
+        df = (
+            df.groupby(groupby)
+            .apply(lambda x: x.nlargest(n_tfs, "mean_attr"))
+            .reset_index(drop=True)
+        )
 
     return df
 

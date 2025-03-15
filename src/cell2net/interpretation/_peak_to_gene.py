@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from captum.attr import IntegratedGradients
 from mudata import MuData
-from scipy.stats import norm
+from scipy import stats
 
 from cell2net._logging import logger
 from cell2net.prediction.data import encode_seq, get_dataloader
@@ -232,9 +232,48 @@ def compute_peak_attr_v2(
     return attr
 
 
+def _run_bootstrap(attr, n_resamples, confidence_level, random_state) -> pd.DataFrame:
+    mean_attr, low_ci, high_ci, se, pvalues = [], [], [], [], []
+    for i in range(attr.shape[1]):
+        res = stats.bootstrap(
+            (attr[:, i],),
+            lambda x: np.mean(x),
+            n_resamples=n_resamples,
+            confidence_level=confidence_level,
+            random_state=random_state,
+            method="basic",
+        )
+
+        mean_attr.append(np.mean(res.bootstrap_distribution))
+        low_ci.append(res.confidence_interval[0])
+        high_ci.append(res.confidence_interval[1])
+        se.append(res.standard_error)
+
+        res = stats.ttest_1samp(
+            res.bootstrap_distribution, popmean=0, alternative="two-sided"
+        )
+
+        pvalues.append(res.pvalue)  # type: ignore
+
+    df = pd.DataFrame(
+        data={
+            "mean_attr": mean_attr,
+            "low_ci": low_ci,
+            "high_ci": high_ci,
+            "se": se,
+            "pvalue": pvalues,
+        }
+    )
+
+    return df
+
+
 def peak_to_gene(
     mdata: MuData,
     attr: np.ndarray,
+    n_resamples: int = 100,
+    confidence_level: float = 0.95,
+    random_state: int = 42,
     groupby: str | None = None,
 ) -> pd.DataFrame:
     """
@@ -304,18 +343,31 @@ def peak_to_gene(
     """
     gene = mdata["rna"].var_names[0]
     if groupby is None:
-        # compute average attribution using all cells
+        # compute mean attribution using all cells
+        mean_attr = np.mean(attr, axis=0)
+
         df = pd.DataFrame(
             data={
                 "peak": mdata.uns["peak_to_gene"]["peak"],
                 "gene": gene,
-                "mean_attr": np.mean(attr, axis=0),
+                "mean_attr": mean_attr,
                 "std_attr": np.std(attr, axis=0),
-                # "z_score": (avg_attr - np.mean(avg_attr)) / np.std(avg_attr),
+                "z_score": (mean_attr - np.mean(mean_attr)) / np.std(mean_attr),
             }
         )
 
-        # df["p_value"] = 2 * (1 - norm.cdf(abs(df["z_score"])))
+        # df = _run_bootstrap(
+        #     attr=attr,
+        #     n_resamples=n_resamples,
+        #     confidence_level=confidence_level,
+        #     random_state=random_state,
+        # )
+
+        # df["peak"] = mdata.uns["peak_to_gene"]["peak"]
+        # df["gene"] = gene
+        from scipy.stats import norm
+
+        df["p_value"] = 2 * (1 - norm.cdf(abs(df["z_score"])))
 
     else:
         # compute average attribution for each group
@@ -333,18 +385,18 @@ def peak_to_gene(
         # For each group, average the attribution of peaks to genes
         for i, unique_group in enumerate(unique_groups):
             _attr = attr[group_indices == i]
-            avg_attr = np.mean(_attr, axis=0)
+            mean_attr = np.mean(_attr, axis=0)
 
             df = pd.DataFrame(
                 data={
                     "peak": mdata.uns["peak_to_gene"]["peak"],
                     "gene": gene,
                     groupby: unique_group,
-                    "avg_attribution": avg_attr,
-                    "z_score": (avg_attr - np.mean(avg_attr)) / np.std(avg_attr),
+                    "mean_attr": mean_attr,
+                    "std_attr": np.std(_attr, axis=0),
+                    "z_score": (mean_attr - np.mean(mean_attr)) / np.std(mean_attr),
                 }
             )
-            df["p_value"] = 2 * (1 - norm.cdf(abs(df["z_score"])))
 
             df_list.append(df)
 

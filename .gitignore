@@ -23,7 +23,6 @@ docs/tutorials/.ipynb_checkpoints/
 _build
 build_doc.sh
 .ipynb_checkpoints
-*.ipynb
 
 # workspace
 src/cell2net/prediction/model/cell2net.code-workspace

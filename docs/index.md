@@ -7,7 +7,7 @@
 :maxdepth: 1
 
 install.md
-tutorials/example
+tutorials/index
 api/index
 changelog.md
 references.md

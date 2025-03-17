@@ -4,7 +4,7 @@
 
 ```{toctree}
 :hidden: true
-:maxdepth: 1
+:maxdepth: 3
 
 install.md
 tutorials/index

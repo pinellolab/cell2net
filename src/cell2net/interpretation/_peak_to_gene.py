@@ -356,19 +356,6 @@ def peak_to_gene(
             }
         )
 
-        # df = _run_bootstrap(
-        #     attr=attr,
-        #     n_resamples=n_resamples,
-        #     confidence_level=confidence_level,
-        #     random_state=random_state,
-        # )
-
-        # df["peak"] = mdata.uns["peak_to_gene"]["peak"]
-        # df["gene"] = gene
-        from scipy.stats import norm
-
-        df["p_value"] = 2 * (1 - norm.cdf(abs(df["z_score"])))
-
     else:
         # compute average attribution for each group
         assert groupby in mdata.obs.columns, f"Cannot find {groupby} in mdata.obs"
@@ -402,5 +389,7 @@ def peak_to_gene(
 
         # Concatenate all dataframes
         df = pd.concat(df_list, axis=0)
+
+    df["p_value"] = 2 * (1 - stats.norm.cdf(abs(df["z_score"])))
 
     return df

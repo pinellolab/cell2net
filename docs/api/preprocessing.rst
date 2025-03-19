@@ -46,4 +46,15 @@ Peaks
 
     preprocessing.add_peaks
     preprocessing.peak_to_gene
+
+Sequences
+=============================
+.. autosummary::
+    :toctree: _autosummary
+
     preprocessing.add_dna_sequence
+    preprocessing.dinucleotide_shuffle_one_hot
+    preprocessing.dinucleotide_shuffle_str
+    preprocessing.one_hot_to_seq
+    preprocessing.random_seq
+    preprocessing.seq_to_one_hot

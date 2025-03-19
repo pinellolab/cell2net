@@ -4,7 +4,7 @@ import numpy as np
 from mudata import MuData
 from torch.utils.data import Dataset
 
-from ._utils import encode_seq
+from cell2net.prediction._utils import encode_seq
 
 
 class MuTorchDataset(Dataset):

@@ -1,24 +1,13 @@
-import logging
-import os
-import random
-
-import numpy as np
 import torch
 
-logger = logging.getLogger(__name__)
+from cell2net.preprocessing import seq_to_one_hot
 
 
-def set_seed(seed=42):
-    random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
+def encode_seq(seq_list):
+    data = []
+    for seq in seq_list:
+        data.append(seq_to_one_hot(seq))
 
+    data = torch.stack(data)
 
-def random_seq(seq_len):
-    bases = ["A", "C", "G", "T"]
-    rand_seq = "".join([np.random.choice(bases) for i in range(seq_len)])
-    return rand_seq
+    return data

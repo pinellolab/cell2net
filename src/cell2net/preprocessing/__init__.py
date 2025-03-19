@@ -15,6 +15,6 @@ from ._motif import (
     tf_to_gene,
 )
 from ._peak import add_peaks, peak_to_gene
-from ._sequence import add_dna_sequence
+from ._sequence import add_dna_sequence, one_hot_to_seq, random_seq, seq_to_one_hot
 from ._utils import bgzip, tabix_index
 from ._variants import add_genomic_variants

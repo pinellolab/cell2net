@@ -1,10 +1,21 @@
 from collections.abc import Sequence
 
 import numpy as np
+import torch
 from mudata import MuData
 from torch.utils.data import Dataset
 
-from cell2net.prediction._utils import encode_seq
+from cell2net.preprocessing import seq_to_one_hot
+
+
+def encode_seq(seq_list):
+    data = []
+    for seq in seq_list:
+        data.append(torch.from_numpy(seq_to_one_hot(seq)))
+
+    data = torch.stack(data)
+
+    return data
 
 
 class MuTorchDataset(Dataset):

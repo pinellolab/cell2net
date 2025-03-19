@@ -24,6 +24,8 @@ Peak sequence
 .. autosummary::
     :toctree: _autosummary
 
+    interpretation.compute_seq_attr
     interpretation.dinucleotide_shuffle
     interpretation.dinucleotide_one_hot_shuffle
+    
 

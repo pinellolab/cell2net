@@ -6,6 +6,7 @@ import torch
 from captum.attr import DeepLift
 
 from cell2net._logging import logger
+from cell2net.interpretation._utils import is_sequence_of_strings
 from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.model import Cell2Net
 
@@ -125,15 +126,49 @@ def dinucleotide_one_hot_shuffle(one_hot_sequence: np.ndarray) -> np.ndarray:
 
 def compute_seq_attr(
     model: Cell2Net,
+    peaks: int | str | Sequence[int] | Sequence[str] | None = None,
     idx: Sequence[int] | Sequence[str] | None = None,
     batch_size: int = 4,
     num_workers: int = 1,
-    shuffle_n: int = 30,
+    shuffle_n: int = 50,
+    rna_mod: str = "rna",
+    atac_mod: str = "atac",
 ) -> np.ndarray:
+    """
+    Computes sequence attribution scores using the DeepLift algorithm for a given model
+
+    This function takes a trained `Cell2Net` model and computes attribution scores
+    for input sequences using the DeepLift method. It generates shuffled baselines
+    for comparison and averages the attributions over multiple shuffles.
+
+    Parameters
+    ----------
+    model :
+        The trained model containing the sequence and other input features.
+    peaks :
+        Peaks used to compute attribution.
+        This can be a single peak index, a list of peak indices, a single peak name, or a list of peak names.
+        If None, all peaks are used.
+    idx :
+        Indices of the samples to compute attribution for. If None, all samples are used.
+    batch_size :
+        The number of samples per batch in the DataLoader.
+    num_workers :
+        The number of worker threads for data loading.
+    shuffle_n :
+        The number of times to shuffle the dinucleotide sequences for baseline attribution.
+
+    Returns
+    -------
+        A NumPy array of shape `(batch_size, num_peaks, 4, peak_length)`,
+        representing the attribution scores for each base in the input sequences.
+    """
     # create a dataloader
     logger.info("Create dataloader")
     data_loader = get_dataloader(
         mdata=model.mdata,
+        rna_mod=rna_mod,
+        atac_mod=atac_mod,
         covariates=model.covariates,
         idx=idx,
         batch_size=batch_size,
@@ -144,7 +179,19 @@ def compute_seq_attr(
         persistent_workers=False,
     )
 
+    # set model to evaluation mode
     model.module.eval()
+
+    # get peak index
+    if peaks is None:
+        peak_indices = range(len(model.mdata[atac_mod].var_names))
+    elif isinstance(peaks, int):
+        peak_indices = [peaks]
+    elif isinstance(peaks, str):
+        peak_indices = [model.mdata[atac_mod].var.index.get_loc(peaks)]
+    elif is_sequence_of_strings(peaks):
+        peak_indices = [model.mdata[atac_mod].var.index.get_loc(p) for p in peaks]
+
     for data in data_loader:
         peak_seq = data["peak_seq"].to(model.device)
         peak_acc = data["peak_acc"].to(model.device)
@@ -153,17 +200,20 @@ def compute_seq_attr(
         covariates = data["covariates"].to(model.device)
 
         bs = peak_seq.shape[0]
-        n_peaks = peak_seq.shape[1]
         peak_len = peak_seq.shape[2]
 
-        attr_all = np.zeros((bs, n_peaks, peak_len, 4))
+        attr_all = np.zeros((bs, len(peak_indices), peak_len, 4))
         dl = DeepLift(model.module)
         for i in range(bs):
-            for j in range(n_peaks):
+            for j, peak_index in enumerate(peak_indices):
                 attr_list = []
+                # shuffle the dinucleotide sequence for shuffle_n times
+                # and compute the attribution scores, then average them
                 for _ in range(shuffle_n):
                     _peak_seq = peak_seq.clone().detach().cpu().numpy()
-                    _peak_seq[i][j] = dinucleotide_one_hot_shuffle(_peak_seq[i][j])
+                    _peak_seq[i][peak_index] = dinucleotide_one_hot_shuffle(
+                        _peak_seq[i][peak_index]
+                    )
                     _peak_seq = torch.from_numpy(_peak_seq).to(model.device)
 
                     attributions = dl.attribute(

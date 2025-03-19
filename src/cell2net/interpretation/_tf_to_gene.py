@@ -192,6 +192,9 @@ def tf_to_gene(
                 "std_attr": np.std(attr, axis=0),
             }
         )
+
+        df = df.apply(lambda x: x.nlargest(n_tfs, "mean_attr")).reset_index(drop=True)
+
     else:
         assert groupby in mdata.obs.columns, print(
             f"Cannot find {groupby} in mdata.obs"

@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 from captum.attr import DeepLift
+from tqdm import tqdm
 
 from cell2net._logging import logger
 from cell2net.interpretation._utils import is_sequence_of_strings
@@ -192,7 +193,7 @@ def compute_seq_attr(
     elif is_sequence_of_strings(peaks):
         peak_indices = [model.mdata[atac_mod].var.index.get_loc(p) for p in peaks]
 
-    for data in data_loader:
+    for data in tqdm(data_loader):
         peak_seq = data["peak_seq"].to(model.device)
         peak_acc = data["peak_acc"].to(model.device)
         peak_dist = data["peak_dist"].to(model.device)

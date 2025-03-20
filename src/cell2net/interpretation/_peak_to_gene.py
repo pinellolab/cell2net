@@ -12,7 +12,7 @@ from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.model import Cell2Net
 
 
-def compute_peak_attr(
+def peak_attr(
     model: Cell2Net,
     idx: Sequence[int] | Sequence[str] | None = None,
     batch_size: int = 4,

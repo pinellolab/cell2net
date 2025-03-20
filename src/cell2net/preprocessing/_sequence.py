@@ -189,6 +189,38 @@ def dinucleotide_shuffle_str(seq: str, random_state: int = 42) -> str:
     return shuffled_sequence
 
 
+# def dinucleotide_shuffle(
+#     dna_seq: np.ndarray | str, return_str: bool = True
+# ) -> np.ndarray | str:
+#     """
+#     Shuffle DNA sequence while preserving its dinucleotide composition
+
+#     Parameters
+#     ----------
+#     seq : np.ndarray | str
+#         _description_
+
+#     Returns
+#     -------
+#     np.ndarray | str
+#         _description_
+#     """
+#     if isinstance(dna_seq, np.ndarray):
+#         dna_seq = one_hot_to_seq(dna_seq)
+
+#     if len(dna_seq) < 2:
+#         return dna_seq
+
+#     if isinstance(dna_seq, np.ndarray):
+#         seq = one_hot_to_seq(seq)
+
+#         if len(seq) < 2:
+#             return seq
+
+#     elif isinstance(dna_seq, str):
+#         shuffled_sequence = dinucleotide_shuffle_str(dna_seq)
+
+
 def dinucleotide_shuffle_one_hot(one_hot: np.ndarray) -> np.ndarray:
     """
     Shuffle a one-hot encoded DNA sequence while preserving its dinucleotide composition.

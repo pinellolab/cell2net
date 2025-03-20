@@ -8,7 +8,7 @@ TF expression
 .. autosummary::
     :toctree: _autosummary
 
-    interpretation.compute_tf_attr
+    interpretation.tf_attr
     interpretation.tf_to_gene
 
 Peak accessibility
@@ -16,7 +16,7 @@ Peak accessibility
 .. autosummary::
     :toctree: _autosummary
 
-    interpretation.compute_peak_attr
+    interpretation.peak_attr
     interpretation.peak_to_gene
 
 Peak sequence
@@ -24,6 +24,6 @@ Peak sequence
 .. autosummary::
     :toctree: _autosummary
 
-    interpretation.compute_seq_attr
+    interpretation.seq_attr
     
 

@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from typing import Literal
 
 import MOODS.scan
 import MOODS.tools
@@ -10,8 +9,6 @@ from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
 from cell2net._logging import logger
-
-_BACKGROUND = Literal["subject", "genome", "even"]
 
 
 def get_motifs_from_jaspar(
@@ -400,11 +397,10 @@ def match_motif_with_variants(
     atac_mod: str = "atac",
     pseudocounts: float = 0.0001,
     p_value: float = 5e-05,
-    background: _BACKGROUND = "even",
     variants_key: str = "variants",
     genotype_key: str = "genotype",
     sequence_var_key: str = "dna_sequence",
-    key_added: str = "motif_match",
+    key_added: str = "motif_match_with_variants",
 ) -> None:
     adata_atac = mdata[atac_mod]
 
@@ -426,14 +422,30 @@ def match_motif_with_variants(
         if motif.matrix_id in motif_ids:
             motifs_sub.append(motif)
 
-    logger.info(f"Number of motifs: {len(motifs_sub)}")
+    n_motifs = len(motifs_sub)
+    logger.info(f"Number of motifs: {n_motifs}")
 
-    logger.info("Matching TF motifs")
+    logger.info("Matching TF motifs with variants information")
     scanner = prepare_scaner(
         motifs=motifs_sub, pseudocounts=pseudocounts, p_value=p_value
     )
     # Get DNA sequences for each peak and donor
     sequences = adata_atac.var[sequence_var_key].values
+
+    n_donors = mdata.uns[genotype_key].shape[1]
+
+    # for each donor, scan the motifs across all peaks
+    motif_match = np.zeros(
+        shape=(n_donors, adata_atac.n_vars, n_motifs), dtype=np.uint8
+    )
+    
+    for i in tqdm(range(n_donors)):
+    
+    for i in tqdm(range(adata_atac.n_vars)):
+        results = scanner.scan(adata_atac.var[sequence_var_key].iloc[i])
+        for j in range(n_motifs):
+            if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
+                motif_match[i, j] = 1  # type: ignore
 
     return None
 

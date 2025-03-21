@@ -152,7 +152,15 @@ def get_metacells(
         )
 
     mdata_metacells = MuData({rna_mod: adata_rna, atac_mod: adata_atac})
+
+    # copy obs from original MuData
     mdata_metacells.obs = mdata.obs.iloc[metacell_indices].copy()  # type: ignore
+
+    # copy uns from original MuData
+    mdata_metacells.uns = {}
+    if len(mdata.uns.keys()) > 0:
+        for key in mdata.uns.keys():
+            mdata_metacells.uns[key] = mdata.uns[key].copy()
 
     logger.info("Done")
 

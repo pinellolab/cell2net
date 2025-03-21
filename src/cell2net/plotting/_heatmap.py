@@ -8,7 +8,7 @@ def prepare_dataframes_for_tf_heatmap(df: pd.DataFrame):
     pass
 
 
-def tf_heatmap():
+def tf_co_reg_heatmap():
     pass
 
 

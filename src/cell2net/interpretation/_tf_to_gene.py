@@ -9,7 +9,7 @@ from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.model import Cell2Net
 
 
-def compute_tf_attr(
+def tf_attr(
     model: Cell2Net,
     idx: list[int] | list[str] | None = None,
     batch_size=4,
@@ -193,7 +193,7 @@ def tf_to_gene(
             }
         )
 
-        df = df.apply(lambda x: x.nlargest(n_tfs, "mean_attr")).reset_index(drop=True)
+        df = df.nlargest(n_tfs, "mean_attr").reset_index(drop=True)
 
     else:
         assert groupby in mdata.obs.columns, print(

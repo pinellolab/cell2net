@@ -110,19 +110,28 @@ def add_genomic_variants(
     return None
 
 
-def variant_to_peak(
-    mdata: MuData,
-    mod_name: str = "atac",
-    variants_key: str = "variants",
-    peak_key: str = "peak",
-) -> None:
+# def variant_to_peak(
+#     mdata: MuData,
+#     atac_mod: str = "atac",
+#     variants_key: str = "variants",
+#     peak_key: str = "peak",
+# ) -> None:
 
-    mdata["atac"].var["peak"] = (
-        mdata["atac"].var["chrom"]
-        + ":"
-        + mdata["atac"].var["start"].astype(str)
-        + "-"
-        + mdata["atac"].var["end"].astype(str)
-    )
+#     # create ranges for peaks
+#     pr_peaks = pr.PyRanges(
+#         mdata[atac_mod].var[["chrom", "start", "end"]].rename(
+#             columns={"start": "Start", "end": "End"}
+#         )
+#     )
 
-    pass
+#     df_peaks = mdata[atac_mod].var[["chrom", "start", "end"]].copy()
+
+#     mdata["atac"].var["peak"] = (
+#         mdata["atac"].var["chrom"]
+#         + ":"
+#         + mdata["atac"].var["start"].astype(str)
+#         + "-"
+#         + mdata["atac"].var["end"].astype(str)
+#     )
+
+#     pass

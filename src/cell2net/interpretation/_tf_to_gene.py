@@ -117,7 +117,7 @@ def tf_to_gene(
     mdata: MuData,
     attr: np.ndarray,
     groupby: str | None = None,
-    n_tfs: int = 10,
+    n_tfs: int | None = 10,
 ) -> pd.DataFrame:
     """
     Aggregate transcription factor (TF) attributions and link them to genes for each group.
@@ -193,7 +193,8 @@ def tf_to_gene(
             }
         )
 
-        df = df.nlargest(n_tfs, "mean_attr").reset_index(drop=True)
+        if n_tfs is not None:
+            df = df.nlargest(n_tfs, "mean_attr").reset_index(drop=True)
 
     else:
         assert groupby in mdata.obs.columns, print(
@@ -224,11 +225,12 @@ def tf_to_gene(
         df = pd.concat(df_list, axis=0).reset_index(drop=True)
 
         # Group by 'group_column' and select the top 20 rows within each group
-        df = (
-            df.groupby(groupby)
-            .apply(lambda x: x.nlargest(n_tfs, "mean_attr"))
-            .reset_index(drop=True)
-        )
+        if n_tfs is not None:
+            df = (
+                df.groupby(groupby)
+                .apply(lambda x: x.nlargest(n_tfs, "mean_attr"))
+                .reset_index(drop=True)
+            )
 
     return df
 

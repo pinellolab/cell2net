@@ -24,4 +24,4 @@ from ._sequence import (
     seq_to_one_hot,
 )
 from ._utils import bgzip, tabix_index
-from ._variants import add_genomic_variants
+from ._variants import add_genomic_variants, get_genomic_variants

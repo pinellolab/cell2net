@@ -270,6 +270,10 @@ def prepare_scaner(
     return scanner
 
 
+def match_motif_with_peaks(motifs: Iterable, peaks: pd.DataFrame, out_dir: str) -> None:
+    pass
+
+
 def match_motif(
     mdata: MuData,
     motifs: Iterable,
@@ -279,7 +283,6 @@ def match_motif(
     sequence_var_key: str = "dna_sequence",
     key_added: str = "motif_match",
     save_bed: bool = False,
-    bed_file: str = "motif_match.bed",
 ) -> None:
     """
     Matches transcription factor motifs to accessible DNA sequences and links them with expressed genes.
@@ -379,7 +382,7 @@ def match_motif(
     )
 
     motif_match = np.zeros(shape=(adata_atac.n_vars, n_motifs), dtype=np.uint8)
-    for i in tqdm(range(adata_atac.n_vars)):
+    for i in tqdm(range(adata_atac.n_vars), desc="Matching motifs", total=n_motifs):
         results = scanner.scan(adata_atac.var[sequence_var_key].iloc[i])
         for j in range(n_motifs):
             if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
@@ -438,9 +441,7 @@ def match_motif_with_variants(
     motif_match = np.zeros(
         shape=(n_donors, adata_atac.n_vars, n_motifs), dtype=np.uint8
     )
-    
-    for i in tqdm(range(n_donors)):
-    
+
     for i in tqdm(range(adata_atac.n_vars)):
         results = scanner.scan(adata_atac.var[sequence_var_key].iloc[i])
         for j in range(n_motifs):
@@ -512,7 +513,7 @@ def tf_to_gene(
 
     logger.info("Find potential TFs for each gene")
     motif_names = df_motifs["gene_name"].values.tolist()
-    for i, gene in enumerate(tqdm(genes)):
+    for i, gene in enumerate(tqdm(genes, desc="Finding TFs", total=len(genes))):
         df_p2g = mdata.uns["peak_to_gene"][mdata.uns["peak_to_gene"]["gene"] == gene]
         peaks = df_p2g["peak"].values.tolist()
 

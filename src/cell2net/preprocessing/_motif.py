@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from mudata import MuData
 from scipy.sparse import csr_matrix
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from cell2net._logging import logger
 
@@ -314,8 +314,7 @@ def match_motif(
     -------
     Results are added to the `mdata` object in place:
 
-        - `mdata.uns["motifs"]`: DataFrame with overlapping motif and gene information.
-        - `adata_atac.varm[key_added]`: Sparse matrix indicating motif matches for each accessible DNA sequence.
+        - `mdata[atac_mod].varm[key_added]`: Sparse matrix indicating motif matches for each accessible DNA sequence.
 
     Raises
     ------
@@ -359,14 +358,17 @@ def match_motif(
 
     >>> match_motif(mdata, motifs=motif_list, background="subject")
     """
-    adata_atac = mdata[atac_mod]
+    if atac_mod not in mdata.mod:
+        logger.error(f"Cannot find {atac_mod} in mdata, please check the name!")
+
+    adata = mdata[atac_mod]
 
     if sequence_var_key not in mdata[atac_mod].var.columns:
         logger.error(
             "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
         )
 
-    # Subset motifs
+    # get motifs
     motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
     motifs_sub = []
     for motif in motifs:
@@ -381,14 +383,14 @@ def match_motif(
         motifs=motifs_sub, pseudocounts=pseudocounts, p_value=p_value
     )
 
-    motif_match = np.zeros(shape=(adata_atac.n_vars, n_motifs), dtype=np.uint8)
-    for i in tqdm(range(adata_atac.n_vars), desc="Matching motifs", total=n_motifs):
-        results = scanner.scan(adata_atac.var[sequence_var_key].iloc[i])
+    motif_match = np.zeros(shape=(adata.n_vars, n_motifs), dtype=np.uint8)
+    for i in tqdm(range(adata.n_vars), desc="Matching motifs", total=n_motifs):
+        results = scanner.scan(adata.var[sequence_var_key].iloc[i])
         for j in range(n_motifs):
             if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
                 motif_match[i, j] = 1  # type: ignore
 
-    adata_atac.varm[key_added] = csr_matrix(motif_match)
+    adata.varm[key_added] = csr_matrix(motif_match)
     logger.info("Motif matching is done!")
 
     return None
@@ -400,23 +402,15 @@ def match_motif_with_variants(
     atac_mod: str = "atac",
     pseudocounts: float = 0.0001,
     p_value: float = 5e-05,
-    variants_key: str = "variants",
-    genotype_key: str = "genotype",
-    sequence_var_key: str = "dna_sequence",
+    seq_with_variants_key: str = "dna_sequence_with_variants",
     key_added: str = "motif_match_with_variants",
 ) -> None:
-    adata_atac = mdata[atac_mod]
+    if atac_mod not in mdata.mod:
+        logger.error(f"Cannot find {atac_mod} in mdata, please check the name!")
 
-    if sequence_var_key not in mdata[atac_mod].var.columns:
-        logger.error(
-            "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
-        )
+    adata = mdata[atac_mod]
 
-    # Check if variants are present
-    if variants_key not in mdata.uns or genotype_key not in mdata.uns:
-        logger.error(
-            "Cannot find variants, please first run cell2net.pp.add_genomic_variants"
-        )
+    df_seq = adata.var[seq_with_variants_key]
 
     # Get motifs
     motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
@@ -432,21 +426,28 @@ def match_motif_with_variants(
     scanner = prepare_scaner(
         motifs=motifs_sub, pseudocounts=pseudocounts, p_value=p_value
     )
-    # Get DNA sequences for each peak and donor
-    sequences = adata_atac.var[sequence_var_key].values
 
-    n_donors = mdata.uns[genotype_key].shape[1]
+    motif_match = np.zeros(shape=(adata.n_vars, n_motifs), dtype=np.uint8)
 
-    # for each donor, scan the motifs across all peaks
-    motif_match = np.zeros(
-        shape=(n_donors, adata_atac.n_vars, n_motifs), dtype=np.uint8
-    )
+    for i in tqdm(range(adata.n_vars), desc="Matching motifs", total=n_motifs):
+        pass
 
-    for i in tqdm(range(adata_atac.n_vars)):
-        results = scanner.scan(adata_atac.var[sequence_var_key].iloc[i])
-        for j in range(n_motifs):
-            if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
-                motif_match[i, j] = 1  # type: ignore
+
+    # # Get DNA sequences for each peak and donor
+    # sequences = adata_atac.var[sequence_var_key].values
+
+    # n_donors = mdata.uns[genotype_key].shape[1]
+
+    # # for each donor, scan the motifs across all peaks
+    # motif_match = np.zeros(
+    #     shape=(n_donors, adata_atac.n_vars, n_motifs), dtype=np.uint8
+    # )
+
+    # for i in tqdm(range(adata_atac.n_vars)):
+    #     results = scanner.scan(adata_atac.var[sequence_var_key].iloc[i])
+    #     for j in range(n_motifs):
+    #         if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
+    #             motif_match[i, j] = 1  # type: ignore
 
     return None
 

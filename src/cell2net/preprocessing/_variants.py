@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import vcfpy
@@ -7,7 +9,7 @@ from tqdm.auto import tqdm
 from cell2net._logging import logger
 
 
-def get_genomic_variants(vcf_file: str, chrom: str, start: int, end: int):
+def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int):
     """
     Extracts SNP (single nucleotide polymorphism) information and genotypes from a VCF file within a specified genomic region.
 
@@ -112,9 +114,10 @@ def get_genomic_variants(vcf_file: str, chrom: str, start: int, end: int):
 
 def add_genomic_variants(
     mdata: MuData,
-    vcf_file: str,
+    vcf_file: str | Path,
+    n_cpus: int = 1,
     atac_mod: str = "atac",
-    sample_col_key: str | None = "sample",
+    sample_col_key: str | None = "bestSample",
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
@@ -128,7 +131,6 @@ def add_genomic_variants(
     that fall within the peak regions, and optionally stores the resulting variant DataFrame in the `uns` slot
     of the AnnData object under `variants_key`. The function can also return the DataFrame
     of variants without modifying the original AnnData object.
-
 
     Parameters
     ----------
@@ -182,27 +184,56 @@ def add_genomic_variants(
         return None
 
     df_peaks = adata.var[[chr_var_key, start_var_key, end_var_key]]
-
     df_var_list = []
-    for i, (chrom, start, end) in enumerate(
-        tqdm(
-            zip(
-                df_peaks[chr_var_key],
-                df_peaks[start_var_key],
-                df_peaks[end_var_key],
-                strict=False,
-            ),
-            total=len(df_peaks),
-            desc="Processing variants",
-        )
-    ):
-        df_var = get_genomic_variants(vcf_file, chrom, start, end)
-        df_var["peak"] = df_peaks.index[i]
-        df_var_list.append(df_var)
+
+    if n_cpus > 1:
+        from multiprocessing import Pool
+
+        # prepare agument for parallel processing
+        args = []
+        for chrom, start, end in zip(
+            df_peaks[chr_var_key],
+            df_peaks[start_var_key],
+            df_peaks[end_var_key],
+            strict=False,
+        ):
+            args.append((vcf_file, chrom, start, end))
+
+        # use multiprocessing to speed up the process
+        logger.info(f"Using {n_cpus} CPUs for parallel processing.")
+        with Pool(n_cpus) as pool:
+            results = pool.starmap(
+                get_genomic_variants, tqdm(args, desc="Processing variants")
+            )
+
+        # combine results
+        for i, df_var in enumerate(results):
+            df_var["peak"] = df_peaks.index[i]
+            df_var_list.append(df_var)
+        logger.info("Finished processing variants in parallel.")
+    else:
+        # process in serial
+        logger.info("Processing variants in serial.")
+        for i, (chrom, start, end) in enumerate(
+            tqdm(
+                zip(
+                    df_peaks[chr_var_key],
+                    df_peaks[start_var_key],
+                    df_peaks[end_var_key],
+                    strict=False,
+                ),
+                total=len(df_peaks),
+                desc="Processing variants",
+            )
+        ):
+            df_var = get_genomic_variants(vcf_file, chrom, start, end)
+            df_var["peak"] = df_peaks.index[i]
+            df_var_list.append(df_var)
 
     df_var = pd.concat(df_var_list, ignore_index=True)
 
     # filter out samples not in the adata object
+    logger.info(f"Filtering variants for samples in {sample_col_key} column.")
     if sample_col_key is not None:
         samples = adata.obs[sample_col_key].unique()
         df_var = df_var[df_var["sample"].isin(samples)]

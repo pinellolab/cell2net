@@ -17,6 +17,7 @@ from ._motif import (
 from ._peak import add_peaks, peak_to_gene
 from ._sequence import (
     add_dna_sequence,
+    add_variants_to_sequence,
     dinucleotide_shuffle_one_hot,
     dinucleotide_shuffle_str,
     one_hot_to_seq,

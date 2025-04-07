@@ -1,9 +1,10 @@
 """Functions to process DNA sequences"""
 
 import numpy as np
+import pandas as pd
 from mudata import MuData
 from pysam import FastaFile
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from cell2net._logging import logger
 
@@ -363,14 +364,124 @@ def add_dna_sequence(
 
 def add_variants_to_sequence(
     mdata: MuData,
-    ref_fasta: str,
     atac_mod: str = "atac",
-    chr_var_key: str = "chr",
-    start_var_key: str = "start",
-    end_var_key: str = "end",
+    sequence_var_key: str = "dna_sequence",
     variants_key: str = "variants",
-) -> None:
-    pass
+    seq_with_variants_key: str = "seq_with_variants",
+    inplace: bool = True,
+) -> None | pd.DataFrame:
+
+    if atac_mod not in mdata.mod_names:
+        logger.error(f"Cannot find modality: {atac_mod}")
+        return None
+    adata = mdata[atac_mod]
+
+    if variants_key not in adata.uns:
+        logger.error(f"Cannot find variants in {atac_mod} modality")
+        return None
+
+    if sequence_var_key not in adata.var:
+        logger.error(f"Cannot find sequence in {atac_mod} modality")
+        return None
+
+    df_peaks = adata.var.copy()
+    df_variants = adata.uns[variants_key].copy()
+
+    df_peaks["peak"] = df_peaks.index
+    df_peaks = df_peaks.reset_index(drop=True)
+
+    sample_list = df_variants["sample"].unique()
+
+    peak_with_variants = set(df_variants["peak"].tolist())
+    logger.info(f"Number of peaks: {len(df_peaks)}")
+    logger.info(f"Number of peaks with variants: {len(peak_with_variants)}")
+
+    df_seq_list = []
+    for i, start in enumerate(
+        tqdm(
+            df_peaks["start"],
+            desc="Fetching sequences",
+            total=len(df_peaks),
+        )
+    ):
+        ref_seq = df_peaks[sequence_var_key].iloc[i]
+        peak = df_peaks["peak"].iloc[i]
+
+        # check if there are variants in this region
+        if peak not in peak_with_variants:
+            # no variants in this region, use reference sequence for both seqs
+            # and all samples
+            df_seq = pd.DataFrame(
+                data={
+                    peak: peak,
+                    "sample": sample_list,
+                    "seq_1": ref_seq,
+                    "seq_2": ref_seq,
+                }
+            )
+
+        else:
+            continue
+            # create a new dataframe for each peak
+            _df_seq_list = []
+
+            # get the sequence with variants for each sample
+            for _, sample_id in enumerate(sample_list):
+                df_variants_sub = df_variants[
+                    (df_variants["peak"] == peak) & (df_variants["sample"] == sample_id)
+                ]
+                # initialize the sequences with the reference sequence
+                # for both seq1 and seq2
+                # we assume that seq1 is for chromatid 1 and seq2 is for chromatid 2
+                seq_1 = seq_2 = ref_seq
+
+                # loop through the variants and update the sequence
+                for _, row in df_variants_sub.iterrows():
+                    if row["genotype"] == 0 or row["genotype"] == np.nan:
+                        # homozygous reference or missing genotype information
+                        # no change to the reference sequence
+                        continue
+                    elif row["genotype"] == 1:
+                        # heterozygous, change alternate sequence
+                        seq_2 = (
+                            seq_2[: row["pos"] - start - 1]
+                            + row["alt"]
+                            + seq_2[row["pos"] - start :]
+                        )
+                    elif row["genotype"] == 2:
+                        # homozygous alternate, change both sequences
+                        seq_1 = (
+                            seq_1[: row["pos"] - start - 1]
+                            + row["alt"]
+                            + seq_1[row["pos"] - start :]
+                        )
+                        seq_2 = (
+                            seq_2[: row["pos"] - start - 1]
+                            + row["alt"]
+                            + seq_2[row["pos"] - start :]
+                        )
+
+                _df_seq = pd.DataFrame(
+                    data={
+                        "peak": peak,
+                        "sample": sample_id,
+                        "seq_1": seq_1,
+                        "seq_2": seq_2,
+                    }
+                )
+                _df_seq_list.append(_df_seq)
+
+            df_seq = pd.concat(_df_seq_list, ignore_index=True)
+
+        df_seq_list.append(df_seq)
+
+    df_seq = pd.concat(df_seq_list, ignore_index=True)
+
+    if inplace:
+        adata.uns[seq_with_variants_key] = df_seq
+        return None
+    else:
+        return df_seq
 
 
 # def add_variants_to_sequence(

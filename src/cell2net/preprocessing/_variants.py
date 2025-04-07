@@ -2,18 +2,18 @@ import numpy as np
 import pandas as pd
 import vcfpy
 from mudata import MuData
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from cell2net._logging import logger
 
 
-def get_genomic_variants(reader: vcfpy.reader.Reader, chrom: str, start: int, end: int):
+def get_genomic_variants(vcf_file: str, chrom: str, start: int, end: int):
     """
     Extracts SNP (single nucleotide polymorphism) information and genotypes from a VCF file within a specified genomic region.
 
     Parameters
     ----------
-    reader :
+    vcf_file :
         A `vcfpy` VCF reader object initialized on the VCF file to be queried.
     chrom :
         Chromosome name to query (e.g., 'chr1' or '1').
@@ -46,6 +46,8 @@ def get_genomic_variants(reader: vcfpy.reader.Reader, chrom: str, start: int, en
         - Only SNVs (single nucleotide variants) are retained. Indels and multiallelic variants are skipped.
     """
     # Extract SNP information
+    reader = vcfpy.Reader.from_path(vcf_file)
+
     sample_ids = reader.header.samples.names  # type: ignore
     sample_ids = [str(x) for x in sample_ids]  # Ensure all elements are strings
 
@@ -112,22 +114,72 @@ def add_genomic_variants(
     mdata: MuData,
     vcf_file: str,
     atac_mod: str = "atac",
+    sample_col_key: str | None = "sample",
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
     variants_key: str = "variants",
     inpace: bool = True,
 ) -> None | pd.DataFrame:
+    """
+    Annotate peaks in an ATAC-seq modality with genomic variants from a VCF file.
 
+    This function scans through each peak in the specified modality, fetches variants from a given VCF file
+    that fall within the peak regions, and optionally stores the resulting variant DataFrame in the `uns` slot
+    of the AnnData object under `variants_key`. The function can also return the DataFrame
+    of variants without modifying the original AnnData object.
+
+
+    Parameters
+    ----------
+    mdata :
+        A MuData object containing the ATAC-seq modality with peak information.
+    vcf_file :
+        Path to the VCF file containing genomic variants.
+    atac_mod :
+        Name of the modality in `mdata` that contains ATAC-seq data
+    sample_col_key :
+        Column name in `adata.obs` indicating the sample identity.
+        Used to filter variants. If `None`, all variants are retained.
+    chr_var_key :
+        Column name in `adata.var` containing chromosome information for each peak
+    start_var_key :
+        Column name in `adata.var` containing the start position of each peak
+    end_var_key :
+        Column name in `adata.var` containing the end position of each peak
+    variants_key :
+        Key under which the variants DataFrame will be stored in `adata.uns`
+    inpace :
+        If True, modifies `mdata` in place and stores the variant data.
+        If False, returns the variant DataFrame.
+
+    Returns
+    -------
+        If `inpace` is True, returns None and stores the result in `adata.uns[variants_key]`.
+        If `inpace` is False, returns the combined variant DataFrame.
+
+    Notes
+    -----
+        - The function assumes that the VCF file is coordinate-sorted and compatible with `vcfpy`.
+        - Variants are matched to peaks based on overlap with the peak coordinates (chromosome, start, end).
+        - Only single nucleotide variants (SNVs) with a single ALT allele are considered.
+        - The function relies on a helper function `get_genomic_variants(reader, chrom, start, end)` for extracting variants.
+
+    Raises
+    ------
+        Logs errors and returns None if:
+        - The specified modality is not found in `mdata`
+        - The specified sample column is missing from `adata.obs`
+    """
     if atac_mod not in mdata.mod_names:
         logger.error(f"Cannot find modality: {atac_mod}")
         return None
 
     adata = mdata[atac_mod]
 
-    reader = vcfpy.Reader.from_path(vcf_file)
-    sample_ids = reader.header.samples.names  # type: ignore
-    sample_ids = [str(x) for x in sample_ids]
+    if sample_col_key is not None and sample_col_key not in adata.obs.columns:
+        logger.error(f"Cannot find column: {sample_col_key}")
+        return None
 
     df_peaks = adata.var[[chr_var_key, start_var_key, end_var_key]]
 
@@ -144,11 +196,16 @@ def add_genomic_variants(
             desc="Processing variants",
         )
     ):
-        df_var = get_genomic_variants(reader, chrom, start, end)
+        df_var = get_genomic_variants(vcf_file, chrom, start, end)
         df_var["peak"] = df_peaks.index[i]
         df_var_list.append(df_var)
 
     df_var = pd.concat(df_var_list, ignore_index=True)
+
+    # filter out samples not in the adata object
+    if sample_col_key is not None:
+        samples = adata.obs[sample_col_key].unique()
+        df_var = df_var[df_var["sample"].isin(samples)]
 
     if inpace:
         adata.uns[variants_key] = df_var

@@ -23,6 +23,7 @@ from ._sequence import (
     one_hot_to_seq,
     random_seq,
     seq_to_one_hot,
+    update_sequence_with_variants,
 )
 from ._utils import bgzip, tabix_index
 from ._variants import add_genomic_variants, get_genomic_variants

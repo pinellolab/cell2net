@@ -362,16 +362,173 @@ def add_dna_sequence(
     return None
 
 
+def update_sequence_with_variants(
+    df_seq: pd.DataFrame, df_variants: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Update reference DNA sequences with genomic variants based on genotype information.
+
+    This function modifies a pair of haplotype sequences (`seq_1` and `seq_2`) stored in `df_seq`,
+    using variant data from `df_variants`. For each variant, the reference allele is checked
+    against the sequence at the given position, and if matched, the sequence is updated
+    depending on the genotype:
+
+    - Genotype 1 (heterozygous): update `seq_2` with the ALT allele
+    - Genotype 2 (homozygous alt): update both `seq_1` and `seq_2` with the ALT allele
+
+    Parameters
+    ----------
+    df_seq :
+        A DataFrame containing the reference sequences for each (peak, sample) pair.
+            Must include the following columns:
+            - 'peak': unique peak identifier
+            - 'sample': sample identifier
+            - 'start': start genomic coordinate of the peak
+            - 'seq_1': reference haplotype 1 sequence
+            - 'seq_2': reference haplotype 2 sequence
+    df_variants :
+        A DataFrame containing variant information to apply.
+            Must include the following columns:
+            - 'peak': peak ID the variant overlaps
+            - 'sample': sample ID
+            - 'pos': genomic position of the variant (1-based)
+            - 'ref': reference allele
+            - 'alt': alternate allele
+            - 'genotype': genotype code (1 for het, 2 for hom-alt)
+
+    Returns
+    -------
+        A new DataFrame with the same structure as `df_seq`, but with updated `seq_1` and `seq_2`
+        sequences based on the input variants.
+
+    Raises
+    ------
+    AssertionError
+        If the reference base in the sequence does not match the provided 'ref' allele at the variant position.
+
+    Notes
+    -----
+        - Assumes `df_seq` is uniquely indexed by ('peak', 'sample').
+        - Assumes all positions in `df_variants` fall within the corresponding peak interval.
+        - Index is temporarily set during processing and restored at the end.
+    """
+    df_seq = df_seq.set_index(["peak", "sample"])
+
+    # Update the sequences with variants
+    for _, row in tqdm(df_variants.iterrows(), total=len(df_variants)):
+        peak, sample, genotype = row["peak"], row["sample"], row["genotype"]
+
+        start = df_seq.loc[(peak, sample)]["start"]
+        seq_1 = df_seq.loc[(peak, sample)]["seq_1"]
+        seq_2 = df_seq.loc[(peak, sample)]["seq_2"]
+
+        # check if the position is within the sequence
+        assert (
+            seq_1[row["pos"] - start - 1] == row["ref"]
+        ), f"peak: {peak}, sample: {sample}, ref: {row['ref']}, seq_1: {seq_1[row['pos'] - start - 1]}, pos: {row['pos']}, start: {start}"
+        assert (
+            seq_2[row["pos"] - start - 1] == row["ref"]
+        ), f"peak: {peak}, sample: {sample}, ref: {row['ref']}, seq_2: {seq_2[row['pos'] - start - 1]}, pos: {row['pos']}, start: {start}"
+
+        if genotype == 1:
+            df_seq.loc[(peak, sample), "seq_2"] = (
+                seq_2[: row["pos"] - start - 1]
+                + row["alt"]
+                + seq_2[row["pos"] - start :]
+            )
+
+        elif genotype == 2:
+            df_seq.loc[(peak, sample), "seq_1"] = (
+                seq_1[: row["pos"] - start - 1]
+                + row["alt"]
+                + seq_1[row["pos"] - start :]
+            )
+            df_seq.loc[(peak, sample), "seq_2"] = (
+                seq_2[: row["pos"] - start - 1]
+                + row["alt"]
+                + seq_2[row["pos"] - start :]
+            )
+        else:
+            logger.error(
+                f"Unknown genotype: {genotype}, peak: {peak}, sample: {sample}"
+            )
+            continue
+
+    df_seq = df_seq.reset_index()
+
+    return df_seq
+
+
 def add_variants_to_sequence(
     mdata: MuData,
     atac_mod: str = "atac",
+    n_cpus: int = 1,
     sample_col_key: str = "bestSample",
     sequence_var_key: str = "dna_sequence",
     variants_key: str = "variants",
     seq_with_variants_key: str = "seq_with_variants",
     inplace: bool = True,
 ) -> None | pd.DataFrame:
+    """
+    Add genomic variants to DNA sequences from peak regions to generate personalized haplotype sequences.
 
+    This function takes a MuData object containing ATAC-seq data, reference DNA sequences for peak regions,
+    and variant information. It applies the variants to the sequences per sample to produce
+    haplotype-specific (seq_1 and seq_2) updated sequences reflecting individual genotypes.
+    Supports single-core or multi-core processing.
+
+    Parameters
+    ----------
+    mdata :
+        A MuData object containing the modality with ATAC-seq data and variant information.
+    atac_mod :
+         Name of the modality in `mdata` that contains the ATAC-seq data.
+    n_cpus :
+        Number of CPU cores to use. If >1, uses multiprocessing to parallelize across samples.
+    sample_col_key :
+        The name of the column in `adata.obs` that identifies sample IDs.
+    sequence_var_key :
+        The name of the column in `adata.var` that contains the reference DNA sequence for each peak.
+    variants_key :
+        The key in `adata.uns` that stores the variant information (as a DataFrame), including columns:
+        - 'peak': peak ID
+        - 'sample': sample ID
+        - 'pos': variant position
+        - 'ref': reference allele
+        - 'alt': alternate allele
+        - 'genotype': genotype (1 for het, 2 for hom-alt)
+    seq_with_variants_key :
+        The key under which to store the resulting DataFrame in `adata.uns`, containing haplotype-aware sequences.
+    inplace :
+        If True, the resulting DataFrame is stored in `adata.uns[seq_with_variants_key]`.
+        If False, the function returns the DataFrame directly.
+
+    Returns
+    -------
+        Returns `None` if `inplace=True`.
+        Otherwise, returns a DataFrame with updated haplotype sequences:
+        - 'peak': peak ID
+        - 'sample': sample ID
+        - 'seq_1': sequence with genotype 1 or 2 applied to haplotype 1
+        - 'seq_2': sequence with genotype 1 or 2 applied to haplotype 2
+
+    Notes
+    -----
+        - Each variant is applied to its corresponding peak and sample-specific sequence.
+        - Assumes DNA sequences are 0-based Python strings and variant positions are 1-based.
+        - For heterozygous (1) genotypes, only `seq_2` is updated.
+        - For homozygous alternate (2) genotypes, both `seq_1` and `seq_2` are updated.
+        - Peaks and sample combinations are expanded into a full grid for processing.
+        - Performance can be improved with parallel execution using multiple CPUs.
+        - Requires the helper function `update_sequence_with_variants()`.
+
+    Raises
+    ------
+    Logs errors if:
+        - The specified modality or keys are not found in the `MuData` object.
+        - The reference allele in the sequence does not match the variant's reference base.
+    """
+    logger.info("Adding variants started!")
     if atac_mod not in mdata.mod_names:
         logger.error(f"Cannot find modality: {atac_mod}")
         return None
@@ -395,6 +552,9 @@ def add_variants_to_sequence(
 
     # create dataframe for peaks and samples
     # assume that seq_1 is for chromatid 1 and seq_2 is for chromatid 2
+    logger.info(
+        f"Create dataframe for all {len(df_peaks)} peaks and {len(sample_list)} samples"
+    )
     df_seq = pd.DataFrame(
         columns=["peak", "sample", "seq_1", "seq_2"],
         index=range(len(df_peaks) * len(sample_list)),
@@ -404,271 +564,42 @@ def add_variants_to_sequence(
     df_seq["start"] = np.repeat(list(df_peaks["start"]), len(sample_list))
     df_seq["seq_1"] = np.repeat(df_peaks[sequence_var_key].tolist(), len(sample_list))
     df_seq["seq_2"] = np.repeat(df_peaks[sequence_var_key].tolist(), len(sample_list))
-    df_seq = df_seq.set_index(["peak", "sample"])
-
-    # logger.info(f"Number of peaks: {len(df_peaks)}")
-    # logger.info(f"Number of peaks with variants: {len(peak_with_variants)}")
 
     # update the sequences with variants
     # only update the sequences with heterozygous and homozygous alternate genotypes
-    df_variants = df_variants[df_variants["genotype"].isin([1, 2])]
-    logger.info(f"Number of varints with samples: {len(df_variants)}")
+    df_variants = df_variants[df_variants["genotype"].isin([1, 2])].reset_index(
+        drop=True
+    )
 
-    for _, row in tqdm(df_variants.iterrows(), total=len(df_variants)):
-        sample, peak, genotype = row["sample"], row["peak"], row["genotype"]
+    logger.info(f"Number of variants with samples: {len(df_variants)}")
+    if n_cpus == 1:
+        df_seq = update_sequence_with_variants(df_seq, df_variants)
+    else:
+        logger.info(f"Using {n_cpus} CPUs for parallel processing.")
+        from multiprocessing import Pool
 
-        start = df_seq.loc[(peak, sample)]["start"]
-        seq_1 = df_seq.loc[(peak, sample)]["seq_1"]
-        seq_2 = df_seq.loc[(peak, sample)]["seq_2"]
+        # split the df_variants by sample
+        # and run the update_sequence_with_variants in parallel
+        args = []
+        for sample_id in sample_list:
+            _df_seq = df_seq[df_seq["sample"] == sample_id].copy()
+            _df_variants = df_variants[df_variants["sample"] == sample_id].copy()
 
-        if genotype == 1:
-            df_seq.loc[(peak, sample)]["seq_2"] = (
-                seq_2[: row["pos"] - start - 1]
-                + row["alt"]
-                + seq_2[row["pos"] - start :]
-            )
-        elif genotype == 2:
-            df_seq.loc[(peak, sample)]["seq_1"] = (
-                seq_1[: row["pos"] - start - 1]
-                + row["alt"]
-                + seq_1[row["pos"] - start :]
-            )
-            df_seq.loc[(peak, sample)]["seq_2"] = (
-                seq_2[: row["pos"] - start - 1]
-                + row["alt"]
-                + seq_2[row["pos"] - start :]
-            )
+            args.append((_df_seq, _df_variants))
 
-    # df_seq_list = []
-    # for i, start in enumerate(
-    #     tqdm(
-    #         df_peaks["start"],
-    #         desc="Fetching sequences",
-    #         total=len(df_peaks),
-    #     )
-    # ):
-    #     ref_seq = df_peaks[sequence_var_key].iloc[i]
-    #     peak = df_peaks["peak"].iloc[i]
+        # run the update_sequence_with_variants in parallel
+        with Pool(n_cpus) as pool:
+            results = pool.starmap(update_sequence_with_variants, args)
 
-    #     # check if there are variants in this region
-    #     if peak not in peak_with_variants:
-    #         # no variants in this region, use reference sequence for both seqs
-    #         # and all samples
-    #         df_seq = pd.DataFrame(
-    #             data={
-    #                 "peak": peak,
-    #                 "sample": sample_list,
-    #                 "seq_1": ref_seq,
-    #                 "seq_2": ref_seq,
-    #             },
-    #             index=range(len(sample_list)),
-    #         )
-    #         df_seq_list.append(df_seq)
-    #     else:
-    #         # create a new dataframe for each peak
-    #         _df_seq_list = []
+        # combine the results
+        df_seq = pd.concat(results, ignore_index=True)
 
-    #         # get the sequence with variants for each sample
-    #         for _, sample_id in enumerate(sample_list):
-    #             df_variants_sub = df_variants[
-    #                 (df_variants["peak"] == peak) & (df_variants["sample"] == sample_id)
-    #             ]
-    #             # initialize the sequences with the reference sequence
-    #             # for both seq1 and seq2
-    #             # we assume that seq1 is for chromatid 1 and seq2 is for chromatid 2
-    #             seq_1 = seq_2 = ref_seq
+    df_seq = df_seq.drop(columns=["start"])
+    df_seq = df_seq.sort_values(by=["peak", "sample"])
 
-    #             # loop through the variants and update the sequence
-    #             for _, row in df_variants_sub.iterrows():
-    #                 if row["genotype"] == 0 or row["genotype"] == np.nan:
-    #                     # homozygous reference or missing genotype information
-    #                     # no change to the reference sequence
-    #                     continue
-    #                 elif row["genotype"] == 1:
-    #                     # heterozygous, change alternate sequence
-    #                     seq_2 = (
-    #                         seq_2[: row["pos"] - start - 1]
-    #                         + row["alt"]
-    #                         + seq_2[row["pos"] - start :]
-    #                     )
-    #                 elif row["genotype"] == 2:
-    #                     # homozygous alternate, change both sequences
-    #                     seq_1 = (
-    #                         seq_1[: row["pos"] - start - 1]
-    #                         + row["alt"]
-    #                         + seq_1[row["pos"] - start :]
-    #                     )
-    #                     seq_2 = (
-    #                         seq_2[: row["pos"] - start - 1]
-    #                         + row["alt"]
-    #                         + seq_2[row["pos"] - start :]
-    #                     )
-
-    #             _df_seq = pd.DataFrame(
-    #                 data={
-    #                     "peak": peak,
-    #                     "sample": sample_id,
-    #                     "seq_1": seq_1,
-    #                     "seq_2": seq_2,
-    #                 },
-    #                 index=[0],
-    #             )
-    #             _df_seq_list.append(_df_seq)
-
-    #         df_seq = pd.concat(_df_seq_list, ignore_index=True)
-
-    #         df_seq_list.append(df_seq)
-
-    # df_seq = pd.concat(df_seq_list, ignore_index=True)
-
+    logger.info("Adding variants finished!")
     if inplace:
         adata.uns[seq_with_variants_key] = df_seq
         return None
     else:
         return df_seq
-
-
-# def add_variants_to_sequence(
-#     mdata: MuData,
-#     ref_fasta: str,
-#     atac_mod: str = "atac",
-#     chr_var_key: str = "chr",
-#     start_var_key: str = "start",
-#     end_var_key: str = "end",
-#     variants_key: str = "variants",
-# ) -> None:
-#     """
-#     Add sequences to peak metadata in a MuData object by considering genomic variants.
-
-#     This function retrieves DNA sequences for genomic regions specified in the `.var`
-#     attribute of the AnnData object within a MuData object. The sequences are fetched
-#     from a reference FASTA file and added as metadata under the specified key.
-
-#     Parameters
-#     ----------
-#     mdata :
-#         A MuData object containing the modality with peak metadata.
-#     ref_fasta :
-#         Path to the reference FASTA file. This file must be indexed (e.g., with samtools faidx).
-#     mod_name :
-#         The name of the modality containing peak data. Defaults to "atac".
-#     chr_var_key :
-#         The key in `.var` that contains chromosome names. Defaults to "chr".
-#     start_var_key :
-#         The key in `.var` that contains the start positions of peaks. Defaults to "start".
-#     end_var_key :
-#         The key in `.var` that contains the end positions of peaks. Defaults to "end".
-#     sequence_var_key :
-#         The key under which the retrieved DNA sequences will be stored in `.var`. Defaults to "dna_sequence".
-
-#     Returns
-#     -------
-#     None
-#         The function modifies the MuData object in place by adding DNA sequences to the
-#         specified key in the `.var` attribute.
-
-#     Raises
-#     ------
-#     AssertionError
-#         If the specified modality (`mod_name`) is not found in the MuData object.
-#     FileNotFoundError
-#         If the `ref_fasta` file does not exist or is not properly indexed.
-
-#     Examples
-#     --------
-#     >>> from mudata import MuData
-#     >>> import anndata as ad
-#     >>> import pandas as pd
-#     >>> import cell2net as cn
-#     >>> data = ad.AnnData(var=pd.DataFrame({
-#     ...     "chr": ["chr1", "chr2"],
-#     ...     "start": [100, 200],
-#     ...     "end": [150, 250]
-#     ... }))
-#     >>> mdata = MuData({"atac": data})
-#     >>> cn.pp.add_dna_sequence(mdata, ref_fasta="reference.fasta")
-#     >>> print(mdata["atac"].var["dna_sequence"])
-#     0    ATCGTTGAC...
-#     1    TGGCCAATA...
-#     """
-#     if atac_mod not in mdata.mod_names:
-#         logger.error(f"Cannot find modality: {atac_mod}")
-#         return None
-
-#     adata = mdata[atac_mod]
-
-#     if variants_key not in adata.uns:
-#         logger.error(f"Cannot find variants in {atac_mod} modality")
-#         return None
-
-#     df_peaks = adata.var[[chr_var_key, start_var_key, end_var_key]]
-#     df_var = adata.uns[variants_key]
-
-#     # for test
-#     df_peaks = df_peaks.head(1000)
-
-#     fasta = FastaFile(filename=ref_fasta)
-
-#     # we get the sequences from sister chromatids
-#     df_seq1 = pd.DataFrame(columns=sample_ids, index=df_peaks.index)
-#     df_seq2 = pd.DataFrame(columns=sample_ids, index=df_peaks.index)
-#     for chrom, start, end in tqdm(
-#         zip(
-#             df_peaks[chr_var_key],
-#             df_peaks[start_var_key],
-#             df_peaks[end_var_key],
-#             strict=False,
-#         )
-#     ):
-#         # get reference sequence
-#         ref_seq = fasta.fetch(chrom, start, end).upper()
-
-#         df_var = get_genomic_variants(reader, chrom, start, end)
-
-#         if len(df_var) == 0:
-#             # no variants in this region, use reference sequence for both seqs
-#             df_seq1.loc[df_peaks.index, sample_ids] = ref_seq
-#             df_seq2.loc[df_peaks.index, sample_ids] = ref_seq
-#         else:
-#             # get the sequence with variants for each sample
-#             for _, sample_id in enumerate(sample_ids):
-#                 _df_var = df_var[df_var["sample"] == sample_id]
-
-#                 # initialize the sequences with the reference sequence
-#                 # for both seq1 and seq2
-#                 # we assume that seq1 is the reference sequence
-#                 # and seq2 is the alternate sequence
-#                 seq1 = seq2 = ref_seq
-
-#                 for _, row in _df_var.iterrows():
-#                     if row["genotype"] == 0 or row["genotype"] == np.nan:
-#                         # homozygous reference or missing genotype information
-#                         continue
-#                     elif row["genotype"] == 1:
-#                         # heterozygous
-#                         seq2 = (
-#                             seq2[: row["pos"] - start]
-#                             + row["alt"]
-#                             + seq2[row["pos"] - start + 1 :]
-#                         )
-#                     elif row["genotype"] == 2:
-#                         # homozygous alternate
-#                         seq1 = (
-#                             seq1[: row["pos"] - start]
-#                             + row["alt"]
-#                             + seq1[row["pos"] - start + 1 :]
-#                         )
-#                         seq2 = (
-#                             seq2[: row["pos"] - start]
-#                             + row["alt"]
-#                             + seq2[row["pos"] - start + 1 :]
-#                         )
-
-#                 # update the sequence in the dataframe
-#                 df_seq1.loc[df_peaks.index, sample_id] = seq1
-#                 df_seq2.loc[df_peaks.index, sample_id] = seq2
-
-#     adata.uns["dna_sequence_1"] = df_seq1
-#     adata.uns["dna_sequence_2"] = df_seq2
-
-#     return None

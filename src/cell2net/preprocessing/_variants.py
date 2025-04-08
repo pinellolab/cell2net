@@ -173,6 +173,7 @@ def add_genomic_variants(
         - The specified modality is not found in `mdata`
         - The specified sample column is missing from `adata.obs`
     """
+    logger.info("Processing variants started!")
     if atac_mod not in mdata.mod_names:
         logger.error(f"Cannot find modality: {atac_mod}")
         return None
@@ -237,6 +238,12 @@ def add_genomic_variants(
     if sample_col_key is not None:
         samples = adata.obs[sample_col_key].unique()
         df_var = df_var[df_var["sample"].isin(samples)]
+
+    # remove duplicates
+    df_var = df_var.drop_duplicates(subset=["snp_id", "sample"]).reset_index(drop=True)
+
+    logger.info(f"Found {len(df_var)} variants in total.")
+    logger.info("Processing variants finished!")
 
     if inpace:
         adata.uns[variants_key] = df_var

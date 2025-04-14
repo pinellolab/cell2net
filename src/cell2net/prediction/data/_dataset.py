@@ -227,35 +227,35 @@ class MuTorchDatasetWithVariants(Dataset):
         super().__init__()
 
         self.mdata = mdata
+        self.rna_mod = rna_mod
+        self.atac_mod = atac_mod
+
         self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
         self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
-
-        # create tf expression input
         self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
-
         self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
+
+        self.seq = mdata[atac_mod].uns["seq_with_variants"]
 
         # distance of peak to TSS, normalized by the maximum value
         self.peak_dist = np.array(
             mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32
         )
         self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
-
-        # convert seq to one-hot encoding
-        seq_1 = self.mdata[atac_mod].uns["seq_with_variants"]["seq_1"].values.tolist()
-        seq_2 = self.mdata[atac_mod].uns["seq_with_variants"]["seq_2"].values.tolist()
-
-        peak_seq_1 = encode_seq(seq_1)
-        peak_seq_2 = encode_seq(seq_2)
-
-        self.peak_seq = torch.cat((peak_seq_1, peak_seq_2), dim=1)
-
-        # self.peak_seq = encode_seq(
-        #     self.mdata[atac_mod].var["dna_sequence"].values.tolist()
-        # )
+        self.samples = mdata[rna_mod].obs["bestSample"].values.tolist()
 
         self.train = train
         self.len = self.mdata.n_obs
+
+    def get_seq(self, idx):
+        # get personalized peak seq
+        sample_name = self.samples[idx]
+        df_seq = self.seq[self.seq["sample"] == sample_name]
+        seq_1 = encode_seq(df_seq["seq_1"].values.tolist())
+        seq_2 = encode_seq(df_seq["seq_2"].values.tolist())
+        peak_seq = torch.add(seq_1, seq_2) / 2.0
+
+        return peak_seq
 
     def __len__(self):
         return self.len
@@ -263,7 +263,7 @@ class MuTorchDatasetWithVariants(Dataset):
     def __getitem__(self, idx):
         data_map = {}
         data_map["peak_acc"] = self.peak_acc[idx]
-        data_map["peak_seq"] = self.peak_seq
+        data_map["peak_seq"] = self.get_seq(idx)
         data_map["peak_dist"] = self.peak_dist
         data_map["tf_exp"] = self.tf_exp[idx]
         data_map["covariates"] = self.covariates[idx]

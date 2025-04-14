@@ -242,6 +242,12 @@ def add_genomic_variants(
     # remove duplicates
     df_var = df_var.drop_duplicates(subset=["snp_id", "sample"]).reset_index(drop=True)
 
+    # only keep valid genotypes
+    df_var = df_var[
+        df_var["ref"].isin(["A", "C", "G", "T"])
+        & df_var["alt"].isin(["A", "C", "G", "T"])
+    ]
+
     logger.info(f"Found {len(df_var)} variants in total.")
     logger.info("Processing variants finished!")
 

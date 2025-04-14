@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 from mudata import MuData
 from scipy import stats
+from scipy.sparse import csr_matrix
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -89,13 +90,16 @@ class Cell2NetWithVariant(BaseModel):
             tf = np.array(df_tfs.loc[sample_name].values.tolist())
             adata_rna.obsm["tf"][i,] = tf * adata_rna.obsm["tf"][i,]  # type: ignore
 
+        # convert adata_rna.obsm["tf"] to sparse matrix
+        adata_rna.obsm["tf"] = csr_matrix(adata_rna.obsm["tf"])
+
+        # create a mudata object as input for the model
         self.mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac})  # type: ignore
         self.mdata.obs = mdata.obs.copy()
         self.mdata.uns["tfs"] = df_tfs
         self.mdata.uns["peak_to_gene"] = peak_to_gene
 
         self.n_tfs = df_tfs.shape[1]
-        self.n_covariates = len(covariates) if covariates is not None else 0
 
         # Parameters for sequence encoder
         self.n_channels = n_channels
@@ -246,7 +250,7 @@ class Cell2NetWithVariant(BaseModel):
                 stratify=stratify,
             )
         else:
-            raise ValueError(
+            logger.error(
                 "Please provide train_size or indices for trainging and validation"
             )
 

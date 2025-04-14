@@ -3,13 +3,14 @@ from collections.abc import Sequence
 from mudata import MuData
 from torch.utils.data import DataLoader
 
-from ._dataset import MuTorchDataset
+from ._dataset import MuTorchDataset, MuTorchDatasetWithVariants
 
 
 def get_dataloader(
     mdata: MuData,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
+    with_variants: bool = False,
     idx: Sequence[int] | Sequence[str] | None = None,
     covariates: Sequence[str] | None = None,
     batch_size: int = 128,
@@ -73,12 +74,20 @@ def get_dataloader(
     else:
         _mdata = mdata
 
-    dataset = MuTorchDataset(
-        mdata=_mdata,  # type: ignore
-        rna_mod=rna_mod,
-        atac_mod=atac_mod,
-        covariates=covariates,
-    )
+    if with_variants:
+        dataset = MuTorchDatasetWithVariants(
+            mdata=_mdata,  # type: ignore
+            rna_mod=rna_mod,
+            atac_mod=atac_mod,
+            covariates=covariates,
+        )
+    else:
+        dataset = MuTorchDataset(
+            mdata=_mdata,  # type: ignore
+            rna_mod=rna_mod,
+            atac_mod=atac_mod,
+            covariates=covariates,
+        )
 
     dataloader = DataLoader(
         dataset=dataset,

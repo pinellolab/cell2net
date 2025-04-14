@@ -77,7 +77,7 @@ def seq_to_one_hot(seq: str) -> np.ndarray:
         "C": [0, 1, 0, 0],
         "G": [0, 0, 1, 0],
         "T": [0, 0, 0, 1],
-        "N": [0, 0, 0, 0],
+        "N": [0, 0, 0, 0],  # for unknown bases
     }
 
     # Create array from nucleotide sequence
@@ -398,8 +398,8 @@ def update_sequence_with_variants(
 
     Returns
     -------
-        A new DataFrame with the same structure as `df_seq`, but with updated `seq_1` and `seq_2`
-        sequences based on the input variants.
+        A new DataFrame with the same structure as `df_seq`,
+        but with updated `seq_1` and `seq_2` sequences based on the input variants.
 
     Raises
     ------

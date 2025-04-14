@@ -22,7 +22,7 @@ from ._constants import SAVE_KEYS
 warnings.filterwarnings("ignore")
 
 
-class Cell2Net(BaseModel):
+class Cell2NetWithVariant(BaseModel):
     def __init__(
         self,
         mdata: MuData,
@@ -42,6 +42,16 @@ class Cell2Net(BaseModel):
         if n_filters is None:
             n_filters = [64, 32, 32, 16]
 
+        if rna_mod not in mdata.mod:
+            logger.error(f"{rna_mod} not found in the MuData object.")
+        if atac_mod not in mdata.mod:
+            logger.error(f"{atac_mod} not found in the MuData object.")
+
+        if peak_to_gene_key not in mdata.uns:
+            logger.error(f"{peak_to_gene_key} not found in the MuData object.")
+        if gene not in mdata[rna_mod].var_names:
+            logger.error(f"{gene} not found in the MuData object.")
+
         self.gene = gene
 
         peak_to_gene = mdata.uns[peak_to_gene_key][
@@ -53,10 +63,7 @@ class Cell2Net(BaseModel):
         assert self.n_peaks > 0, "Cannot find any associated peaks!"
 
         self.covariates = covariates
-        if covariates is not None:
-            self.n_covariates = len(covariates)
-        else:
-            self.n_covariates = 0
+        self.n_covariates = len(covariates) if covariates is not None else 0
 
         # Create anndata for RNA and ATAC
         adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()]
@@ -65,18 +72,30 @@ class Cell2Net(BaseModel):
         self.max_gex = np.max(adata_rna.layers["counts"])  # type: ignore
         self.min_gex = np.min(adata_rna.layers["counts"])  # type: ignore
 
-        # Get associated TFs for each cell
-        row = mdata[rna_mod].uns["gene_tf"].loc[gene]
-        tfs = row[row != 0].index.tolist()
+        # get associated TFs for each sample
+        tfs = []
+        samples = list(mdata["rna"].uns["gene_tf"].keys())
+        for sample in samples:
+            row = mdata["rna"].uns["gene_tf"][sample].loc[gene]
+            tfs.append(row)
 
-        adata_rna.obsm["tf"] = mdata[rna_mod][:, tfs].layers["counts"].copy()  # type: ignore
+        df_tfs = pd.DataFrame(tfs, index=samples)
+        adata_rna.obsm["tf"] = mdata[rna_mod][:, df_tfs.columns].layers["counts"].copy().todense()  # type: ignore
+
+        # update input TF expression for each cell based on its matching results
+        # with genomic variants information
+        samples = adata_rna.obs["bestSample"].values.tolist()
+        for i, sample_name in enumerate(samples):
+            tf = np.array(df_tfs.loc[sample_name].values.tolist())
+            adata_rna.obsm["tf"][i,] = tf * adata_rna.obsm["tf"][i,]  # type: ignore
 
         self.mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac})  # type: ignore
         self.mdata.obs = mdata.obs.copy()
-        self.mdata.uns["tfs"] = tfs
+        self.mdata.uns["tfs"] = df_tfs
         self.mdata.uns["peak_to_gene"] = peak_to_gene
 
-        self.n_tfs = len(tfs)
+        self.n_tfs = df_tfs.shape[1]
+        self.n_covariates = len(covariates) if covariates is not None else 0
 
         # Parameters for sequence encoder
         self.n_channels = n_channels

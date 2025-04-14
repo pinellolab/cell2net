@@ -52,11 +52,11 @@ Sequences
 .. autosummary::
     :toctree: _autosummary
 
-    preprocessing.add_dna_sequence,
-    preprocessing.add_variants_to_sequence,
-    preprocessing.dinucleotide_shuffle_one_hot,
-    preprocessing.dinucleotide_shuffle_str,
-    preprocessing.one_hot_to_seq,
-    preprocessing.random_seq,
-    preprocessing.seq_to_one_hot,
-    preprocessing.update_sequence_with_variants,
+    preprocessing.add_dna_sequence
+    preprocessing.add_variants_to_sequence
+    preprocessing.dinucleotide_shuffle_one_hot
+    preprocessing.dinucleotide_shuffle_str
+    preprocessing.one_hot_to_seq
+    preprocessing.random_seq
+    preprocessing.seq_to_one_hot
+    preprocessing.update_sequence_with_variants

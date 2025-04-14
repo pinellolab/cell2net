@@ -156,6 +156,10 @@ def get_metacells(
     # copy obs from original MuData
     mdata_metacells.obs = mdata.obs.iloc[metacell_indices].copy()  # type: ignore
 
+    # copy vars from original MuData
+    mdata_metacells[rna_mod].var = mdata[rna_mod].var.copy()
+    mdata_metacells[atac_mod].var = mdata[atac_mod].var.copy()
+
     # copy uns from original MuData
     mdata_metacells.uns = {}
     if len(mdata.uns.keys()) > 0:
@@ -208,13 +212,13 @@ def _get_metacells(
     adata_rna = AnnData(
         X=csc_matrix(rna_counts),
         obs=mdata[rna_mod].obs.iloc[metacell_indices].copy(),
-        var=mdata[rna_mod].var,
+        var=mdata[rna_mod].var.copy(),
     )
 
     adata_atac = AnnData(
         X=csc_matrix(atac_counts),
         obs=mdata[atac_mod].obs.iloc[metacell_indices].copy(),
-        var=mdata[atac_mod].var,
+        var=mdata[atac_mod].var.copy(),
     )
 
     adata_rna.layers["counts"] = adata_rna.X.copy()  # type: ignore

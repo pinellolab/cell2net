@@ -13,6 +13,7 @@ from ._motif import (
     match_motif,
     match_motif_with_variants,
     tf_to_gene,
+    tf_to_gene_with_variants,
 )
 from ._peak import add_peaks, peak_to_gene
 from ._sequence import (

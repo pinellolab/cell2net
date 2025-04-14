@@ -11,6 +11,7 @@ from scipy import stats
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from tqdm.auto import tqdm
 
 from cell2net._logging import logger
 from cell2net.prediction.data import get_dataloader
@@ -272,7 +273,12 @@ class Cell2Net(BaseModel):
         self.best_score, self.best_epoch = -np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
         train_corrs, valid_corrs = [], []
-        for epoch in range(max_epochs):
+
+        iterator = (
+            tqdm(range(max_epochs), desc="Training") if verbose else range(max_epochs)
+        )
+
+        for epoch in iterator:
             train_loss, train_corr, train_true, train_pred = self._train()
             valid_loss, valid_corr, valid_true, valid_pred = self._valid()
 

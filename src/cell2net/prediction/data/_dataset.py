@@ -237,6 +237,11 @@ class MuTorchDatasetWithVariants(Dataset):
 
         self.seq = mdata[atac_mod].uns["seq_with_variants"]
 
+        # subset seq to only include peaks in peak_to_gene
+        self.seq = self.seq[
+            self.seq["peak"].isin(mdata.uns["peak_to_gene"]["peak"].values.tolist())
+        ]
+
         # distance of peak to TSS, normalized by the maximum value
         self.peak_dist = np.array(
             mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32

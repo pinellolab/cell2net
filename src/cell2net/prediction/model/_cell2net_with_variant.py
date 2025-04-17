@@ -56,9 +56,7 @@ class Cell2NetWithVariant(BaseModel):
 
         self.gene = gene
 
-        peak_to_gene = mdata.uns[peak_to_gene_key][
-            mdata.uns[peak_to_gene_key]["gene"] == gene
-        ]
+        peak_to_gene = mdata.uns[peak_to_gene_key][mdata.uns[peak_to_gene_key]["gene"] == gene]
         peak_to_gene = peak_to_gene.reset_index(drop=True)
 
         self.n_peaks = len(peak_to_gene)
@@ -67,9 +65,10 @@ class Cell2NetWithVariant(BaseModel):
         self.covariates = covariates
         self.n_covariates = len(covariates) if covariates is not None else 0
 
-        # Create anndata for RNA and ATAC
-        adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()]
-        adata_rna = mdata[rna_mod][:, gene]
+        # create anndata for RNA and ATAC
+        # use copy to avoid modifying the original data
+        adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()].copy()
+        adata_rna = mdata[rna_mod][:, gene].copy()
 
         self.max_gex = np.max(adata_rna.layers["counts"])  # type: ignore
         self.min_gex = np.min(adata_rna.layers["counts"])  # type: ignore
@@ -161,9 +160,7 @@ class Cell2NetWithVariant(BaseModel):
 
             # get prediction
             pred_exp = self.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
-            loss = self.criterion(
-                pred_exp.view(-1).float(), target_exp.view(-1).float()
-            )
+            loss = self.criterion(pred_exp.view(-1).float(), target_exp.view(-1).float())
 
             # optimize parameters
             self.optimizer.zero_grad()
@@ -200,12 +197,8 @@ class Cell2NetWithVariant(BaseModel):
                 target_exp = data["target_exp"].to(self.device)
 
                 # get prediction
-                pred_exp = self.module(
-                    peak_seq, peak_acc, peak_dist, tf_exp, covariates
-                )
-                loss = self.criterion(
-                    pred_exp.view(-1).float(), target_exp.view(-1).float()
-                )
+                pred_exp = self.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
+                loss = self.criterion(pred_exp.view(-1).float(), target_exp.view(-1).float())
 
                 valid_loss += loss.item() / len(self.train_dl)
 
@@ -251,9 +244,7 @@ class Cell2NetWithVariant(BaseModel):
                 stratify=stratify,
             )
         else:
-            logger.error(
-                "Please provide train_size or indices for trainging and validation"
-            )
+            logger.error("Please provide train_size or indices for trainging and validation")
 
         if verbose:
             logger.info(f"Number of training: {len(train_idx)}")  # type: ignore
@@ -290,18 +281,14 @@ class Cell2NetWithVariant(BaseModel):
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
-        self.optimizer = Adam(
-            self.module.parameters(), lr=lr, weight_decay=weight_decay
-        )
+        self.optimizer = Adam(self.module.parameters(), lr=lr, weight_decay=weight_decay)
         lr_scheduler = ReduceLROnPlateau(self.optimizer, "max", min_lr=1e-5, patience=5)
 
         self.best_score, self.best_epoch = -np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
         train_corrs, valid_corrs = [], []
 
-        iterator = (
-            tqdm(range(max_epochs), desc="Training") if verbose else range(max_epochs)
-        )
+        iterator = tqdm(range(max_epochs), desc="Training") if verbose else range(max_epochs)
 
         for epoch in iterator:
             train_loss, train_corr, train_true, train_pred = self._train()
@@ -342,9 +329,7 @@ class Cell2NetWithVariant(BaseModel):
         )
 
         logger.info("Training finished")
-        logger.info(
-            f"Find best model at epoch {self.best_epoch} with valid correation {self.best_score: .3f}"
-        )
+        logger.info(f"Find best model at epoch {self.best_epoch} with valid correation {self.best_score: .3f}")
 
         self.is_trained_ = True
 
@@ -392,9 +377,7 @@ class Cell2NetWithVariant(BaseModel):
         # convert log(lambda) to lambda
         self.rna_true = torch.concat(rna_true).numpy()
         self.rna_pred = torch.concat(rna_pred).exp()
-        self.rna_pred = torch.clamp(
-            self.rna_pred, min=self.min_gex, max=self.max_gex
-        ).numpy()
+        self.rna_pred = torch.clamp(self.rna_pred, min=self.min_gex, max=self.max_gex).numpy()
 
         corr, _ = stats.spearmanr(self.rna_true, self.rna_pred)
 
@@ -434,9 +417,7 @@ class Cell2NetWithVariant(BaseModel):
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
-            raise ValueError(
-                f"{dir_path} already exists. Please provide another directory for saving."
-            )
+            raise ValueError(f"{dir_path} already exists. Please provide another directory for saving.")
         model_save_path = os.path.join(dir_path, f"{self.gene}.pt")
 
         # whether save the best model
@@ -459,9 +440,7 @@ class Cell2NetWithVariant(BaseModel):
 
         return None
 
-    def load(
-        self, dir_path: str, weights_only: bool = True, load_mdata: bool = False
-    ) -> None:
+    def load(self, dir_path: str, weights_only: bool = True, load_mdata: bool = False) -> None:
         """Instantiate a model from the saved output."""
         model_path = os.path.join(dir_path, f"{self.gene}.pt")
         state_dict = torch.load(model_path, weights_only=weights_only)

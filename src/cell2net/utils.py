@@ -5,14 +5,16 @@ import numpy as np
 import torch
 
 
-def set_seed(seed=42):
+def seed_everything(seed: int = 42):
     """Set random seed"""
+    if not isinstance(seed, int):
+        seed = int(seed)
+
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
 
@@ -39,6 +41,6 @@ def santize_str_for_filename(s: str) -> str:
     Examples
     --------
     >>> sanitize_str_for_filename("example (file)/name")
-    ... 'example_file_name'
+    ... "example_file_name"
     """
     return s.replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")

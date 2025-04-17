@@ -75,13 +75,7 @@ class MuTorchDataset(Dataset):
 
     Example
     -------
-    >>> dataset = MuTorchDataset(
-    ...     mdata=mdata,
-    ...     rna_mod="rna",
-    ...     atac_mod="atac",
-    ...     covariates=["age", "sex"],
-    ...     train=True
-    ... )
+    >>> dataset = MuTorchDataset(mdata=mdata, rna_mod="rna", atac_mod="atac", covariates=["age", "sex"], train=True)
     >>> print(len(dataset))
     10000
     >>> data = dataset[0]
@@ -111,15 +105,11 @@ class MuTorchDataset(Dataset):
         self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
 
         # distance of peak to TSS, normalized by the maximum value
-        self.peak_dist = np.array(
-            mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32
-        )
+        self.peak_dist = np.array(mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32)
         self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
 
         # convert seq to one-hot encoding
-        self.peak_seq = encode_seq(
-            self.mdata[atac_mod].var["dna_sequence"].values.tolist()
-        )
+        self.peak_seq = encode_seq(self.mdata[atac_mod].var["dna_sequence"].values.tolist())
 
         self.train = train
         self.len = self.mdata.n_obs
@@ -198,13 +188,7 @@ class MuTorchDatasetWithVariants(Dataset):
 
     Example
     -------
-    >>> dataset = MuTorchDataset(
-    ...     mdata=mdata,
-    ...     rna_mod="rna",
-    ...     atac_mod="atac",
-    ...     covariates=["age", "sex"],
-    ...     train=True
-    ... )
+    >>> dataset = MuTorchDataset(mdata=mdata, rna_mod="rna", atac_mod="atac", covariates=["age", "sex"], train=True)
     >>> print(len(dataset))
     10000
     >>> data = dataset[0]
@@ -221,12 +205,14 @@ class MuTorchDatasetWithVariants(Dataset):
         mdata: MuData,
         rna_mod: str = "rna",
         atac_mod: str = "atac",
+        peak_to_gene_key: str = "peak_to_gene",
+        peak_seq_key: str = "seq_with_variants",
         covariates: Sequence[str] | None = None,
         train: bool = True,
     ) -> None:
         super().__init__()
 
-        self.mdata = mdata
+        # self.mdata = mdata
         self.rna_mod = rna_mod
         self.atac_mod = atac_mod
 
@@ -235,32 +221,33 @@ class MuTorchDatasetWithVariants(Dataset):
         self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
         self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
 
-        self.seq = mdata[atac_mod].uns["seq_with_variants"]
-
-        # subset seq to only include peaks in peak_to_gene
-        self.seq = self.seq[
-            self.seq["peak"].isin(mdata.uns["peak_to_gene"]["peak"].values.tolist())
-        ]
-
         # distance of peak to TSS, normalized by the maximum value
-        self.peak_dist = np.array(
-            mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32
-        )
+        self.peak_dist = np.array(mdata.uns[peak_to_gene_key]["distance"].values, dtype=np.float32)
         self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
+
         self.samples = mdata[rna_mod].obs["bestSample"].values.tolist()
 
+        # prepare peak sequence
+        # subset seq to only include peaks in peak_to_gene
+        self.df_seq = mdata[atac_mod].uns[peak_seq_key]
+        self.df_seq = self.df_seq[
+            self.df_seq["peak"].isin(mdata.uns[peak_to_gene_key]["peak"].values.tolist())
+        ].reset_index(drop=True)
+
+        # convert DNA sequence to one-hot encoding for each sample
+        self.peak_seq = {}
+        for sample in list(set(self.samples)):
+            _df_seq = self.df_seq[self.df_seq["sample"] == sample].set_index("peak")
+            # resort the seq to the same order as peak_acc
+            _df_seq = _df_seq.loc[mdata[atac_mod].var_names.tolist()]
+            # encode seq
+            seq_1 = encode_seq(_df_seq["seq_1"].values.tolist())
+            seq_2 = encode_seq(_df_seq["seq_2"].values.tolist())
+            peak_seq = torch.add(seq_1, seq_2) / 2.0
+            self.peak_seq[sample] = peak_seq
+
         self.train = train
-        self.len = self.mdata.n_obs
-
-    def get_seq(self, idx):
-        # get personalized peak seq
-        sample_name = self.samples[idx]
-        df_seq = self.seq[self.seq["sample"] == sample_name]
-        seq_1 = encode_seq(df_seq["seq_1"].values.tolist())
-        seq_2 = encode_seq(df_seq["seq_2"].values.tolist())
-        peak_seq = torch.add(seq_1, seq_2) / 2.0
-
-        return peak_seq
+        self.len = mdata.n_obs
 
     def __len__(self):
         return self.len
@@ -268,7 +255,7 @@ class MuTorchDatasetWithVariants(Dataset):
     def __getitem__(self, idx):
         data_map = {}
         data_map["peak_acc"] = self.peak_acc[idx]
-        data_map["peak_seq"] = self.get_seq(idx)
+        data_map["peak_seq"] = self.peak_seq[self.samples[idx]]
         data_map["peak_dist"] = self.peak_dist
         data_map["tf_exp"] = self.tf_exp[idx]
         data_map["covariates"] = self.covariates[idx]

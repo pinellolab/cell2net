@@ -3,6 +3,8 @@ from collections.abc import Sequence
 from mudata import MuData
 from torch.utils.data import DataLoader
 
+from cell2net._logging import logger
+
 from ._dataset import MuTorchDataset, MuTorchDatasetWithVariants
 
 
@@ -73,6 +75,17 @@ def get_dataloader(
         _mdata = mdata[idx]
     else:
         _mdata = mdata
+
+    # check if the subseted mudata has the same feature names
+    if mdata[atac_mod].var_names.tolist() != _mdata[atac_mod].var_names.tolist():
+        logger.error(
+            f"Subsetted MuData object does not have the same feature names as the original {atac_mod} modality."
+        )
+
+    if mdata[rna_mod].var_names.tolist() != _mdata[rna_mod].var_names.tolist():
+        logger.error(
+            f"Subsetted MuData object does not have the same feature names as the original {rna_mod} modality."
+        )
 
     if with_variants:
         dataset = MuTorchDatasetWithVariants(

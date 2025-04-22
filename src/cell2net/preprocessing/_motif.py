@@ -698,7 +698,7 @@ def tf_to_gene(
 
 def tf_to_gene_with_variants(
     mdata: MuData,
-    samples: list[str],
+    samples: list[str] | None = None,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
     peak_to_gene_key: str = "peak_to_gene",
@@ -727,6 +727,9 @@ def tf_to_gene_with_variants(
     # link tf to genes for each samlpe based on the peak-to-gene mapping
     # and the motif match information
     # samples = list(set(samples) & set(adata_atac.varm.keys()))
+
+    if samples is None:
+        samples = list(adata_atac.varm.keys())
 
     df_p2g = mdata.uns[peak_to_gene_key]
 

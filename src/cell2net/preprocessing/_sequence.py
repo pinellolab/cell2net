@@ -589,7 +589,10 @@ def add_variants_to_sequence(
 
         # run the update_sequence_with_variants in parallel
         with Pool(n_cpus) as pool:
-            results = pool.starmap(update_sequence_with_variants, args)
+            results = pool.starmap(
+                update_sequence_with_variants,
+                tqdm(args, desc="Updating sequences with variants"),
+            )
 
         # combine the results
         df_seq = pd.concat(results, ignore_index=True)

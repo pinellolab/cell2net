@@ -7,6 +7,7 @@ import pyfaidx
 import pyranges as pr
 import pyranges.genomicfeatures as gf
 from mudata import MuData
+from tqdm.auto import tqdm
 
 from cell2net._logging import logger
 from cell2net.genome import Genome
@@ -268,7 +269,7 @@ def peak_to_gene(
     gr_peaks.Summit = (gr_peaks.End + gr_peaks.Start) // 2
 
     df_list, genes_wo_peak = [], []
-    for gene in gr_genes.Name:
+    for gene in tqdm(gr_genes.Name):
         gr_gene = gr_genes[(gr_genes.Name == gene)]
 
         # find overlap peaks

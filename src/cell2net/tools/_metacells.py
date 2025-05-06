@@ -224,7 +224,7 @@ def _get_metacells(
     adata_rna.layers["counts"] = adata_rna.X.copy()  # type: ignore
     adata_atac.layers["counts"] = adata_atac.X.copy()  # type: ignore
 
-    sc.pp.calculate_qc_metrics(adata=adata_rna)
-    sc.pp.calculate_qc_metrics(adata=adata_atac)
+    sc.pp.calculate_qc_metrics(adata=adata_rna, layer="counts", inplace=True)
+    sc.pp.calculate_qc_metrics(adata=adata_atac, layer="counts", inplace=True)
 
     return adata_rna, adata_atac

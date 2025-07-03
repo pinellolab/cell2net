@@ -2,6 +2,7 @@
 
 import gzip
 import os
+import shutil
 import subprocess as sp
 
 import numba
@@ -17,9 +18,7 @@ from ._utils import bgzip, tabix_index
 
 
 @numba.njit
-def calculate_depth(
-    chrom_size: int, starts: np.ndarray, ends: np.ndarray
-) -> np.ndarray:
+def calculate_depth(chrom_size: int, starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
     """
     Calculate genome depth for a given chromosome.
 
@@ -214,11 +213,9 @@ def fragments_to_coverage(
     --------
     >>> import polars as pl
     >>> import cell2net as cn
-    >>> df_fragments = pl.DataFrame({
-    ...     "Chromosome": ["chr1", "chr1", "chr2"],
-    ...     "Start": [100, 200, 300],
-    ...     "End": [150, 250, 350]
-    ... })
+    >>> df_fragments = pl.DataFrame(
+    ...     {"Chromosome": ["chr1", "chr1", "chr2"], "Start": [100, 200, 300], "End": [150, 250, 350]}
+    ... )
     >>> chrom_sizes = {"chr1": 1000, "chr2": 500}
     >>> results = cn.pp.fragments_to_coverage(df_fragments, chrom_sizes, normalize=False)
     >>> for chroms, starts, ends, values in results:
@@ -246,9 +243,7 @@ def fragments_to_coverage(
             logger.warning(f"Skipping {chrom} as it is not in chrom sizes file.")
             continue
 
-        starts, ends = (
-            per_chrom_fragments_dfs[chrom].select(["Start", "End"]).to_numpy().T
-        )
+        starts, ends = per_chrom_fragments_dfs[chrom].select(["Start", "End"]).to_numpy().T
 
         if cut_sites:
             # Create cut site positions (for both start and end of a fragment).
@@ -266,9 +261,7 @@ def fragments_to_coverage(
 
     # Calculate RPM scaling factor.
     rpm_scaling_factor = n_fragments / 1_000_000.0
-    logger.info(
-        "Compact depth array per chromosome (make ranges for consecutive the same values and remove zeros):"
-    )
+    logger.info("Compact depth array per chromosome (make ranges for consecutive the same values and remove zeros):")
     for chrom in chrom_sizes:
         idx, values, lengths = collapse_consecutive_values(chrom_arrays[chrom])
         non_zero_idx = np.flatnonzero(values)
@@ -438,9 +431,14 @@ def split_fragments(
         - The files are named as `<group>.fragments.tsv.gz`.
     """
     # check if the barcodes and groups have same length
-    assert len(cell_barcodes) == len(
-        groups
-    ), "Cell barcodes and groups have different length"
+    assert len(cell_barcodes) == len(groups), "Cell barcodes and groups have different length"
+
+    # check if bgzip and tabix are installed
+    if shutil.which("bgzip") is None:
+        logger.error("bgzip is not installed. Please install it to use this function.")
+
+    if shutil.which("tabix") is None:
+        logger.error("tabix is not installed. Please install it to use this function.")
 
     # make group name safe for use as a filename
     groups = [santize_str_for_filename(s) for s in groups]

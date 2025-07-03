@@ -102,13 +102,12 @@ class DotPlot(BasePlot):
         self.var_group_rotation = var_group_rotation
         self.width, self.height = figsize if figsize is not None else (None, None)
 
-        self.has_var_groups = (
-            True
-            if var_group_positions is not None and len(var_group_positions) > 0
-            else False
-        )
+        self.has_var_groups = True if var_group_positions is not None and len(var_group_positions) > 0 else False
 
         self.categories_order = categories_order
+
+        self.var_groups = None
+        # self.var_names, self.var_groups = _var_groups(var_names)
 
         self._update_var_groups()
 
@@ -123,9 +122,7 @@ class DotPlot(BasePlot):
         # with df[['a', 'a', 'b']], results in a df with columns:
         # ['a', 'a', 'a', 'a', 'b']
 
-        unique_var_names, unique_idx = np.unique(
-            dot_color_df.columns, return_index=True
-        )
+        unique_var_names, unique_idx = np.unique(dot_color_df.columns, return_index=True)
 
         # remove duplicate columns
         if len(unique_var_names) != len(self.var_names):  # type: ignore
@@ -138,9 +135,7 @@ class DotPlot(BasePlot):
         self.categories = dot_color_df.index.tolist()
 
         self.dot_color_df, self.dot_size_df = (
-            df.loc[
-                categories_order if categories_order is not None else self.categories
-            ]  # type: ignore
+            df.loc[categories_order if categories_order is not None else self.categories]  # type: ignore
             for df in (dot_color_df, dot_size_df)
         )
 
@@ -327,9 +322,7 @@ class DotPlot(BasePlot):
         size_legend_ax.set_xticklabels(labels, fontsize="small")
 
         # remove y ticks and labels
-        size_legend_ax.tick_params(
-            axis="y", left=False, labelleft=False, labelright=False
-        )
+        size_legend_ax.tick_params(axis="y", left=False, labelleft=False, labelright=False)
 
         # remove surrounding lines
         size_legend_ax.spines["right"].set_visible(False)
@@ -365,9 +358,7 @@ class DotPlot(BasePlot):
             spacer_height,
             cbar_legend_height,
         ]
-        fig, legend_gs = make_grid_spec(
-            legend_ax, nrows=4, ncols=1, height_ratios=height_ratios
-        )
+        fig, legend_gs = make_grid_spec(legend_ax, nrows=4, ncols=1, height_ratios=height_ratios)
 
         if self.show_size_legend:
             size_legend_ax = fig.add_subplot(legend_gs[1])
@@ -562,8 +553,7 @@ class DotPlot(BasePlot):
         )
 
         assert list(dot_size.columns) == list(dot_color.columns), (
-            "please check that the dot_size "
-            "and dot_color dataframes have the same columns"
+            "please check that the dot_size " "and dot_color dataframes have the same columns"
         )
 
         if standard_scale == "group":
@@ -649,9 +639,7 @@ class DotPlot(BasePlot):
 
         y_ticks = np.arange(dot_color.shape[0]) + 0.5
         dot_ax.set_yticks(y_ticks)
-        dot_ax.set_yticklabels(
-            [dot_color.index[idx] for idx, _ in enumerate(y_ticks)], minor=False
-        )
+        dot_ax.set_yticklabels([dot_color.index[idx] for idx, _ in enumerate(y_ticks)], minor=False)
 
         x_ticks = np.arange(dot_color.shape[1]) + 0.5
         dot_ax.set_xticks(x_ticks)
@@ -770,20 +758,14 @@ def prepare_dataframes_for_dotplot(
 
     # Get average regulation of each tf within cell types, used for dot color
     dot_color_df = df.groupby([tf_col, group_col])[activity_col].sum().reset_index()
-    dot_color_df = dot_color_df.pivot_table(
-        index=group_col, columns=tf_col, values=activity_col
-    )
+    dot_color_df = dot_color_df.pivot_table(index=group_col, columns=tf_col, values=activity_col)
     dot_color_df = dot_color_df.fillna(0)
     dot_color_df = dot_color_df.rename_axis(None, axis=0)
     dot_color_df = dot_color_df.rename_axis(None, axis=1)
 
     # Get number of target genes of each within cell types, used for dot size
-    dot_size_df = (
-        df.groupby([tf_col, group_col])[activity_col].count().reset_index(name="count")
-    )
-    dot_size_df = dot_size_df.pivot_table(
-        index=group_col, columns=tf_col, values="count"
-    )
+    dot_size_df = df.groupby([tf_col, group_col])[activity_col].count().reset_index(name="count")
+    dot_size_df = dot_size_df.pivot_table(index=group_col, columns=tf_col, values="count")
     dot_size_df = dot_size_df.fillna(0)
     dot_size_df = dot_size_df.rename_axis(None, axis=0)
     dot_size_df = dot_size_df.rename_axis(None, axis=1)
@@ -898,9 +880,7 @@ def tf_dotplot(
         largest_dot=largest_dot,
         smallest_dot=smallest_dot,
         dot_edge_lw=kwds.pop("linewidth", _empty),
-    ).legend(
-        colorbar_title=colorbar_title, size_title=size_title
-    )  # type: ignore
+    ).legend(colorbar_title=colorbar_title, size_title=size_title)  # type: ignore
 
     if return_fig:
         return dp

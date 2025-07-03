@@ -61,9 +61,7 @@ def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int)
         if record is None or not record.is_snv():
             continue
 
-        assert (
-            len(record.ALT) == 1
-        ), f"find multiple alternatives for a SNP {record.ID[0]} "
+        assert len(record.ALT) == 1, f"find multiple alternatives for a SNP {record.ID[0]} "
 
         snp_ids.append(record.ID[0])
         snp_chroms.append(record.CHROM)
@@ -74,10 +72,7 @@ def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int)
         # Extract genotype information
         genotype = [call.data.get("GT") or "./." for call in record.calls]
         genotype = [str(x) for x in genotype]  # Ensure all elements are strings
-        genotype = [
-            0 if x == "0/0" else 1 if x == "0/1" else 2 if x == "1/1" else np.nan
-            for x in genotype
-        ]
+        genotype = [0 if x == "0/0" else 1 if x == "0/1" else 2 if x == "1/1" else np.nan for x in genotype]
 
         genotypes.append(genotype)
 
@@ -90,9 +85,7 @@ def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int)
         },
         index=snp_ids,
     )
-    df_genotype = pd.DataFrame(
-        data=genotypes, columns=sample_ids, index=snp_ids
-    ).astype("Int8")
+    df_genotype = pd.DataFrame(data=genotypes, columns=sample_ids, index=snp_ids).astype("Int8")
 
     df = pd.merge(df_snp, df_genotype, left_index=True, right_index=True)
     df["snp_id"] = df.index
@@ -203,9 +196,7 @@ def add_genomic_variants(
         # use multiprocessing to speed up the process
         logger.info(f"Using {n_cpus} CPUs for parallel processing.")
         with Pool(n_cpus) as pool:
-            results = pool.starmap(
-                get_genomic_variants, tqdm(args, desc="Processing variants")
-            )
+            results = pool.starmap(get_genomic_variants, tqdm(args, desc="Processing variants"))
 
         # combine results
         for i, df_var in enumerate(results):
@@ -242,11 +233,12 @@ def add_genomic_variants(
     # remove duplicates
     df_var = df_var.drop_duplicates(subset=["snp_id", "sample"]).reset_index(drop=True)
 
+    # sometimes the same sample has multiple genotypes for the same SNP
+    # in this case, we take the first one
+    df_var = df_var.groupby(["chrom", "pos", "ref", "sample", "peak"]).first().reset_index()
+
     # only keep valid genotypes
-    df_var = df_var[
-        df_var["ref"].isin(["A", "C", "G", "T"])
-        & df_var["alt"].isin(["A", "C", "G", "T"])
-    ]
+    df_var = df_var[df_var["ref"].isin(["A", "C", "G", "T"]) & df_var["alt"].isin(["A", "C", "G", "T"])]
 
     logger.info(f"Found {len(df_var)} variants in total.")
     logger.info("Processing variants finished!")

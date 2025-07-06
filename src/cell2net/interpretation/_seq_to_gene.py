@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import torch
-from captum.attr import DeepLift
+from captum.attr import DeepLiftShap
 from tqdm import tqdm
 
 from cell2net._logging import logger
@@ -21,6 +21,7 @@ def seq_attr(
     shuffle_n: int = 50,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
+    multiply_by_inputs: bool = True,
 ) -> np.ndarray | None:
     """
     Computes sequence attribution scores using the DeepLift algorithm for a given model
@@ -90,10 +91,10 @@ def seq_attr(
     model.module.eval()
 
     # Use DeepLift to estimate feature importances
-    dl = DeepLift(model.module, multiply_by_inputs=False)
+    dl = DeepLiftShap(model.module, multiply_by_inputs=multiply_by_inputs)
     attr_samples_peaks = []
     for data in tqdm(data_loader):
-        peak_seq = data["peak_seq"].to(model.device)
+        peak_seq = data["peak_seq"].to(model.device).requires_grad_()
         peak_acc = data["peak_acc"].to(model.device)
         peak_dist = data["peak_dist"].to(model.device)
         tf_exp = data["tf_exp"].to(model.device)

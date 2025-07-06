@@ -1,10 +1,8 @@
-from typing import Literal
-from collections.abc import Sequence
-
-from captum.attr import Attribution
+from typing import Any, Literal
 
 from cell2net._logging import logger
-from cell2net.prediction.model import Cell2Net
+
+from captum.attr import Attribution
 
 ATTR_METHODS = Literal[
     "deeplift",
@@ -15,15 +13,7 @@ ATTR_METHODS = Literal[
     "input_x_times_gradient",
 ]
 
-def is_sequence_of_ints(obj):
-    return isinstance(obj, Sequence) and all(isinstance(i, int) for i in obj)
-
-
-def is_sequence_of_strings(obj):
-    return isinstance(obj, Sequence) and all(isinstance(i, str) for i in obj)
-
-
-def get_attr_methods(attr_method: ATTR_METHODS, model: Cell2Net, multiply_by_inputs: bool = True) -> Attribution:
+def get_attr_methods(attr_method: ATTR_METHODS) -> Attribution:
     """
     Returns the appropriate attribution method from Captum based on the specified method name.
 
@@ -31,10 +21,6 @@ def get_attr_methods(attr_method: ATTR_METHODS, model: Cell2Net, multiply_by_inp
     ----------
     attr_method : ATTR_METHODS
         The name of the attribution method to retrieve.
-    model : Cell2Net
-        The model for which the attribution method is being retrieved.
-    multiply_by_inputs : bool, optional
-        Whether to multiply the attributions by the inputs, by default True.
 
     Returns
     -------
@@ -42,22 +28,22 @@ def get_attr_methods(attr_method: ATTR_METHODS, model: Cell2Net, multiply_by_inp
         The corresponding Captum attribution method class.
     """
     if attr_method == "deeplift":
-        from captum.attr import DeepLiftShap
-        return DeepLiftShap(model, multiply_by_inputs=multiply_by_inputs)
+        from captum.attr import DeepLift
+        return DeepLift()
     elif attr_method == "integrated_gradients":
         from captum.attr import IntegratedGradients
-        return IntegratedGradients(model, multiply_by_inputs=multiply_by_inputs)
+        return IntegratedGradients()
     elif attr_method == "gradient_shap":
         from captum.attr import GradientShap
-        return GradientShap(model, multiply_by_inputs=multiply_by_inputs)
+        return GradientShap()
     elif attr_method == "input_x_gradient":
         from captum.attr import InputXGradient
-        return InputXGradient(model)
+        return InputXGradient()
     elif attr_method == "input_x_gradient_times_input":
         from captum.attr import InputXGradientTimesInput
-        return InputXGradientTimesInput(model)
+        return InputXGradientTimesInput()
     elif attr_method == "input_x_times_gradient":
         from captum.attr import InputXTimesGradient
-        return InputXTimesGradient(model)
+        return InputXTimesGradient()
 
     raise ValueError(f"Unknown attribution method: {attr_method}")

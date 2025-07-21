@@ -240,7 +240,7 @@ def filter_motifs_by_genes(
         return df_motif
 
 
-def prepare_scaner(
+def prepare_scanner(
     motifs: list,
     pseudocounts: float = 0.0001,
     p_value: float = 5e-05,

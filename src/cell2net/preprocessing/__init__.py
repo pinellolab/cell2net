@@ -8,7 +8,7 @@ from ._fragments import (
 )
 from ._gene import add_gene_tss_coord, get_gene_tss_coord
 from ._motif import (
-    prepare_scaner,
+    prepare_scanner,
     filter_motifs_by_genes,
     get_tf_motifs,
     match_motif,
@@ -16,7 +16,11 @@ from ._motif import (
     tf_to_gene,
     tf_to_gene_with_variants,
 )
-from ._peak import add_peaks, peak_to_gene
+from ._peak import (
+    add_peaks,
+    peak_to_gene,
+    annotate_peaks
+)
 from ._sequence import (
     add_dna_sequence,
     add_variants_to_sequence,

@@ -336,14 +336,19 @@ class Cell2Net(BaseModel):
 
     def predict(self,
                 mdata: MuData,
-                 batch_size: int = 128,
-                 num_workers: int = 4) -> np.ndarray:
+                rna_mod: str = "rna",
+                atac_mod: str = "atac",
+                batch_size: int = 128,
+                num_workers: int = 4) -> np.ndarray:
 
         self.module = self.module.to(self.device)
         self.module.eval()
 
         dataloader = get_dataloader(
             mdata=mdata,
+            rna_mod=rna_mod,
+            atac_mod=atac_mod,
+            idx=None,
             covariates=self.covariates,
             batch_size=batch_size,
             num_workers=num_workers,

@@ -6,17 +6,7 @@ from mudata import MuData
 from torch.utils.data import Dataset
 
 from cell2net.preprocessing import seq_to_one_hot
-
-
-def encode_seq(seq_list):
-    data = []
-    for seq in seq_list:
-        data.append(torch.from_numpy(seq_to_one_hot(seq)))
-
-    data = torch.stack(data)
-
-    return data
-
+from cell2net._logging import logger
 
 class MuTorchDataset(Dataset):
     """
@@ -108,8 +98,18 @@ class MuTorchDataset(Dataset):
         self.peak_dist = np.array(mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32)
         self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
 
-        # convert seq to one-hot encoding
-        self.peak_seq = encode_seq(self.mdata[atac_mod].var["dna_sequence"].values.tolist())
+        # convert sequence to one-hot encoding
+        self.peak_seq = []
+        for seq in self.mdata[atac_mod].var["dna_sequence"].values.tolist():
+            # Ensure seq_to_one_hot is defined or imported
+            one_hot_encode = seq_to_one_hot(seq)
+            if one_hot_encode is None:
+                logger.error(f"Failed to encode sequence: {seq}")
+                raise ValueError(f"Failed to encode sequence: {seq}")
+
+            self.peak_seq.append(torch.from_numpy(one_hot_encode))
+
+        self.peak_seq = torch.stack(self.peak_seq)
 
         self.train = train
         self.len = self.mdata.n_obs

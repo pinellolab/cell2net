@@ -9,7 +9,7 @@ from cell2net._logging import logger
 from cell2net.interpretation._utils import is_sequence_of_ints, is_sequence_of_strings
 from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.model import Cell2Net
-from cell2net.preprocessing import dinucleotide_shuffle_one_hot
+from cell2net.preprocessing import dinucleotide_shuffle_one_hot, seq_to_one_hot, one_hot_to_seq
 
 
 def seq_attr(
@@ -322,27 +322,51 @@ def saturation_mutagenesis(
         )
         return None
 
-    # Create a pseudo-bulk profile
-    peak_acc = np.array(model.mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)
-
-
-
     # set model to evaluation mode
     model.module.eval()
 
-    for data in tqdm(data_loader):
-        peak_seq = data["peak_seq"].to(model.device)
-        peak_acc = data["peak_acc"].to(model.device)
-        peak_dist = data["peak_dist"].to(model.device)
-        tf_exp = data["tf_exp"].to(model.device)
-        covariates = data["covariates"].to(model.device)
+    ref_out = np.zeros(model.mdata.n_obs, dtype=np.float32)
 
-        y0 = model.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
+    # create input data for saturation mutagenesis
+    peak_acc = np.array(model.mdata["atac"].layers["counts"].todense(), dtype=np.float32)
+    tf_exp = np.array(model.mdata["rna"].obsm["tf"].todense(), dtype=np.float32)
+    covariates = model.mdata.obs[['total_counts_rna_log',
+                                  'total_counts_atac_log']].to_numpy(dtype=np.float32)
 
-        # for each peak, mutate the sequence and compute the output
-        for peak_index in peak_indices:
-            # mutate the sequence
-            _peak_seq = peak_seq[:, peak_index].detach().cpu().numpy()
+    peak_dist = np.array(model.mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32)
+    peak_dist = np.exp(-peak_dist / 500000).astype(np.float32)
 
-            mutated_seq = _edit_distance_one(peak_seq)
+    # convert seq to one-hot encoding
+    peak_seq = encode_seq(model.mdata["atac"].var["dna_sequence"].values.tolist())
+
+    # expand input to batch size of 1
+    peak_acc = np.expand_dims(peak_acc, axis=0)
+    tf_exp = np.expand_dims(tf_exp, axis=0)
+    peak_dist = np.expand_dims(peak_dist, axis=0)
+    covariates = np.expand_dims(covariates, axis=0)
+    peak_seq = np.expand_dims(peak_seq, axis=0)
+
+    # numpy to torch
+    peak_acc = torch.from_numpy(peak_acc).to(model.device)
+    tf_exp = torch.from_numpy(tf_exp).to(model.device)
+    peak_dist = torch.from_numpy(peak_dist).to(model.device)
+    covariates = torch.from_numpy(covariates).to(model.device)
+    peak_seq = torch.from_numpy(peak_seq).to(model.device)
+
+    # get the reference output
+    with torch.no_grad():
+        ref_out = model.module(
+            peak_acc=peak_acc,
+            tf_exp=tf_exp,
+            peak_dist=peak_dist,
+            covariates=covariates,
+            peak_seq=peak_seq
+        )
+
+        ref_out = model.module(peak_seq,
+                               peak_acc,
+                               peak_dist,
+                               tf_exp,
+                               covariates).squeeze(-1).cpu().detach().numpy()[0]
+
 

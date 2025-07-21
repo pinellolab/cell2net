@@ -304,6 +304,15 @@ class Cell2Net(BaseModel):
                 self.valid_pred = np.exp(valid_pred)
                 self.valid_true = valid_true
 
+                self.results = pd.DataFrame(
+                    data={
+                        "true": np.concatenate([self.train_true, self.valid_true]),
+                        "pred": np.concatenate([self.train_pred, self.valid_pred]),
+                        "data": ["train"] * len(self.train_true)
+                        + ["valid"] * len(self.valid_true),
+                    }
+                )
+
             lr_scheduler.step(valid_corr)  # type: ignore
 
         self.history_ = pd.DataFrame(
@@ -425,6 +434,7 @@ class Cell2Net(BaseModel):
                 SAVE_KEYS.MODEL_HISTORY: self.history_.to_dict(),
                 SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
                 SAVE_KEYS.MODULE_SUMMARY_DICT_KEY: self._module_summary,
+                "results": self.results.to_dict(),
             },
             model_save_path,
         )
@@ -453,6 +463,7 @@ class Cell2Net(BaseModel):
 
         self.module.load_state_dict(state_dict[SAVE_KEYS.MODEL_STATE_DICT_KEY])
         self.history_ = pd.DataFrame.from_dict(state_dict[SAVE_KEYS.MODEL_HISTORY])
+        self.results = pd.DataFrame.from_dict(state_dict["results"])
 
         if load_mdata:
             self.mdata = md.read_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu"))  # type: ignore

@@ -9,7 +9,7 @@ from ._fragments import (
 from ._gene import add_gene_tss_coord, get_gene_tss_coord
 from ._motif import (
     filter_motifs_by_genes,
-    get_motifs_from_jaspar,
+    get_tf_motifs,
     match_motif,
     match_motif_with_variants,
     tf_to_gene,
@@ -21,8 +21,8 @@ from ._sequence import (
     add_variants_to_sequence,
     dinucleotide_shuffle_one_hot,
     dinucleotide_shuffle_str,
-    one_hot_to_seq,
     random_seq,
+    one_hot_to_seq,
     seq_to_one_hot,
     update_sequence_with_variants,
 )

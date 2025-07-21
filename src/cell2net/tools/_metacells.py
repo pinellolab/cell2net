@@ -12,7 +12,7 @@ from cell2net._logging import logger
 
 def get_metacells(
     mdata: MuData,
-    n_metacells: int,
+    n_metacells: int | list[int],
     rna_mod: str = "rna",
     atac_mod: str = "atac",
     n_neighbors: int = 15,
@@ -89,10 +89,19 @@ def get_metacells(
     >>> mdata_metacells = get_metacells(mdata, n_metacells=500, sampling="random")
 
     """
+    # make sure that n_metacells is an integer or a list of integers
+    if isinstance(n_metacells, list):
+        total_metacells = sum(n_metacells)
+    elif isinstance(n_metacells, int):
+        total_metacells = n_metacells
+    else:
+        logger.error("n_metacells should be an integer or a list of integers")
+
+    logger.info(f"Total number of metacells to create: {total_metacells}")
+
     if sampling == "random":
-        logger.info(f"Randomly select {n_metacells} metacells")
         metacell_indices = np.random.choice(
-            mdata.n_obs, size=n_metacells, replace=False
+            mdata.n_obs, size=total_metacells, replace=False
         ).tolist()
     elif sampling == "geosketch":
         # Check if geosketch is installed

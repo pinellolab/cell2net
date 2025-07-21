@@ -5,9 +5,8 @@ import pandas as pd
 from mudata import MuData
 from pysam import FastaFile
 from tqdm.auto import tqdm
-
+import torch
 from cell2net._logging import logger
-
 
 def random_seq(seq_len: int, bases: list[str] | None = None) -> str:
     """
@@ -84,7 +83,6 @@ def seq_to_one_hot(seq: str) -> np.ndarray:
     one_hot = np.array([nuc_d[x] for x in seq], dtype=np.float32)
 
     return one_hot
-
 
 def one_hot_to_seq(one_hot: np.ndarray) -> str:
     """

@@ -11,7 +11,22 @@ from tqdm.auto import tqdm
 from cell2net._logging import logger
 
 
-def get_motifs_from_jaspar(
+def _get_motifs_from_file():
+    """
+    Load transcription factor motifs from a file.
+
+    This function is a placeholder for loading motifs from a file.
+    It should be implemented to read motif data from a specified file format.
+
+    Returns
+    -------
+        An iterable of motif objects loaded from the file.
+        Returns `None` if the file cannot be read or is not implemented.
+    """
+    logger.error("This function is not implemented yet.")
+    return None
+
+def _get_motifs_from_jaspar(
     release: str = "JASPAR2024",
     collection: str = "CORE",
     tax_group: list[str] | None = None,
@@ -91,6 +106,29 @@ def get_motifs_from_jaspar(
     logger.info(f"Number of motifs fetched: {len(motifs)}")
 
     return motifs
+
+
+def get_tf_motifs(database: str) -> Iterable:
+    """
+    Fetch transcription factor motifs from a specified database.
+
+    Parameters
+    ----------
+    database : str
+        The name of the database to fetch motifs from. Currently, only "JASPAR2024" is supported.
+
+    Returns
+    -------
+    Iterable | None
+        A collection of transcription factor motifs or None if an error occurs.
+    """
+    if database == "JASPAR2024":
+        return _get_motifs_from_jaspar(
+            release="JASPAR2024", collection="CORE", tax_group=["vertebrates"]
+        )
+    else:
+        logger.error(f"Database {database} is not supported.")
+        return None
 
 
 def filter_motifs_by_genes(

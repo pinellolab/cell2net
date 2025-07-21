@@ -8,6 +8,7 @@ from ._fragments import (
 )
 from ._gene import add_gene_tss_coord, get_gene_tss_coord
 from ._motif import (
+    prepare_scaner,
     filter_motifs_by_genes,
     get_tf_motifs,
     match_motif,

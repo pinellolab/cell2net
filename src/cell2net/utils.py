@@ -12,7 +12,7 @@ def set_random_seed(seed: int = 42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    seed_everything(seed)
+    seed_everything(seed, verbose=False)
 
 # def seed_everything(seed: int = 42):
 #     """Set random seed"""

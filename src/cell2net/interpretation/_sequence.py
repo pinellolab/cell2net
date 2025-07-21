@@ -310,7 +310,11 @@ def saturation_mutagenesis(
     model: Cell2Net,
     peak: int | str = None,
     rna_mod: str = "rna",
-    atac_mod: str = "atac"):
+    atac_mod: str = "atac",
+    batch_size: int = 32,
+    num_workers: int = 1,
+    multiply_by_inputs: bool = True,
+) -> np.ndarray | None:
 
     if isinstance(peak, int):
         peak_idx = peak
@@ -322,51 +326,46 @@ def saturation_mutagenesis(
         )
         return None
 
-    # set model to evaluation mode
-    model.module.eval()
+    logger.info(f"Compute saturation mutagenesis for peak {peak_idx}")
 
-    ref_out = np.zeros(model.mdata.n_obs, dtype=np.float32)
-
-    # create input data for saturation mutagenesis
-    peak_acc = np.array(model.mdata["atac"].layers["counts"].todense(), dtype=np.float32)
-    tf_exp = np.array(model.mdata["rna"].obsm["tf"].todense(), dtype=np.float32)
-    covariates = model.mdata.obs[['total_counts_rna_log',
-                                  'total_counts_atac_log']].to_numpy(dtype=np.float32)
-
-    peak_dist = np.array(model.mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32)
-    peak_dist = np.exp(-peak_dist / 500000).astype(np.float32)
-
-    # convert seq to one-hot encoding
-    peak_seq = encode_seq(model.mdata["atac"].var["dna_sequence"].values.tolist())
-
-    # expand input to batch size of 1
-    peak_acc = np.expand_dims(peak_acc, axis=0)
-    tf_exp = np.expand_dims(tf_exp, axis=0)
-    peak_dist = np.expand_dims(peak_dist, axis=0)
-    covariates = np.expand_dims(covariates, axis=0)
-    peak_seq = np.expand_dims(peak_seq, axis=0)
-
-    # numpy to torch
-    peak_acc = torch.from_numpy(peak_acc).to(model.device)
-    tf_exp = torch.from_numpy(tf_exp).to(model.device)
-    peak_dist = torch.from_numpy(peak_dist).to(model.device)
-    covariates = torch.from_numpy(covariates).to(model.device)
-    peak_seq = torch.from_numpy(peak_seq).to(model.device)
-
-    # get the reference output
-    with torch.no_grad():
-        ref_out = model.module(
-            peak_acc=peak_acc,
-            tf_exp=tf_exp,
-            peak_dist=peak_dist,
-            covariates=covariates,
-            peak_seq=peak_seq
-        )
-
-        ref_out = model.module(peak_seq,
-                               peak_acc,
-                               peak_dist,
-                               tf_exp,
-                               covariates).squeeze(-1).cpu().detach().numpy()[0]
+    logger.info("Get reference prediction using original sequence")
+    pred_ref = model.predict(model.mdata,
+                             rna_mod=rna_mod,
+                             atac_mod=atac_mod,
+                             batch_size=batch_size,
+                             num_workers=num_workers)
 
 
+    # get reference sequence for the peak
+    ref_seq = model.mdata[atac_mod].var["dna_sequence"].values.tolist()[peak_idx]
+
+    logger.info("Compute predictions for all alternative bases")
+    bases = ['A', 'C', 'G', 'T']
+    effects = []
+    for i in tqdm(range(len(ref_seq))):
+        pred_alt = np.zeros(model.mdata.n_obs)
+
+        # compute predictions for the reference sequence
+        for j, alt in enumerate(bases):
+            if alt != ref_seq[i]:
+                alt_seq = ref_seq[:i] + alt + ref_seq[i+1:]
+                model.mdata[atac_mod].var["dna_sequence"][peak_idx] = alt_seq
+
+                pred_alt += model.predict(model.mdata,
+                                          batch_size=batch_size,
+                                          num_workers=num_workers)
+
+        # average predictions for the alternative base
+        pred_alt /= (len(bases) - 1)
+
+        # compute the effect size across all cells
+        effects.append(np.mean(pred_ref - pred_alt))
+
+    effects = np.array(effects)
+    effects = np.tile(effects, (4, 1))
+
+    if multiply_by_inputs:
+        ref_seq_encode = seq_to_one_hot(ref_seq).transpose()
+        effects = effects * ref_seq_encode
+
+    return effects

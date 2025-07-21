@@ -334,6 +334,42 @@ class Cell2Net(BaseModel):
 
         return None
 
+    def predict(self,
+                mdata: MuData,
+                 batch_size: int = 128,
+                 num_workers: int = 4) -> np.ndarray:
+
+        self.module = self.module.to(self.device)
+        self.module.eval()
+
+        dataloader = get_dataloader(
+            mdata=mdata,
+            covariates=self.covariates,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=True,
+            shuffle=False,
+            drop_last=False,
+        )
+
+        rna_pred = []
+        with torch.no_grad():
+            for data in dataloader:
+                # get input features
+                peak_seq = data["peak_seq"].to(self.device)
+                peak_acc = data["peak_acc"].to(self.device)
+                peak_dist = data["peak_dist"].to(self.device)
+                tf_exp = data["tf_exp"].to(self.device)
+                covariates = data["covariates"].to(self.device)
+
+                pred = self.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
+                pred = pred.detach().cpu().view(-1)
+                rna_pred.append(pred)
+
+        # convert log(lambda) to lambda
+        rna_pred = torch.concat(rna_pred).exp().numpy()
+        return rna_pred
+
     def test(
         self,
         test_idx: list[int] | list[str] | None = None,

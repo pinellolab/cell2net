@@ -241,8 +241,10 @@ class MuTorchDatasetWithVariants(Dataset):
             # resort the seq to the same order as peak_acc
             _df_seq = _df_seq.loc[mdata[atac_mod].var_names.tolist()]
             # encode seq
-            seq_1 = encode_seq(_df_seq["seq_1"].values.tolist())
-            seq_2 = encode_seq(_df_seq["seq_2"].values.tolist())
+            # seq_1 = encode_seq(_df_seq["seq_1"].values.tolist())
+            # seq_2 = encode_seq(_df_seq["seq_2"].values.tolist())
+            seq_1 = np.random.rand(len(_df_seq), 4).astype(np.float32)  # Placeholder for actual encoding
+            seq_2 = np.random.rand(len(_df_seq), 4).astype(np.float32)  # Placeholder for actual encoding
             peak_seq = torch.add(seq_1, seq_2) / 2.0
             self.peak_seq[sample] = peak_seq
 

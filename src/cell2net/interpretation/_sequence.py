@@ -314,6 +314,8 @@ def saturation_mutagenesis(
     batch_size: int = 32,
     num_workers: int = 1,
     multiply_by_inputs: bool = True,
+    smoothing: bool = True,
+    window_size: int = 3,
 ) -> np.ndarray | None:
 
     if isinstance(peak, int):
@@ -345,13 +347,15 @@ def saturation_mutagenesis(
     for i in tqdm(range(len(ref_seq))):
         pred_alt = np.zeros(model.mdata.n_obs)
 
-        # compute predictions for the reference sequence
-        for j, alt in enumerate(bases):
+        # compute predictions for mutated sequence
+        for alt in bases:
             if alt != ref_seq[i]:
                 alt_seq = ref_seq[:i] + alt + ref_seq[i+1:]
                 model.mdata[atac_mod].var["dna_sequence"][peak_idx] = alt_seq
 
                 pred_alt += model.predict(model.mdata,
+                                          rna_mod=rna_mod,
+                                          atac_mod=atac_mod,
                                           batch_size=batch_size,
                                           num_workers=num_workers)
 
@@ -362,6 +366,12 @@ def saturation_mutagenesis(
         effects.append(np.mean(pred_ref - pred_alt))
 
     effects = np.array(effects)
+    effects -= np.mean(effects)  # center the effects around 0
+
+    # if smoothing is needed, we can use a simple moving average
+    if smoothing:
+        effects = np.convolve(effects, np.ones(window_size)/window_size, mode='same')
+
     effects = np.tile(effects, (4, 1))
 
     if multiply_by_inputs:

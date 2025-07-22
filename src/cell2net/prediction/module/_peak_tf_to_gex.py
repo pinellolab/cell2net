@@ -4,7 +4,7 @@ from collections.abc import Sequence
 import torch
 from torch import nn
 
-from ._seq_ecoder import SeqEncoder
+from ._seq_encoder import SeqEncoder
 
 
 def get_clones(module, N):

@@ -18,17 +18,13 @@ def add_peaks(
     mod_name: str = "atac",
     delimiter="-",
     peak_len: int = 256,
-    chr_var_key: str = "chr",
-    start_var_key: str = "start",
-    end_var_key: str = "end",
-    summit_var_key: str = "summit",
 ) -> None:
     """
     Add peak metadata to an ATAC-seq modality in a MuData object.
 
     This function parses peak information from variable names in the AnnData object of a
-    specified modality within a MuData object. It computes the genomic coordinates
-    (chromosome, start, end, and summit) for each peak and adds them as metadata in the `.var`
+    specified modality within a MuData object.
+    It computes the genomic coordinates (chromosome, start, end, and summit) for each peak and adds them as metadata in the `.var`
     attribute of the AnnData object.
 
     Parameters
@@ -99,10 +95,20 @@ def add_peaks(
         end_list.append(_end)
         summit_list.append(_mid)
 
-    adata.var[chr_var_key] = chrom_list
-    adata.var[start_var_key] = start_list
-    adata.var[end_var_key] = end_list
-    adata.var[summit_var_key] = summit_list
+    adata.uns["peaks"] = pd.DataFrame(
+        data={
+            "chr": chrom_list,
+            "start": start_list,
+            "end": end_list,
+            "summit": summit_list,
+        },
+        index=adata.var_names,
+    )
+
+    # adata.var[chr_var_key] = chrom_list
+    # adata.var[start_var_key] = start_list
+    # adata.var[end_var_key] = end_list
+    # adata.var[summit_var_key] = summit_list
 
     return None
 

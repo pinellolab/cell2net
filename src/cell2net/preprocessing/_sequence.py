@@ -277,10 +277,6 @@ def add_dna_sequence(
     mdata: MuData,
     ref_fasta: str,
     mod_name: str = "atac",
-    chr_var_key: str = "chr",
-    start_var_key: str = "start",
-    end_var_key: str = "end",
-    sequence_var_key: str = "dna_sequence",
 ) -> None:
     """
     Add sequences to peak metadata in a MuData object.
@@ -340,14 +336,19 @@ def add_dna_sequence(
     adata = mdata[mod_name]
 
     fasta = FastaFile(filename=ref_fasta)
-    df = adata.var[[chr_var_key, start_var_key, end_var_key]]
+
+    # Check if peaks are present in the modality
+    if 'peaks' not in adata.uns:
+        logger.error(f"No peaks found in the modality: {mod_name}")
+
+    df = adata.uns['peaks']
 
     seqs = []
     for chrom, start, end in tqdm(
         zip(
-            df[chr_var_key],
-            df[start_var_key],
-            df[end_var_key],
+            df['chr'],
+            df['start'],
+            df['end'],
             strict=False,
         ),
         desc="Fetching sequences",
@@ -355,7 +356,7 @@ def add_dna_sequence(
     ):
         seqs.append(fasta.fetch(chrom, start, end).upper())
 
-    adata.var[sequence_var_key] = seqs
+    adata.uns['peaks']['sequence'] = seqs
 
     return None
 

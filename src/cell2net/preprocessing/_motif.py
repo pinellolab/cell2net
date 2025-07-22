@@ -309,7 +309,10 @@ def prepare_scanner(
 
 
 def match_motif_with_seq(
-    motifs: list, seq: list[str], pseudocounts: float = 0.0001, p_value: float = 5e-05
+    motifs: list,
+    seq: list[str],
+    pseudocounts: float = 0.0001,
+    p_value: float = 5e-05
 ) -> np.ndarray:
     """
     Match a list of sequence motifs to a list of DNA sequences.
@@ -337,7 +340,7 @@ def match_motif_with_seq(
     """
     n_motifs = len(motifs)
     motif_match = np.zeros(shape=(len(seq), len(motifs)), dtype=np.uint8)
-    scanner = prepare_scaner(motifs=motifs, pseudocounts=pseudocounts, p_value=p_value)
+    scanner = prepare_scanner(motifs=motifs, pseudocounts=pseudocounts, p_value=p_value)
 
     for i in range(len(seq)):
         results = scanner.scan(seq[i])
@@ -354,7 +357,6 @@ def match_motif(
     atac_mod: str = "atac",
     pseudocounts: float = 0.0001,
     p_value: float = 5e-05,
-    sequence_var_key: str = "dna_sequence",
     key_added: str = "motif_match",
 ) -> None:
     """
@@ -436,11 +438,6 @@ def match_motif(
 
     adata = mdata[atac_mod]
 
-    if sequence_var_key not in mdata[atac_mod].var.columns:
-        logger.error(
-            "Cannot find sequences, please first run cell2net.pp.add_dna_sequence"
-        )
-
     # get motifs
     motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
     motifs_sub = []
@@ -452,12 +449,27 @@ def match_motif(
     logger.info(f"Number of motifs: {n_motifs}")
 
     logger.info("Matching TF motifs")
-    motif_match = match_motif_with_seq(
-        motifs=motifs_sub,
-        seq=adata.var[sequence_var_key].values.tolist(),
-        pseudocounts=pseudocounts,
-        p_value=p_value,
-    )
+    df_peaks = adata.uns["peaks"]
+
+    n_peaks, n_motifs = df_peaks.shape[0], len(motifs)
+    motif_match = np.zeros(shape=(n_peaks, n_motifs), dtype=np.uint8)
+    scanner = prepare_scanner(motifs=motifs,
+                              pseudocounts=pseudocounts,
+                              p_value=p_value)
+
+    seqs = df_peaks['sequence'].values.tolist()
+    for i in range(len(seqs)):
+        results = scanner.scan(seqs[i])
+        for j in range(n_motifs):
+            if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
+                motif_match[i, j] = 1  # type: ignore
+
+    # motif_match = match_motif_with_seq(
+    #     motifs=motifs_sub,
+    #     seq=adata.var[sequence_var_key].values.tolist(),
+    #     pseudocounts=pseudocounts,
+    #     p_value=p_value,
+    # )
 
     adata.varm[key_added] = csr_matrix(motif_match)
     logger.info("Motif matching is done!")

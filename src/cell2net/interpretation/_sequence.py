@@ -4,12 +4,12 @@ import numpy as np
 import torch
 from captum.attr import DeepLift, DeepLiftShap
 from tqdm import tqdm
-import itertools
+
 from cell2net._logging import logger
 from cell2net.interpretation._utils import is_sequence_of_ints, is_sequence_of_strings
 from cell2net.prediction.data import get_dataloader
 from cell2net.prediction.model import Cell2Net
-from cell2net.preprocessing import dinucleotide_shuffle_one_hot, seq_to_one_hot, one_hot_to_seq
+from cell2net.preprocessing import dinucleotide_shuffle_one_hot, seq_to_one_hot
 
 
 def seq_attr(
@@ -266,46 +266,6 @@ def seq_attr_v2(
     return attr_samples_peaks
 
 
-def _edit_distance_one(X, start, end):
-    """An internal function for generating all sequences of edit distance 1
-
-    This internal function, which is meant to be used for ISM, will take in a
-    one-hot encoded sequence and return all sequences that have an edit distance
-    of one.
-
-
-    Parameters
-    ----------
-    X: torch.Tensor, shape=(len(alphabet), sequence_length)
-        A single one-hot encoded sequence.
-
-    start: int
-        The first nucleotide to begin making edits on, inclusive.
-
-    end: int
-        The end of the span. Edits are not made on this nucleotide at this
-        index. Can be negative indexes.
-
-
-    Returns
-    -------
-    X_: torch.Tensor, shape=(length*len(alphabet), len(alphabet), length)
-        All one-hot encoded sequences that have an edit distance of 1 from the
-        original sequence.
-    """
-    start = 0,
-    end = X.shape[-1] + 1
-
-    X_ = X.repeat((end-start)*X.shape[0], 1, 1)
-
-    coords = itertools.product(range(X.shape[0]), range(start, end))
-    for i, (j, k) in enumerate(coords):
-        X_[i, :, k] = 0
-        X_[i, j, k] = 1
-
-    return X_
-
-
 def saturation_mutagenesis(
     model: Cell2Net,
     peak: int | str = None,
@@ -314,9 +274,101 @@ def saturation_mutagenesis(
     batch_size: int = 32,
     num_workers: int = 1,
     multiply_by_inputs: bool = True,
+    normalize: bool = False,
     smoothing: bool = True,
     window_size: int = 3,
-) -> np.ndarray | None:
+    return_seq: bool = False,
+) -> np.ndarray | tuple[np.ndarray, np.ndarray] | None:
+    """
+    Computes saturation mutagenesis effects for a given peak in the model.
+
+    This function performs in-silico saturation mutagenesis by systematically mutating
+    each position in a peak's DNA sequence to all possible alternative bases and
+    measuring the effect on gene expression predictions. The method computes the
+    difference between predictions using the reference sequence versus mutated sequences
+    to identify functionally important positions.
+
+    Parameters
+    ----------
+    model : Cell2Net
+        The trained Cell2Net model containing the sequence and other input features.
+    peak : int or str, optional
+        Peak to analyze. Can be either a peak index (int) or peak name (str).
+        Must be provided for the function to run.
+    rna_mod : str, default "rna"
+        Key for the RNA modality in the model's mdata object.
+    atac_mod : str, default "atac"
+        Key for the ATAC modality in the model's mdata object.
+    batch_size : int, default 32
+        The number of samples per batch for model predictions.
+    num_workers : int, default 1
+        The number of worker threads for data loading during predictions.
+    multiply_by_inputs : bool, default True
+        Whether to multiply the computed effects by the one-hot encoded reference
+        sequence. When True, only positions matching the reference base will have
+        non-zero values, making interpretation more intuitive.
+    normalize : bool, default False
+        Whether to normalize effects by centering them around zero. This removes
+        the global mean effect across all positions.
+    smoothing : bool, default True
+        Whether to apply smoothing to the computed effects using a moving average
+        filter to reduce noise.
+    window_size : int, default 3
+        Size of the moving average window for smoothing. Only used when
+        smoothing=True.
+    return_seq : bool, default False
+        Whether to return the one-hot encoded reference sequence along with
+        the effects. If True, returns a tuple of (effects, sequence).
+
+    Returns
+    -------
+    np.ndarray or tuple[np.ndarray, np.ndarray] or None
+        If return_seq=False: Returns a 2D numpy array of shape (4, sequence_length)
+        containing the mutagenesis effects for each base at each position.
+
+        If return_seq=True: Returns a tuple containing:
+        - effects: 2D numpy array of shape (4, sequence_length) with mutagenesis effects
+        - ref_seq_encode: 2D numpy array of shape (4, sequence_length) with one-hot
+          encoded reference sequence
+
+        Returns None if the peak parameter is invalid.
+
+    Notes
+    -----
+    The saturation mutagenesis procedure:
+    1. Makes predictions using the original reference sequence
+    2. For each position in the sequence:
+       - Mutates the position to each of the 3 alternative bases
+       - Makes predictions with each mutated sequence
+       - Averages the predictions across the 3 alternatives
+    3. Computes effect size as the difference between reference and mutated predictions
+    4. Averages effects across all cells in the dataset
+    5. Optionally applies normalization and smoothing
+    6. Tiles the effects across all 4 bases and optionally multiplies by reference sequence
+
+    The resulting effects matrix indicates which positions are most critical for
+    gene expression, with larger absolute values indicating greater functional importance.
+
+    Examples
+    --------
+    >>> # Basic usage with peak index
+    >>> effects = saturation_mutagenesis(model, peak=0)
+    >>>
+    >>> # With peak name and additional options
+    >>> effects = saturation_mutagenesis(
+    ...     model,
+    ...     peak="chr1:1000-2000",
+    ...     normalize=True,
+    ...     smoothing=False
+    ... )
+    >>>
+    >>> # Return both effects and sequence
+    >>> effects, sequence = saturation_mutagenesis(
+    ...     model,
+    ...     peak=0,
+    ...     return_seq=True
+    ... )
+    """
 
     if isinstance(peak, int):
         peak_idx = peak
@@ -330,7 +382,7 @@ def saturation_mutagenesis(
 
     logger.info(f"Compute saturation mutagenesis for peak {peak_idx}")
 
-    logger.info("Get reference prediction using original sequence")
+    logger.info("Predicting expression using original sequence")
     pred_ref = model.predict(model.mdata,
                              rna_mod=rna_mod,
                              atac_mod=atac_mod,
@@ -341,7 +393,7 @@ def saturation_mutagenesis(
     # get reference sequence for the peak
     ref_seq = model.mdata[atac_mod].var["dna_sequence"].values.tolist()[peak_idx]
 
-    logger.info("Compute predictions for all alternative bases")
+    logger.info("Predicting expression using mutated sequences")
     bases = ['A', 'C', 'G', 'T']
     effects = []
     for i in tqdm(range(len(ref_seq))):
@@ -365,8 +417,12 @@ def saturation_mutagenesis(
         # compute the effect size across all cells
         effects.append(np.mean(pred_ref - pred_alt))
 
+    model.mdata[atac_mod].var["dna_sequence"][peak_idx] = ref_seq  # restore the original sequence
+
     effects = np.array(effects)
-    effects -= np.mean(effects)  # center the effects around 0
+    if normalize:
+        logger.info("Normalizing effects by centering around 0")
+        effects -= np.mean(effects)  # center the effects around 0
 
     # if smoothing is needed, we can use a simple moving average
     if smoothing:
@@ -374,8 +430,11 @@ def saturation_mutagenesis(
 
     effects = np.tile(effects, (4, 1))
 
+    ref_seq_encode = seq_to_one_hot(ref_seq).transpose()
     if multiply_by_inputs:
-        ref_seq_encode = seq_to_one_hot(ref_seq).transpose()
         effects = effects * ref_seq_encode
 
-    return effects
+    if return_seq:
+        return effects, ref_seq_encode
+    else:
+        return effects

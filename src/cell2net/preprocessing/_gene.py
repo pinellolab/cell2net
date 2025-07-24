@@ -1,8 +1,10 @@
+import os
 import gzip
 
 import pandas as pd
 from mudata import MuData
 
+from cell2net._logging import logger
 
 def get_gene_tss_coord(gene_gtf: str, feature_type: str = "gene") -> pd.DataFrame:
     """
@@ -101,26 +103,28 @@ def add_gene_tss_coord(
     gene_gtf: str,
     feature_type: str = "gene",
     mod_names: str = "rna",
-) -> None:
-    """
-    Add the TSS coordinates of genes to mdata[mod_names].uns.
+    inplace: bool = True
+) -> None | pd.DataFrame:
+    # check if gene_gtf exists
+    if not os.path.exists(gene_gtf):
+        logger.error(f"Gene GTF file {gene_gtf} does not exist.")
+        return None
 
-    Parameters
-    ----------
-    mdata :
-        Input MuData object containing gene expression
-    gene_gtf :
-        GTF file including gene annotation, which should have 9 columns.
-    feature_type :
-        Which feature type in the GTF file to use. Default: gene
-    """
-    assert mod_names in mdata.mod_names, f"Cannot find modality: {mod_names}"
+    # check if mod_names is in mdata.mod_names
+    if mod_names not in mdata.mod_names:
+        logger.error(f"Modality {mod_names} not found in mdata.mod_names.")
+        return None
+
     adata = mdata[mod_names]
+
+    logger.info(f"Adding gene TSS coordinates from {gene_gtf} to {mod_names} modality.")
 
     df = get_gene_tss_coord(gene_gtf=gene_gtf, feature_type=feature_type)
 
-    adata.uns["gene_tss_coord"] = df[df["gene_name"].isin(adata.var_names)].reset_index(
-        drop=True
-    )
+    df = df[df["gene_name"].isin(adata.var_names)].reset_index(drop=True)
 
-    return None
+    if inplace:
+        adata.uns["gene_tss_coord"] = df
+        return None
+    else:
+        return df

@@ -108,7 +108,7 @@ def _get_motifs_from_jaspar(
     return motifs
 
 
-def get_tf_motifs(database: str) -> Iterable:
+def get_tf_motifs(database: str = 'JASPAR2024') -> Iterable:
     """
     Fetch transcription factor motifs from a specified database.
 
@@ -308,12 +308,15 @@ def prepare_scanner(
     return scanner
 
 
-def match_motif_with_seq(
+def _match_motif(
     motifs: list,
-    seq: list[str],
+    df_peak: pd.DataFrame,
+    chr_col_key: str = "chr",
+    start_col_key: str = "start",
+    seq_key: str = "sequence",
     pseudocounts: float = 0.0001,
-    p_value: float = 5e-05
-) -> np.ndarray:
+    p_value: float = 5e-05,
+) -> tuple[np.ndarray, pd.DataFrame]:
     """
     Match a list of sequence motifs to a list of DNA sequences.
 
@@ -338,17 +341,86 @@ def match_motif_with_seq(
         A 2D NumPy array of shape (n_sequences, n_motifs) with binary values.
         Each entry [i, j] is 1 if motif `j` is found in sequence `i` (in either strand), and 0 otherwise.
     """
-    n_motifs = len(motifs)
-    motif_match = np.zeros(shape=(len(seq), len(motifs)), dtype=np.uint8)
+
+    n_seq, n_motifs = len(df_peak), len(motifs)
+    motif_match = np.zeros(shape=(n_seq, n_motifs), dtype=np.uint8)
     scanner = prepare_scanner(motifs=motifs, pseudocounts=pseudocounts, p_value=p_value)
 
-    for i in range(len(seq)):
-        results = scanner.scan(seq[i])
+    df_list = []
+    for i, (chr, start, seq) in enumerate(tqdm(zip(df_peak[chr_col_key],
+                                                   df_peak[start_col_key],
+                                                   df_peak[seq_key]),
+                                               desc="Scanning motifs", total=len(df_peak))):
+        results = scanner.scan(seq)
+
+        # fill the matrix first
         for j in range(n_motifs):
             if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
                 motif_match[i, j] = 1  # type: ignore
 
-    return motif_match
+        # Collect information about the matches
+        # results[j] is a list of matches for the j-th motif
+        chrom_list, start_list, end_list, motif_names = [], [], [], []
+        strand_list, scores = [], []
+        for j in range(n_motifs):
+            # for forward strand
+            for rs in results[j]:
+                if rs is None:
+                    continue
+                else:
+                    p1 = start + rs.pos
+                    strand = "+"
+                    p2 = p1 + motifs[j].length
+
+                    chrom_list.append(chr)
+                    start_list.append(p1)
+                    end_list.append(p2)
+                    motif_names.append(f'{motifs[j].matrix_id}_{motifs[j].name}')
+                    strand_list.append(strand)
+                    scores.append(rs.score)
+
+        # now for the reverse strand
+        for rs in results[j + n_motifs]:
+            # no matches found
+            if rs is None:
+                continue
+            else:
+                p1 = start + rs.pos
+                strand = "-"
+                p2 = p1 + motifs[j].length
+
+                chrom_list.append(chr)
+                start_list.append(p1)
+                end_list.append(p2)
+                motif_names.append(f'{motifs[j].matrix_id}_{motifs[j].name}')
+                strand_list.append(strand)
+                scores.append(rs.score)
+
+
+        df = pd.DataFrame({
+            'chrom': chrom_list,
+            'start': start_list,
+            'end': end_list,
+            'name': motif_names,
+            'score': scores,
+            'strand': strand_list
+        })
+
+        # if the motif has same binding site on both strands, we keep the one with the highest score
+        df = df.sort_values(by=['chrom', 'start', 'end', 'name', 'score', 'strand'],
+                            ascending=[True, True, True, False, True, True])
+        df = df.drop_duplicates(subset=['chrom', 'start', 'end', 'name'], keep='first').reset_index(drop=True)
+        df_list.append(df)
+
+    # for i in range(n_seq):
+    #     results = scanner.scan(df_peak[seq_key][i])
+    #     for j in range(n_motifs):
+    #         if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
+    #             motif_match[i, j] = 1  # type: ignore
+
+    df = pd.concat(df_list, ignore_index=True)
+
+    return motif_match, df
 
 
 def match_motif(
@@ -435,8 +507,11 @@ def match_motif(
     """
     if atac_mod not in mdata.mod:
         logger.error(f"Cannot find {atac_mod} in mdata, please check the name!")
-
     adata = mdata[atac_mod]
+
+    if 'peaks' not in adata.uns:
+        logger.error(f"Cannot find 'peaks' in {atac_mod}.uns, please run cn.pp.add_peaks()!")
+        return None
 
     # get motifs
     motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
@@ -449,194 +524,200 @@ def match_motif(
     logger.info(f"Number of motifs: {n_motifs}")
 
     logger.info("Matching TF motifs")
-    df_peaks = adata.uns["peaks"]
+    # n_peaks = df_peaks.shape[0]
+    # motif_match = np.zeros(shape=(n_peaks, n_motifs), dtype=np.uint8)
+    # scanner = prepare_scanner(motifs=motifs_sub,
+    #                           pseudocounts=pseudocounts,
+    #                           p_value=p_value)
 
-    n_peaks, n_motifs = df_peaks.shape[0], len(motifs)
-    motif_match = np.zeros(shape=(n_peaks, n_motifs), dtype=np.uint8)
-    scanner = prepare_scanner(motifs=motifs,
-                              pseudocounts=pseudocounts,
-                              p_value=p_value)
+    # seqs = df_peaks['sequence'].values.tolist()
+    # for i in tqdm(range(len(seqs)), desc="Matching motifs", total=len(seqs)):
+    #     results = scanner.scan(seqs[i])
+    #     for j in range(n_motifs):
+    #         if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
+    #             motif_match[i, j] = 1  # type: ignore
 
-    seqs = df_peaks['sequence'].values.tolist()
-    for i in range(len(seqs)):
-        results = scanner.scan(seqs[i])
-        for j in range(n_motifs):
-            if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
-                motif_match[i, j] = 1  # type: ignore
-
-    # motif_match = match_motif_with_seq(
-    #     motifs=motifs_sub,
-    #     seq=adata.var[sequence_var_key].values.tolist(),
-    #     pseudocounts=pseudocounts,
-    #     p_value=p_value,
-    # )
+    motif_match, df = _match_motif(
+        motifs=motifs_sub,
+        df_peak=adata.uns["peaks"],
+        chr_col_key="chr",
+        start_col_key="start",
+        seq_key="sequence",
+        pseudocounts=pseudocounts,
+        p_value=p_value,
+    )
 
     adata.varm[key_added] = csr_matrix(motif_match)
-    logger.info("Motif matching is done!")
-
-    return None
-
-
-def match_motif_with_variants(
-    mdata: MuData,
-    motifs: Iterable,
-    atac_mod: str = "atac",
-    pseudocounts: float = 0.0001,
-    p_value: float = 5e-05,
-    seq_with_variants_key: str = "seq_with_variants",
-    n_cpus: int = 1,
-) -> None:
-    """
-    Match transcription factor (TF) motifs to variant-aware genomic sequences across samples in a MuData object.
-
-    This function scans reference and variant-altered sequences for motif matches across all peaks
-    and samples in the specified modality of a `MuData` object. It stores the binary motif match
-    results (presence/absence) for each peak and sample in `adata.varm`, optionally using
-    parallel processing.
-
-    Parameters
-    ----------
-    mdata :
-        A MuData object containing multi-modal single-cell data, including an ATAC modality with
-        per-sample variant-aware sequences stored in `.uns[seq_with_variants_key]`.
-    motifs :
-         A list or iterable of motif objects (e.g., from `MOODS` or `Bio.motifs`) to match against the sequences.
-    atac_mod :
-        Name of the modality in `mdata` that contains the ATAC-seq data.
-    pseudocounts :
-        Pseudocount value added to motif frequencies to avoid zero probabilities
-    p_value :
-        P-value threshold for motif match significance
-    seq_with_variants_key :
-        Key in `.uns` of `adata` corresponding to a DataFrame with variant-aware sequences (`seq_1`, `seq_2`)
-        for each peak and sample
-    n_cpus :
-        Number of CPUs to use for parallel motif scanning. If `n_cpus > 1`, parallelization is enabled
-
-    Returns
-    -------
-        The function updates the `.varm` attribute of the specified `adata` (i.e., `mdata[atac_mod]`) in-place.
-        For each sample, a sparse binary matrix is stored, indicating motif presence/absence per peak.
-
-    Notes
-    -----
-        - This function requires a `prepare_scaner` function and a compatible `match_motif_with_seq` function.
-        - It assumes the presence of a DataFrame in `.uns[seq_with_variants_key]` with the following columns:
-            - "sample": sample ID
-            - "peak": peak ID (matching `adata.var.index`)
-            - "seq_1": reference or original sequence
-            - "seq_2": variant-altered sequence
-        - The final result stores a binary sparse matrix in `.varm[sample_id]`, with rows as peaks and columns as motifs.
-
-    Example
-    -------
-    >>> from mudata import MuData
-    >>> from some_motif_library import load_motifs
-    >>> mdata = MuData.read_h5mu("multiome_data.h5mu")
-    >>> motifs = load_motifs("JASPAR2022_CORE.meme")
-    >>> match_motif_with_variants(mdata, motifs, atac_mod="atac", n_cpus=4)
-    """
-    if atac_mod not in mdata.mod:
-        logger.error(f"Cannot find {atac_mod} in mdata, please check the name!")
-
-    adata = mdata[atac_mod]
-
-    if seq_with_variants_key not in adata.uns:
-        logger.error(
-            f"Cannot find {seq_with_variants_key}, please first run cell2net.pp.add_variants_to_sequence"
-        )
-
-    df_seq = adata.uns[seq_with_variants_key]
-
-    sample_list = df_seq["sample"].unique()
-
-    # Get motifs
-    motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
-    motifs_sub = []
-    for motif in motifs:
-        if motif.matrix_id in motif_ids:
-            motifs_sub.append(motif)
-
-    n_motifs = len(motifs_sub)
-    logger.info(f"Number of motifs: {n_motifs}")
-
-    logger.info("Matching TF motifs with variants information")
-
-    if n_cpus > 1:
-        logger.info(f"Using {n_cpus} CPUs for parallel processing.")
-        from multiprocessing import Pool
-
-        # split the sequences by sample
-        # and run the match_motif_with_seq in parallel
-        args_1, args_2 = [], []
-        for sample_id in sample_list:
-            _df_seq = df_seq[df_seq["sample"] == sample_id].set_index("peak")
-
-            if len(_df_seq) != adata.n_vars:
-                logger.error(
-                    f"Sample {sample_id} does not have all peaks, please check the sample!"
-                )
-                continue
-
-            _df_seq = _df_seq.loc[adata.var.index,]
-
-            args_1.append(
-                (motifs_sub, _df_seq["seq_1"].values.tolist(), pseudocounts, p_value)
-            )
-            args_2.append(
-                (motifs_sub, _df_seq["seq_2"].values.tolist(), pseudocounts, p_value)
-            )
-
-        with Pool(n_cpus) as pool:
-            results_1 = pool.starmap(match_motif_with_seq, args_1)
-            results_2 = pool.starmap(match_motif_with_seq, args_2)
-
-        for sample_id, result_1, result_2 in zip(
-            sample_list, results_1, results_2, strict=False
-        ):
-            result = np.logical_or(result_1, result_2).astype(np.uint8)
-
-            adata.varm[sample_id] = csr_matrix(result)
-
-    else:
-        # for each donor, scan the motifs across all peaks
-        for sample_id in tqdm(
-            sample_list, desc="Matching motifs", total=len(sample_list)
-        ):
-
-            # get the sequence for the sample
-            _df_seq = df_seq[df_seq["sample"] == sample_id].set_index("peak")
-
-            # make sure each sample has all peaks
-            if len(_df_seq) != adata.n_vars:
-                logger.error(
-                    f"Sample {sample_id} does not have all peaks, please check the sample!"
-                )
-                continue
-
-            # resort the dataframe
-            _df_seq = _df_seq.loc[adata.var.index,]
-
-            motif_match_1 = match_motif_with_seq(
-                motifs=motifs_sub,
-                seq=_df_seq["seq_1"].values.tolist(),
-                pseudocounts=pseudocounts,
-                p_value=p_value,
-            )
-
-            motif_match_2 = match_motif_with_seq(
-                motifs=motifs_sub,
-                seq=_df_seq["seq_2"].values.tolist(),
-                pseudocounts=pseudocounts,
-                p_value=p_value,
-            )
-
-            motif_match = np.logical_or(motif_match_1, motif_match_2).astype(np.uint8)
-            adata.varm[sample_id] = csr_matrix(motif_match)
+    adata.uns['motif_match'] = df
 
     logger.info("Motif matching is done!")
 
     return None
+
+
+def match_motif_with_variants():
+    pass
+
+# def match_motif_with_variants(
+#     mdata: MuData,
+#     motifs: Iterable,
+#     atac_mod: str = "atac",
+#     pseudocounts: float = 0.0001,
+#     p_value: float = 5e-05,
+#     seq_with_variants_key: str = "seq_with_variants",
+#     n_cpus: int = 1,
+# ) -> None:
+#     """
+#     Match transcription factor (TF) motifs to variant-aware genomic sequences across samples in a MuData object.
+
+#     This function scans reference and variant-altered sequences for motif matches across all peaks
+#     and samples in the specified modality of a `MuData` object. It stores the binary motif match
+#     results (presence/absence) for each peak and sample in `adata.varm`, optionally using
+#     parallel processing.
+
+#     Parameters
+#     ----------
+#     mdata :
+#         A MuData object containing multi-modal single-cell data, including an ATAC modality with
+#         per-sample variant-aware sequences stored in `.uns[seq_with_variants_key]`.
+#     motifs :
+#          A list or iterable of motif objects (e.g., from `MOODS` or `Bio.motifs`) to match against the sequences.
+#     atac_mod :
+#         Name of the modality in `mdata` that contains the ATAC-seq data.
+#     pseudocounts :
+#         Pseudocount value added to motif frequencies to avoid zero probabilities
+#     p_value :
+#         P-value threshold for motif match significance
+#     seq_with_variants_key :
+#         Key in `.uns` of `adata` corresponding to a DataFrame with variant-aware sequences (`seq_1`, `seq_2`)
+#         for each peak and sample
+#     n_cpus :
+#         Number of CPUs to use for parallel motif scanning. If `n_cpus > 1`, parallelization is enabled
+
+#     Returns
+#     -------
+#         The function updates the `.varm` attribute of the specified `adata` (i.e., `mdata[atac_mod]`) in-place.
+#         For each sample, a sparse binary matrix is stored, indicating motif presence/absence per peak.
+
+#     Notes
+#     -----
+#         - This function requires a `prepare_scaner` function and a compatible `match_motif_with_seq` function.
+#         - It assumes the presence of a DataFrame in `.uns[seq_with_variants_key]` with the following columns:
+#             - "sample": sample ID
+#             - "peak": peak ID (matching `adata.var.index`)
+#             - "seq_1": reference or original sequence
+#             - "seq_2": variant-altered sequence
+#         - The final result stores a binary sparse matrix in `.varm[sample_id]`, with rows as peaks and columns as motifs.
+
+#     Example
+#     -------
+#     >>> from mudata import MuData
+#     >>> from some_motif_library import load_motifs
+#     >>> mdata = MuData.read_h5mu("multiome_data.h5mu")
+#     >>> motifs = load_motifs("JASPAR2022_CORE.meme")
+#     >>> match_motif_with_variants(mdata, motifs, atac_mod="atac", n_cpus=4)
+#     """
+#     if atac_mod not in mdata.mod:
+#         logger.error(f"Cannot find {atac_mod} in mdata, please check the name!")
+
+#     adata = mdata[atac_mod]
+
+#     if seq_with_variants_key not in adata.uns:
+#         logger.error(
+#             f"Cannot find {seq_with_variants_key}, please first run cell2net.pp.add_variants_to_sequence"
+#         )
+
+#     df_seq = adata.uns[seq_with_variants_key]
+
+#     sample_list = df_seq["sample"].unique()
+
+#     # Get motifs
+#     motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
+#     motifs_sub = []
+#     for motif in motifs:
+#         if motif.matrix_id in motif_ids:
+#             motifs_sub.append(motif)
+
+#     n_motifs = len(motifs_sub)
+#     logger.info(f"Number of motifs: {n_motifs}")
+
+#     logger.info("Matching TF motifs with variants information")
+
+#     if n_cpus > 1:
+#         logger.info(f"Using {n_cpus} CPUs for parallel processing.")
+#         from multiprocessing import Pool
+
+#         # split the sequences by sample
+#         # and run the match_motif_with_seq in parallel
+#         args_1, args_2 = [], []
+#         for sample_id in sample_list:
+#             _df_seq = df_seq[df_seq["sample"] == sample_id].set_index("peak")
+
+#             if len(_df_seq) != adata.n_vars:
+#                 logger.error(
+#                     f"Sample {sample_id} does not have all peaks, please check the sample!"
+#                 )
+#                 continue
+
+#             _df_seq = _df_seq.loc[adata.var.index,]
+
+#             args_1.append(
+#                 (motifs_sub, _df_seq["seq_1"].values.tolist(), pseudocounts, p_value)
+#             )
+#             args_2.append(
+#                 (motifs_sub, _df_seq["seq_2"].values.tolist(), pseudocounts, p_value)
+#             )
+
+#         with Pool(n_cpus) as pool:
+#             results_1 = pool.starmap(match_motif_with_seq, args_1)
+#             results_2 = pool.starmap(match_motif_with_seq, args_2)
+
+#         for sample_id, result_1, result_2 in zip(
+#             sample_list, results_1, results_2, strict=False
+#         ):
+#             result = np.logical_or(result_1, result_2).astype(np.uint8)
+
+#             adata.varm[sample_id] = csr_matrix(result)
+
+#     else:
+#         # for each donor, scan the motifs across all peaks
+#         for sample_id in tqdm(
+#             sample_list, desc="Matching motifs", total=len(sample_list)
+#         ):
+
+#             # get the sequence for the sample
+#             _df_seq = df_seq[df_seq["sample"] == sample_id].set_index("peak")
+
+#             # make sure each sample has all peaks
+#             if len(_df_seq) != adata.n_vars:
+#                 logger.error(
+#                     f"Sample {sample_id} does not have all peaks, please check the sample!"
+#                 )
+#                 continue
+
+#             # resort the dataframe
+#             _df_seq = _df_seq.loc[adata.var.index,]
+
+#             motif_match_1 = match_motif_with_seq(
+#                 motifs=motifs_sub,
+#                 seq=_df_seq["seq_1"].values.tolist(),
+#                 pseudocounts=pseudocounts,
+#                 p_value=p_value,
+#             )
+
+#             motif_match_2 = match_motif_with_seq(
+#                 motifs=motifs_sub,
+#                 seq=_df_seq["seq_2"].values.tolist(),
+#                 pseudocounts=pseudocounts,
+#                 p_value=p_value,
+#             )
+
+#             motif_match = np.logical_or(motif_match_1, motif_match_2).astype(np.uint8)
+#             adata.varm[sample_id] = csr_matrix(motif_match)
+
+#     logger.info("Motif matching is done!")
+
+#     return None
 
 
 def tf_to_gene(
@@ -710,10 +791,14 @@ def tf_to_gene(
 
     genes = mdata.uns[peak_to_gene_key]["gene"].unique().tolist()
     df_motifs = mdata.uns["motifs"]
+
+
     n_motifs = adata_atac.varm[motif_match_key].shape[1]
+
+
     gene_tf = np.zeros(shape=(len(genes), n_motifs), dtype=np.uint8)
 
-    logger.info("Find potential TFs for each gene")
+    logger.info("Linking potential TFs for each gene")
     motif_names = df_motifs["gene_name"].values.tolist()
     for i, gene in enumerate(tqdm(genes, desc="Finding TFs", total=len(genes))):
         df_p2g = mdata.uns[peak_to_gene_key][

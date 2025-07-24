@@ -100,12 +100,11 @@ class MuTorchDataset(Dataset):
 
         # convert sequence to one-hot encoding
         self.peak_seq = []
-        for seq in self.mdata[atac_mod].var["dna_sequence"].values.tolist():
+        for seq in self.mdata[atac_mod].uns["peaks"]["sequence"].values.tolist():
             # Ensure seq_to_one_hot is defined or imported
             one_hot_encode = seq_to_one_hot(seq)
             if one_hot_encode is None:
                 logger.error(f"Failed to encode sequence: {seq}")
-                raise ValueError(f"Failed to encode sequence: {seq}")
 
             self.peak_seq.append(torch.from_numpy(one_hot_encode))
 

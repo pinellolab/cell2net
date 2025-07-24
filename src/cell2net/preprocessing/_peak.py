@@ -121,9 +121,6 @@ def peak_to_gene(
     up_stream: int = 500_000,
     down_stream: int = 500_000,
     ref_fasta: str = "",
-    chr_var_key: str = "chr",
-    start_var_key: str = "start",
-    end_var_key: str = "end",
     highly_variable: bool = False,
     genes: list[str] | None = None,
     min_n_peaks: int = 1,
@@ -225,9 +222,11 @@ def peak_to_gene(
     adata_rna = mdata[rna_mod]
     adata_atac = mdata[atac_mod]
 
-    assert "gene_tss_coord" in adata_rna.uns, "Cannot find gene TSS coordinates"
+    if "gene_tss_coord" not in adata_rna.uns:
+        logger.error("Cannot find gene TSS coordinates in adata_rna.uns['gene_tss_coord'], please run `cn.pp.add_gene_tss_coord()` first")
+        return None
 
-    logger.info("Fetch TSS coordinates")
+    logger.info("Fetching TSS coordinates")
     df_tss = adata_rna.uns["gene_tss_coord"]
     df_tss["Start"] = df_tss["tss"] - 1
     df_tss["End"] = df_tss["tss"]
@@ -258,15 +257,21 @@ def peak_to_gene(
     gr_genes = gr_genes.extend({"5": up_stream})
     gr_genes = gr_genes.extend({"3": down_stream})
 
+    logger.info(f"Number of genes: {len(gr_genes)}")
+
     pyf = pyfaidx.Fasta(ref_fasta)
     gr_genes = gf.genome_bounds(gr_genes, chromsizes=pyf, clip=True)
 
-    logger.info("Find nearby peaks for each gene")
+
+    if "peaks" not in adata_atac.uns:
+        logger.error("Cannot find peaks in adata_atac.uns['peaks']")
+        return None
+
     df_peaks = pd.DataFrame(
         data={
-            "Chromosome": adata_atac.var[chr_var_key],
-            "Start": adata_atac.var[start_var_key],
-            "End": adata_atac.var[end_var_key],
+            "Chromosome": adata_atac.uns["peaks"]['chr'],
+            "Start": adata_atac.uns["peaks"]['start'],
+            "End": adata_atac.uns["peaks"]['end'],
         }
     )
 
@@ -274,6 +279,9 @@ def peak_to_gene(
     gr_peaks.Peaks = df_peaks.index.values
     gr_peaks.Summit = (gr_peaks.End + gr_peaks.Start) // 2
 
+    logger.info(f"Number of peaks: {len(gr_peaks)}")
+
+    logger.info("Linking genes to nearby peaks")
     df_list, genes_wo_peak = [], []
     for gene in tqdm(gr_genes.Name):
         gr_gene = gr_genes[(gr_genes.Name == gene)]
@@ -301,7 +309,7 @@ def peak_to_gene(
     df = df[df["gene"].isin(grouped_df.index)].reset_index(drop=True)
 
     n_genes = len(df["gene"].unique())
-    logger.info(f"Number of genes: {n_genes}")
+    logger.info(f"Number of genes that have at least {min_n_peaks} peaks: {n_genes}")
 
     if inplace:
         mdata.uns["peak_to_gene"] = df

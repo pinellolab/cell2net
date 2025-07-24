@@ -60,7 +60,12 @@ class Cell2Net(BaseModel):
             self.n_covariates = 0
 
         # Create anndata for RNA and ATAC
-        adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()].copy()
+        peaks = peak_to_gene["peak"].values.tolist()
+        adata_atac = mdata[atac_mod][:, peaks].copy()
+
+        # Subset ATAC peaks to those associated with the gene
+        adata_atac.uns["peaks"] = adata_atac.uns["peaks"].loc[peaks].copy()
+
         adata_rna = mdata[rna_mod][:, gene].copy()
 
         self.max_gex = np.max(adata_rna.layers["counts"])  # type: ignore

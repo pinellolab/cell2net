@@ -1,4 +1,4 @@
-from ._atac import binarize
+from ._atac import binarize, get_signal_from_bw
 from ._fragments import (
     calculate_depth,
     collapse_consecutive_values,

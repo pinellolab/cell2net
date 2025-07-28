@@ -1,7 +1,10 @@
 from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import issparse
+import pandas as pd
+import numpy as np
 
+from cell2net._logging import logger
 
 def binarize(
     data: AnnData | MuData, atac_mod: str = "atac", layer: str | None = None
@@ -86,3 +89,57 @@ def binarize(
 
 def peaks_to_bed(data: AnnData | MuData, bed_filename: str, atac_mod: str = "atac"):
     pass
+
+def get_signal_from_bw(grs,
+                       extend: int = 0,
+                       bw_files: list[str] = None,
+                       labels: list[str] = None) -> pd.DataFrame:
+    """
+    Get signal from bigWig files for a given PyRanges object.
+
+    Parameters
+    ----------
+    grs : pr.PyRanges | pd.DataFrame
+        A PyRanges object or DataFrame containing genomic ranges.
+    extend : int, optional
+        Number of base pairs to extend the genomic ranges on both sides. Default is 0.
+    bw_files : list[str], optional
+        List of paths to bigWig files from which to extract signal.
+    labels : list[str], optional
+        List of labels for the signal tracks.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with the signal values for each genomic range.
+    """
+
+    import pyBigWig
+
+    # extend regions
+    mid = (grs.End + grs.Start) // 2
+    grs.Start = mid - extend
+    grs.End = mid + extend
+
+    df_list = []
+    for bw_file, label in zip(bw_files, labels):
+        logger.info(f"Extracting signal from {bw_file}")
+
+        bw = pyBigWig.open(bw_file)
+        window_size = grs.End.values[0] - grs.Start.values[0]
+        signal = np.zeros(shape=(len(grs), window_size))
+
+        for i, (chrom, start, end) in enumerate(zip(grs.Chromosome, grs.Start, grs.End)):
+            signal[i] = bw.values(chrom, start, end)
+
+        signal[np.isnan(signal)] = 0
+        signal = np.mean(signal, axis=0)
+
+        df = pd.DataFrame(data={"position":range(-len(signal) // 2, len(signal) // 2),
+                                "signal": signal,
+                                "data": label})
+        df_list.append(df)
+
+    df = pd.concat(df_list)
+
+    return df

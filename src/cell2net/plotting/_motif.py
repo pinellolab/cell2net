@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from typing import Literal
 
 import matplotlib.pyplot as plt
+import pyranges as pr
 import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
@@ -113,3 +114,4 @@ def motif_logo(
         return fig
     else:
         savefig_or_show(save_prefix, show=show, save=save)
+

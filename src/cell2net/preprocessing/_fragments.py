@@ -247,10 +247,6 @@ def fragments_to_coverage(
 
         if cut_sites:
             # Create cut site positions (for both start and end of a fragment).
-            # starts, ends = (
-            #     np.hstack((starts, ends - 1)),
-            #     np.hstack((starts + 1, ends)),
-            # )
             starts, ends = (
                 np.hstack((starts - extend_cut_sites, ends - extend_cut_sites - 1)),
                 np.hstack((starts + extend_cut_sites + 1, ends + extend_cut_sites)),

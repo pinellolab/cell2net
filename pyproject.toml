@@ -47,7 +47,8 @@ dependencies = [
   "MOODS-python",
   "pyBigWig",
   "pooch",
-  "vcfpy"
+  "vcfpy",
+  "pytorch-lightning"
 ]
 
 # Optional dependencies

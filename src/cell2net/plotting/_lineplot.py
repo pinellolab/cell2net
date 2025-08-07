@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import pandas as pd
 import seaborn as sns
+import scanpy as sc
 from scanpy.plotting._utils import (
     savefig_or_show,
 )
@@ -94,18 +95,26 @@ def train_history(
 
 def tf_footprint(
     df: pd.DataFrame,
+    name: str | None = None,
+    palette: list[str] | None = None,
     figsize: tuple[float, float] | None = None,
     show: bool | None = True,
     save: str | bool | None = None,
-    save_prefix: str = "tf_footprint_",
+    save_dir: str | None = None,
+    save_prefix: str = "footprint",
     return_fig: bool | None = False,
 ) -> None | Figure:
-    """Plot the transcription factor footprint.
+    """
+    Plot the transcription factor footprint.
 
     Parameters
     ----------
     df : pd.DataFrame
         DataFrame containing the signal data.
+    name : str | None, optional
+        Name of the transcription factor, used in the plot title.
+    palette : list[str] | None, optional
+        Color palette for the plot, by default None.
     figsize : tuple[float, float] | None, optional
         Figure size, by default None
     show : bool | None, optional
@@ -125,15 +134,23 @@ def tf_footprint(
         Returns the figure object if `return_fig` is True, otherwise returns None.
     """
 
+    if save_dir:
+        sc.settings.figdir = save_dir
+
+    save_prefix = f"{name}_{save_prefix}" if name else save_prefix
+
     if figsize is None:
         figsize = (5, 3)
 
     fig, ax = plt.subplots(figsize=figsize)
-    sns.lineplot(data=df, x="position", y="signal", hue="data", ax=ax)
+    sns.lineplot(data=df, x="position", y="signal", hue="label", ax=ax, palette=palette)
     # Set labels and title
     ax.set_xlabel("Position")
     ax.set_ylabel("Signal")
-    ax.set_title("Transcription Factor Footprint")
+    ax.set_title(f"{name} Footprint" if name else "Footprint")
+
+    ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+    plt.tight_layout()
 
     if return_fig:
         return fig

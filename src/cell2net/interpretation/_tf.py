@@ -117,7 +117,7 @@ def tf_to_gene(
     mdata: MuData,
     attr: np.ndarray,
     groupby: str | None = None,
-    n_tfs: int | None = 10,
+    n_tfs: int | None = None,
 ) -> pd.DataFrame:
     """
     Aggregate transcription factor (TF) attributions and link them to genes for each group.

@@ -137,7 +137,7 @@ def get_signal_from_bw(grs,
 
         df = pd.DataFrame(data={"position":range(-len(signal) // 2, len(signal) // 2),
                                 "signal": signal,
-                                "data": label})
+                                "label": label})
         df_list.append(df)
 
     df = pd.concat(df_list)

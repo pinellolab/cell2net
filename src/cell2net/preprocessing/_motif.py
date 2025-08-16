@@ -513,32 +513,9 @@ def match_motif(
         logger.error(f"Cannot find 'peaks' in {atac_mod}.uns, please run cn.pp.add_peaks()!")
         return None
 
-    # get motifs
-    motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
-    motifs_sub = []
-    for motif in motifs:
-        if motif.matrix_id in motif_ids:
-            motifs_sub.append(motif)
-
-    n_motifs = len(motifs_sub)
-    logger.info(f"Number of motifs: {n_motifs}")
-
     logger.info("Matching TF motifs")
-    # n_peaks = df_peaks.shape[0]
-    # motif_match = np.zeros(shape=(n_peaks, n_motifs), dtype=np.uint8)
-    # scanner = prepare_scanner(motifs=motifs_sub,
-    #                           pseudocounts=pseudocounts,
-    #                           p_value=p_value)
-
-    # seqs = df_peaks['sequence'].values.tolist()
-    # for i in tqdm(range(len(seqs)), desc="Matching motifs", total=len(seqs)):
-    #     results = scanner.scan(seqs[i])
-    #     for j in range(n_motifs):
-    #         if len(results[j]) > 0 or len(results[j + n_motifs]) > 0:
-    #             motif_match[i, j] = 1  # type: ignore
-
     motif_match, df = _match_motif(
-        motifs=motifs_sub,
+        motifs=motifs,
         df_peak=adata.uns["peaks"],
         chr_col_key="chr",
         start_col_key="start",
@@ -546,9 +523,18 @@ def match_motif(
         pseudocounts=pseudocounts,
         p_value=p_value,
     )
-
-    adata.varm[key_added] = csr_matrix(motif_match)
     adata.uns['motif_match'] = df
+
+    # subset motif match matrix to select genes
+    # get motifs
+    motif_ids = mdata.uns["motifs"]["motif_id"].values.tolist()
+    motif_idx = []
+    for i, motif in enumerate(motifs):
+        if motif.matrix_id in motif_ids:
+            motif_idx.append(i)
+
+    motif_match_sub = motif_match[:, motif_idx]
+    adata.varm[key_added] = csr_matrix(motif_match_sub)
 
     logger.info("Motif matching is done!")
 

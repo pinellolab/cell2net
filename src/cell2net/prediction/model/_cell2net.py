@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import mudata as md
 import numpy as np
 import pandas as pd
+import copy
 import torch
 from mudata import MuData
 from scipy import stats
@@ -275,7 +276,7 @@ class Cell2Net(BaseModel):
         )
         lr_scheduler = ReduceLROnPlateau(self.optimizer, "max", min_lr=1e-5, patience=5)
 
-        self.best_score, self.best_epoch = -np.inf, 0
+        self.best_valid_corr, self.best_epoch = -np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
         train_corrs, valid_corrs = [], []
 
@@ -293,11 +294,21 @@ class Cell2Net(BaseModel):
             train_corrs.append(train_corr)
             valid_corrs.append(valid_corr)
 
+            # print validation results
+            if verbose:
+                logger.info(f"Epoch {epoch}:, Train loss: {train_loss:.4f}, Valid loss: {valid_loss:.4f}, Train correlation: {train_corr:.4f}, Valid correlation: {valid_corr:.4f}")
+
             # Save model if find a better validation score
-            if valid_corr > self.best_score:
-                self.best_score = valid_corr
+            if valid_corr > self.best_valid_corr:
+
+                if verbose:
+                    logger.info(f"New best valid correlation: {valid_corr:.4f}")
+
+                self.best_valid_corr = valid_corr
                 self.best_epoch = epoch
-                self.check_point = self.module.state_dict()
+
+                # Use deep copy to create a new checkpoint
+                self.check_point = copy.deepcopy(self.module.state_dict())
 
                 self.train_loss = train_loss
                 self.train_corr = train_corr
@@ -332,7 +343,7 @@ class Cell2Net(BaseModel):
 
         logger.info("Training finished")
         logger.info(
-            f"Find best model at epoch {self.best_epoch} with valid correation {self.best_score: .3f}"
+            f"Find best model at epoch {self.best_epoch} with valid correation {self.best_valid_corr: .3f}"
         )
 
         self.is_trained_ = True

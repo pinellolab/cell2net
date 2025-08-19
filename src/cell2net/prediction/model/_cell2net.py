@@ -218,7 +218,7 @@ class Cell2Net(BaseModel):
         weight_decay: float = 1e-04,
         verbose: bool = True,
     ) -> None:
-        if train_idx and valid_idx:
+        if train_idx is not None and valid_idx is not None:
             if verbose:
                 logger.info("Using provided index for training and validation")
 

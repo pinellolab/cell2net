@@ -71,7 +71,7 @@ def get_dataloader(
     >>> for batch in dataloader:
     >>>     print(batch)
     """
-    if idx:
+    if idx is not None:
         _mdata = mdata[idx]
     else:
         _mdata = mdata

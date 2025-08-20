@@ -273,7 +273,7 @@ def get_genomic_variants(
     logger.info(f"Found {len(df_var)} variants in total across all peaks.")
 
     # filter out samples not in the adata object
-    logger.info(f"Filtering variants for donors in {donor_col_key} column.")
+    logger.info(f"Filtering variants for donors.")
     donors = adata.obs[donor_col_key].unique()
     df_var = df_var[df_var[donor_col_key].isin(donors)]
 
@@ -281,11 +281,13 @@ def get_genomic_variants(
 
     # remove duplicates using groupby (faster than drop_duplicates)
     logger.info("Removing duplicate variants.")
-    df_var = df_var.groupby(["snp_id", donor_col_key], as_index=False).first()
+    df_var = df_var.sort_values(by=[donor_col_key, "snp_id"])
+    df_var = df_var.groupby([donor_col_key, "snp_id"], as_index=False).first()
 
     # # sometimes the same donor has multiple genotypes for the same SNP
     # # in this case, we take the first one
-    df_var = df_var.groupby(["chrom", "pos", "ref", donor_col_key, "peak"], as_index=False).first()
+    df_var = df_var.sort_values(by=[donor_col_key, "chrom", "pos", "ref", "peak"])
+    df_var = df_var.groupby([donor_col_key, "chrom", "pos", "ref", "peak"], as_index=False).first()
 
     logger.info("Sorting variants.")
     df_var = df_var[[donor_col_key, 'peak', 'snp_id', 'chrom', 'pos', 'ref', 'alt', 'genotype']]

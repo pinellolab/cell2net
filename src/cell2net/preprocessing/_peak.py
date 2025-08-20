@@ -283,7 +283,7 @@ def peak_to_gene(
 
     logger.info("Linking genes to nearby peaks")
     df_list, genes_wo_peak = [], []
-    for gene in tqdm(gr_genes.Name):
+    for gene in tqdm(gr_genes.Name, total=len(gr_genes.Name), desc="Linking genes to peaks"):
         gr_gene = gr_genes[(gr_genes.Name == gene)]
 
         # find overlap peaks

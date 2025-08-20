@@ -9,9 +9,11 @@ from tqdm.auto import tqdm
 from cell2net._logging import logger
 
 
-def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int):
+def _get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int):
     """
     Extracts SNP (single nucleotide polymorphism) information and genotypes from a VCF file within a specified genomic region.
+
+    This function utilizes the `vcfpy` library to read and filter VCF records based on the provided genomic coordinates.
 
     Parameters
     ----------
@@ -32,8 +34,8 @@ def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int)
         - `pos`: Genomic position (1-based).
         - `ref`: Reference allele.
         - `alt`: Alternate allele.
-        - `sample`: Sample ID found in the VCF file.
-        - `genotype`: Genotype of the sample for the SNP, encoded as:
+        - `donor`: Donor ID found in the VCF file.
+        - `genotype`: Genotype of the donor for the SNP, encoded as:
             - 0 for homozygous reference (0/0)
             - 1 for heterozygous (0/1)
             - 2 for homozygous alternative (1/1)
@@ -93,7 +95,7 @@ def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int)
     df = pd.melt(
         df,
         id_vars=["snp_id", "chrom", "pos", "ref", "alt"],
-        var_name="sample",
+        var_name="donor",
         value_name="genotype",
     )
     df["snp_id"] = df["snp_id"].astype(str)
@@ -102,69 +104,111 @@ def get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int)
     df["ref"] = df["ref"].astype(str)
     df["alt"] = df["alt"].astype(str)
 
+    df = df[df['ref'].isin(['A', 'C', 'G', 'T']) & df['alt'].isin(['A', 'C', 'G', 'T'])]
+
     return df
 
 
-def add_genomic_variants(
+def get_genomic_variants(
     mdata: MuData,
+    donor_col_key: str,
     vcf_file: str | Path,
     n_cpus: int = 1,
-    atac_mod: str = "atac",
-    sample_col_key: str | None = "bestSample",
-    chr_var_key: str = "chr",
-    start_var_key: str = "start",
-    end_var_key: str = "end",
-    variants_key: str = "variants",
-    inpace: bool = True,
-) -> None | pd.DataFrame:
+    atac_mod: str = "atac"
+) -> pd.DataFrame:
     """
-    Annotate peaks in an ATAC-seq modality with genomic variants from a VCF file.
+    Extract and annotate genomic variants from a VCF file that overlap with ATAC-seq peaks.
 
-    This function scans through each peak in the specified modality, fetches variants from a given VCF file
-    that fall within the peak regions, and optionally stores the resulting variant DataFrame in the `uns` slot
-    of the AnnData object under `variants_key`. The function can also return the DataFrame
-    of variants without modifying the original AnnData object.
+    This function identifies single nucleotide variants (SNVs) from a VCF file that fall within
+    the genomic regions defined by ATAC-seq peaks. It processes each peak region, extracts
+    overlapping variants, and returns a comprehensive DataFrame containing variant information
+    along with genotype data for each donor/sample.
 
     Parameters
     ----------
-    mdata :
-        A MuData object containing the ATAC-seq modality with peak information.
-    vcf_file :
-        Path to the VCF file containing genomic variants.
-    atac_mod :
-        Name of the modality in `mdata` that contains ATAC-seq data
-    sample_col_key :
-        Column name in `adata.obs` indicating the sample identity.
-        Used to filter variants. If `None`, all variants are retained.
-    chr_var_key :
-        Column name in `adata.var` containing chromosome information for each peak
-    start_var_key :
-        Column name in `adata.var` containing the start position of each peak
-    end_var_key :
-        Column name in `adata.var` containing the end position of each peak
-    variants_key :
-        Key under which the variants DataFrame will be stored in `adata.uns`
-    inpace :
-        If True, modifies `mdata` in place and stores the variant data.
-        If False, returns the variant DataFrame.
+    mdata : MuData
+        A MuData object containing the ATAC-seq modality with peak information stored in
+        `mdata[atac_mod].uns['peaks']`. The peaks DataFrame should contain columns:
+        'chr', 'start', 'end' defining genomic coordinates.
+    donor_col_key : str
+        Column name in `mdata[atac_mod].obs` that specifies donor/sample identities.
+        Used to filter variants to only those present in the experimental samples.
+        Variants for donors not present in this column will be excluded.
+    vcf_file : str or Path
+        Path to a coordinate-sorted VCF file containing genomic variant data.
+        The file should be compatible with the `vcfpy` library for reading.
+    n_cpus : int, default 1
+        Number of CPU cores to use for parallel processing. If > 1, peak processing
+        will be parallelized using multiprocessing to speed up variant extraction.
+    atac_mod : str, default "atac"
+        Name of the modality in `mdata` that contains the ATAC-seq data and peak
+        information. Must exist in `mdata.mod_names`.
 
     Returns
     -------
-        If `inpace` is True, returns None and stores the result in `adata.uns[variants_key]`.
-        If `inpace` is False, returns the combined variant DataFrame.
+    pd.DataFrame
+        A DataFrame containing variant information with the following columns:
 
-    Notes
-    -----
-        - The function assumes that the VCF file is coordinate-sorted and compatible with `vcfpy`.
-        - Variants are matched to peaks based on overlap with the peak coordinates (chromosome, start, end).
-        - Only single nucleotide variants (SNVs) with a single ALT allele are considered.
-        - The function relies on a helper function `get_genomic_variants(reader, chrom, start, end)` for extracting variants.
+        - `snp_id` : str - Variant identifier from the VCF file
+        - `chrom` : str - Chromosome name (e.g., 'chr1', '1')
+        - `pos` : int - Genomic position (1-based coordinate)
+        - `ref` : str - Reference allele (A, C, G, or T)
+        - `alt` : str - Alternative allele (A, C, G, or T)
+        - `peak` : str - Peak identifier where the variant was found
+        - `donor` : str - Donor/sample identifier
+        - `genotype` : int - Encoded genotype:
+            * 0 = homozygous reference (0/0)
+            * 1 = heterozygous (0/1)
+            * 2 = homozygous alternative (1/1)
+            * NaN = missing genotype
 
     Raises
     ------
-        Logs errors and returns None if:
-        - The specified modality is not found in `mdata`
-        - The specified sample column is missing from `adata.obs`
+    ValueError
+        If the specified `atac_mod` is not found in `mdata.mod_names`.
+    KeyError
+        If `donor_col_key` is not found in `mdata[atac_mod].obs.columns`.
+    AssertionError
+        If any variant in the VCF file has multiple alternative alleles.
+
+    Notes
+    -----
+    - Only single nucleotide variants (SNVs) with exactly one alternative allele are processed.
+      Indels and multiallelic variants are automatically skipped.
+    - Variants are filtered to include only those with reference and alternative alleles
+      in the set {A, C, G, T}.
+    - Duplicate variants (same SNP ID and donor) are automatically removed, keeping the first occurrence.
+    - When the same donor has multiple genotypes for the same genomic position, only the first
+      genotype is retained after grouping by chromosome, position, reference allele, donor, and peak.
+    - The VCF file must be coordinate-sorted for efficient processing.
+    - Peak regions are defined by the 'chr', 'start', and 'end' columns in the peaks DataFrame.
+
+    Examples
+    --------
+    Extract variants overlapping with ATAC-seq peaks:
+
+    >>> import mudata as md
+    >>> import cell2net as cn
+    >>>
+    >>> # Load multimodal data with ATAC-seq peaks
+    >>> mdata = md.read_h5mu("multiome_data.h5mu")
+    >>>
+    >>> # Extract variants using single CPU
+    >>> variants_df = cn.pp.get_genomic_variants(
+    ...     mdata=mdata,
+    ...     donor_col_key="donor_id",
+    ...     vcf_file="variants.vcf.gz"
+    ... )
+    >>>
+    >>> # Use parallel processing for faster execution
+    >>> variants_df = cn.pp.get_genomic_variants(
+    ...     mdata=mdata,
+    ...     donor_col_key="sample_id",
+    ...     vcf_file="large_variants.vcf.gz",
+    ...     n_cpus=4
+    ... )
+    >>>
+    >>> print(f"Found {len(variants_df)} variants across {variants_df['peak'].nunique()} peaks")
     """
     logger.info("Processing variants started!")
     if atac_mod not in mdata.mod_names:
@@ -173,12 +217,14 @@ def add_genomic_variants(
 
     adata = mdata[atac_mod]
 
-    if sample_col_key is not None and sample_col_key not in adata.obs.columns:
-        logger.error(f"Cannot find column: {sample_col_key}")
+    if donor_col_key not in adata.obs.columns:
+        logger.error(f"Cannot find column: {donor_col_key}")
         return None
 
-    df_peaks = adata.var[[chr_var_key, start_var_key, end_var_key]]
+    df_peaks = adata.uns['peaks']
     df_var_list = []
+
+    logger.info(f"Found {len(df_peaks)} peaks in {atac_mod} modality.")
 
     if n_cpus > 1:
         from multiprocessing import Pool
@@ -186,9 +232,9 @@ def add_genomic_variants(
         # prepare agument for parallel processing
         args = []
         for chrom, start, end in zip(
-            df_peaks[chr_var_key],
-            df_peaks[start_var_key],
-            df_peaks[end_var_key],
+            df_peaks['chr'],
+            df_peaks['start'],
+            df_peaks['end'],
             strict=False,
         ):
             args.append((vcf_file, chrom, start, end))
@@ -196,7 +242,7 @@ def add_genomic_variants(
         # use multiprocessing to speed up the process
         logger.info(f"Using {n_cpus} CPUs for parallel processing.")
         with Pool(n_cpus) as pool:
-            results = pool.starmap(get_genomic_variants, tqdm(args, desc="Processing variants"))
+            results = pool.starmap(_get_genomic_variants, tqdm(args, desc="Processing variants"))
 
         # combine results
         for i, df_var in enumerate(results):
@@ -209,173 +255,42 @@ def add_genomic_variants(
         for i, (chrom, start, end) in enumerate(
             tqdm(
                 zip(
-                    df_peaks[chr_var_key],
-                    df_peaks[start_var_key],
-                    df_peaks[end_var_key],
+                    df_peaks['chr'],
+                    df_peaks['start'],
+                    df_peaks['end'],
                     strict=False,
                 ),
                 total=len(df_peaks),
                 desc="Processing variants",
             )
         ):
-            df_var = get_genomic_variants(vcf_file, chrom, start, end)
+            df_var = _get_genomic_variants(vcf_file, chrom, start, end)
             df_var["peak"] = df_peaks.index[i]
             df_var_list.append(df_var)
 
     df_var = pd.concat(df_var_list, ignore_index=True)
 
+    logger.info(f"Found {len(df_var)} variants in total across all peaks.")
+
     # filter out samples not in the adata object
-    logger.info(f"Filtering variants for samples in {sample_col_key} column.")
-    if sample_col_key is not None:
-        samples = adata.obs[sample_col_key].unique()
-        df_var = df_var[df_var["sample"].isin(samples)]
+    logger.info(f"Filtering variants for donors in {donor_col_key} column.")
+    donors = adata.obs[donor_col_key].unique()
+    df_var = df_var[df_var[donor_col_key].isin(donors)]
 
-    # remove duplicates
-    df_var = df_var.drop_duplicates(subset=["snp_id", "sample"]).reset_index(drop=True)
+    logger.info(f"Obtained {len(df_var)} variants after filtering.")
 
-    # sometimes the same sample has multiple genotypes for the same SNP
-    # in this case, we take the first one
-    df_var = df_var.groupby(["chrom", "pos", "ref", "sample", "peak"]).first().reset_index()
+    df_var = df_var[[donor_col_key, 'peak', 'snp_id', 'chrom', 'pos', 'ref', 'alt', 'genotype']]
+    df_var = df_var.sort_values([donor_col_key, 'peak', 'snp_id'])
 
-    # only keep valid genotypes
-    df_var = df_var[df_var["ref"].isin(["A", "C", "G", "T"]) & df_var["alt"].isin(["A", "C", "G", "T"])]
+    # # remove duplicates using groupby (faster than drop_duplicates)
+    # logger.info("Removing duplicate variants.")
+    # df_var = df_var.groupby(["snp_id", donor_col_key], as_index=False).first()
+
+    # # sometimes the same donor has multiple genotypes for the same SNP
+    # # in this case, we take the first one
+    # df_var = df_var.groupby(["chrom", "pos", "ref", donor_col_key, "peak"]).first().reset_index()
 
     logger.info(f"Found {len(df_var)} variants in total.")
     logger.info("Processing variants finished!")
 
-    if inpace:
-        adata.uns[variants_key] = df_var
-        return None
-    else:
-        return df_var
-
-
-# def add_genomic_variants(
-#     mdata: MuData,
-#     vcf_file: str | Path,
-#     variants_key: str = "variants",
-#     genotype_key: str = "genotype",
-# ) -> None:
-#     """
-#     Adds genomic variant information from a VCF file to a MuData object.
-
-#     This function reads single nucleotide variants (SNVs) from a VCF file and stores the
-#     variant information and genotype data in the `uns` attribute of the MuData object.
-
-#     Parameters
-#     ----------
-#     mdata :
-#         A MuData object to which variant and genotype information will be added.
-#     vcf_file :
-#         Path to the VCF file containing genomic variant data
-#     variants_key :
-#         Key under which the variant information will be stored in `mdata.uns`.
-#     genotype_key :
-#         Key under which the genotype information will be stored in `mdata.uns`.
-
-#     Notes
-#     -----
-#         - Only single nucleotide variants (SNVs) are considered.
-#         - Variants with multiple alternative alleles are ignored.
-#         - The extracted genotype data is encoded as:
-
-#             - 0 for homozygous reference (0/0)
-#             - 1 for heterozygous (0/1)
-#             - 2 for homozygous alternative (1/1)
-
-#         - The variant information is stored in `mdata.uns[variants_key]` as a pandas DataFrame with columns: `id`, `chrom`, `pos`, `ref`, and `alt`.
-#         - The genotype information is stored in `mdata.uns[genotype_key]` as a pandas DataFrame where rows correspond to SNPs and columns correspond to samples.
-
-#     Returns
-#     -------
-#         The function modifies `mdata` in place by adding variant and genotype information.
-
-#     Raises
-#     ------
-#     AssertionError
-#         If a SNP with multiple alternative alleles is encountered.
-
-#     Examples
-#     --------
-#     >>> import muon as mu
-#     >>> import cell2net as cn
-#     >>> mdata = mu.MuData({})
-#     >>> cn.pp.add_genomic_variants(mdata, "variants.vcf")
-#     >>> mdata.uns["variants"].head()
-#     >>> mdata.uns["genotype"].head()
-#     """
-#     reader = vcfpy.Reader.from_path(vcf_file)
-
-#     sample_ids = reader.header.samples.names  # type: ignore
-#     sample_ids = [str(x) for x in sample_ids]  # Ensure all elements are strings
-
-#     snp_ids, snp_chroms, snp_positions, snp_refs, snp_alts = [], [], [], [], []
-#     genotypes = []
-#     for record in reader:
-#         if record is None or not record.is_snv():
-#             continue
-
-#         assert (
-#             len(record.ALT) == 1
-#         ), f"find multiple alternatives for a SNP {record.ID[0]} "
-
-#         snp_ids.append(record.ID[0])
-#         snp_chroms.append(record.CHROM)
-#         snp_positions.append(record.POS)
-#         snp_refs.append(record.REF)
-#         snp_alts.append(record.ALT[0].value)
-
-#         # Extract genotype information
-#         genotype = [call.data.get("GT") or "./." for call in record.calls]
-#         genotype = [str(x) for x in genotype]  # Ensure all elements are strings
-#         genotype = [
-#             0 if x == "0/0" else 1 if x == "0/1" else 2 if x == "1/1" else np.nan
-#             for x in genotype
-#         ]
-
-#         genotypes.append(genotype)
-
-#     # Add SNP information to mdata
-#     mdata.uns[variants_key] = pd.DataFrame(
-#         data={
-#             "id": snp_ids,
-#             "chrom": snp_chroms,
-#             "pos": snp_positions,
-#             "ref": snp_refs,
-#             "alt": snp_alts,
-#         }
-#     )
-
-#     # Add donor information to mdata
-#     mdata.uns[genotype_key] = pd.DataFrame(
-#         data=genotypes, columns=sample_ids, index=snp_ids
-#     ).astype("Int8")
-
-#     return None
-
-
-# def variant_to_peak(
-#     mdata: MuData,
-#     atac_mod: str = "atac",
-#     variants_key: str = "variants",
-#     peak_key: str = "peak",
-# ) -> None:
-
-#     # create ranges for peaks
-#     pr_peaks = pr.PyRanges(
-#         mdata[atac_mod].var[["chrom", "start", "end"]].rename(
-#             columns={"start": "Start", "end": "End"}
-#         )
-#     )
-
-#     df_peaks = mdata[atac_mod].var[["chrom", "start", "end"]].copy()
-
-#     mdata["atac"].var["peak"] = (
-#         mdata["atac"].var["chrom"]
-#         + ":"
-#         + mdata["atac"].var["start"].astype(str)
-#         + "-"
-#         + mdata["atac"].var["end"].astype(str)
-#     )
-
-#     pass
+    return df_var

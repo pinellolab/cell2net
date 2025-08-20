@@ -32,4 +32,4 @@ from ._sequence import (
     update_sequence_with_variants,
 )
 from ._utils import bgzip, tabix_index
-from ._variants import add_genomic_variants, get_genomic_variants
+from ._variants import get_genomic_variants

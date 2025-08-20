@@ -23,13 +23,11 @@ from ._peak import (
 )
 from ._sequence import (
     add_dna_sequence,
-    add_variants_to_sequence,
     dinucleotide_shuffle_one_hot,
     dinucleotide_shuffle_str,
     random_seq,
     one_hot_to_seq,
     seq_to_one_hot,
-    update_sequence_with_variants,
 )
 from ._utils import bgzip, tabix_index
-from ._variants import get_genomic_variants
+from ._variants import get_genomic_variants, add_variants_to_sequence

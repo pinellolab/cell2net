@@ -311,6 +311,8 @@ def peak_to_gene(
     n_genes = len(df["gene"].unique())
     logger.info(f"Number of genes that have at least {min_n_peaks} peaks: {n_genes}")
 
+    logger.info(f"Identified {len(df)} potential peak-to-gene links")
+
     if inplace:
         mdata.uns["peak_to_gene"] = df
     else:

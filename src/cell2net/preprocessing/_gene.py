@@ -105,6 +105,119 @@ def add_gene_tss_coord(
     mod_names: str = "rna",
     inplace: bool = True
 ) -> None | pd.DataFrame:
+    """
+    Add transcription start site (TSS) coordinates for genes to a MuData object.
+
+    This function extracts TSS coordinates from a GTF file and adds them to the specified
+    modality in a MuData object. It filters the TSS data to include only genes present
+    in the modality's variable names (gene list). The function can either store the
+    results in the MuData object or return them as a DataFrame.
+
+    Parameters
+    ----------
+    mdata : MuData
+        A MuData object containing multimodal single-cell data. The specified modality
+        should contain gene expression data with gene names in `.var_names`.
+    gene_gtf : str
+        Path to the GTF (Gene Transfer Format) file containing gene annotations.
+        The file can be plain text or gzip-compressed (".gz" extension).
+        Must exist and be accessible.
+    feature_type : str, default "gene"
+        The type of genomic feature to extract from the GTF file.
+        Common options include:
+
+        - "gene" : Extract gene-level features
+        - "transcript" : Extract transcript-level features
+        - "exon" : Extract exon-level features
+    mod_names : str, default "rna"
+        Name of the modality in `mdata` that contains the gene expression data.
+        This modality's `.var_names` will be used to filter the TSS coordinates.
+        Must exist in `mdata.mod_names`.
+    inplace : bool, default True
+        Whether to store the TSS coordinates in the MuData object.
+
+        - If True: Stores results in `mdata[mod_names].uns["gene_tss_coord"]` and returns None
+        - If False: Returns the DataFrame without modifying the MuData object
+
+    Returns
+    -------
+    None or pd.DataFrame
+        - If `inplace=True`: Returns None. The TSS coordinates are stored in
+          `mdata[mod_names].uns["gene_tss_coord"]`.
+        - If `inplace=False`: Returns a DataFrame with TSS coordinates.
+
+        The DataFrame (whether stored or returned) contains:
+
+        - `chrom` : str - Chromosome name
+        - `gene_name` : str - Gene name (filtered to match modality gene names)
+        - `strand` : str - Strand orientation ('+' or '-')
+        - `tss` : int - Transcription start site position (1-based genomic coordinate)
+
+    Raises
+    ------
+    FileNotFoundError
+        If the specified GTF file does not exist (logged as error, returns None).
+    KeyError
+        If the specified modality is not found in `mdata.mod_names` (logged as error, returns None).
+
+    Notes
+    -----
+    - The function uses `get_gene_tss_coord()` internally to parse the GTF file.
+    - TSS positions are calculated based on strand orientation:
+
+      * For '+' strand genes: TSS = start position
+      * For '-' strand genes: TSS = end position
+
+    - Only genes present in the modality's `.var_names` are included in the final result.
+    - The function assumes that gene names in the GTF file match those in the modality.
+    - If duplicate gene names exist in the GTF, only the first occurrence is kept.
+    - The TSS coordinates are stored with 1-based genomic coordinates.
+
+    Examples
+    --------
+    Add TSS coordinates to RNA modality and store in MuData:
+
+    >>> import mudata as md
+    >>> import cell2net as cn
+    >>>
+    >>> # Load multimodal data
+    >>> mdata = md.read_h5mu("multiome_data.h5mu")
+    >>>
+    >>> # Add TSS coordinates from GTF file
+    >>> cn.pp.add_gene_tss_coord(
+    ...     mdata=mdata,
+    ...     gene_gtf="/path/to/genes.gtf.gz",
+    ...     mod_names="rna"
+    ... )
+    >>>
+    >>> # Access the stored TSS coordinates
+    >>> tss_df = mdata["rna"].uns["gene_tss_coord"]
+    >>> print(f"TSS coordinates for {len(tss_df)} genes")
+
+    Return TSS coordinates without modifying MuData:
+
+    >>> tss_df = cn.pp.add_gene_tss_coord(
+    ...     mdata=mdata,
+    ...     gene_gtf="/path/to/annotation.gtf",
+    ...     feature_type="gene",
+    ...     mod_names="rna",
+    ...     inplace=False
+    ... )
+    >>> print(tss_df.head())
+
+    Use with transcript-level features:
+
+    >>> cn.pp.add_gene_tss_coord(
+    ...     mdata=mdata,
+    ...     gene_gtf="/path/to/transcripts.gtf.gz",
+    ...     feature_type="transcript",
+    ...     mod_names="rna"
+    ... )
+
+    See Also
+    --------
+    get_gene_tss_coord : Extract TSS coordinates directly from GTF file
+    """
     # check if gene_gtf exists
     if not os.path.exists(gene_gtf):
         logger.error(f"Gene GTF file {gene_gtf} does not exist.")

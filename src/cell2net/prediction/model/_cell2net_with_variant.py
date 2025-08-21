@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import mudata as md
 import numpy as np
 import pandas as pd
+import copy
 import torch
 from mudata import MuData
 from scipy import stats
@@ -322,7 +323,7 @@ class Cell2NetWithVariant(BaseModel):
             if valid_corr > self.best_score:
                 self.best_score = valid_corr
                 self.best_epoch = epoch
-                self.check_point = self.module.state_dict()
+                self.check_point = copy.deepcopy(self.module.state_dict())
 
                 self.train_loss = train_loss
                 self.train_corr = train_corr

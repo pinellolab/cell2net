@@ -404,8 +404,9 @@ def add_variants_to_sequence(
     df_var: pd.DataFrame,
     donor_col_key: str,
     atac_mod: str = "atac",
-    seq_with_variants_key: str = "seq_with_variants",
+    personal_genome_seq: str = "personal_genome_seq",
     n_cpus: int = 1,
+    verbose: bool = False,
 ) -> None:
     """
     Add genomic variants to DNA sequences from peak regions to generate personalized haplotype sequences.
@@ -541,10 +542,10 @@ def add_variants_to_sequence(
 
     donor_list = adata.obs[donor_col_key].unique()
 
-    # create dataframe for peaks and samples
+    # create dataframe for peaks and donors
     # assume that seq_1 is for chromatid 1 and seq_2 is for chromatid 2
     logger.info(
-        f"Create dataframe for all {len(df_peaks)} peaks and {len(donor_list)} donors"
+        f"Creating dataframe for all {len(df_peaks)} peaks and {len(donor_list)} donors"
     )
     df_seq = pd.DataFrame(
         columns=["peak", "donor", "seq_1", "seq_2"],
@@ -558,9 +559,10 @@ def add_variants_to_sequence(
 
     # update the sequences with variants
     # only update the sequences with heterozygous and homozygous alternate genotypes
+    # logger.info("Keep genotypes with alternative alleles")
     df_var = df_var[df_var["genotype"].isin([1, 2])].reset_index(drop=True)
 
-    logger.info(f"Number of variants with donors: {len(df_var)}")
+    # logger.info(f"Number of variants with donors: {len(df_var)}")
     if n_cpus == 1:
         df_seq_list = []
         for donor in tqdm(donor_list, desc="Updating sequences with variants"):
@@ -597,9 +599,9 @@ def add_variants_to_sequence(
         df_seq = pd.concat(results, ignore_index=True)
 
     df_seq = df_seq.drop(columns=["start"])
-    df_seq = df_seq.sort_values(by=["peak", "donor"])
+    df_seq = df_seq.sort_values(by=["peak", "donor"]).reset_index(drop=True)
 
-    adata.uns[seq_with_variants_key] = df_seq
+    adata.uns[personal_genome_seq] = df_seq
     logger.info("Adding variants finished!")
 
     return None

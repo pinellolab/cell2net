@@ -1,2 +1,3 @@
 from ._cell2net import Cell2Net
+from ._cell2net_personal_genome import Cell2NetPersonalGenome
 from ._cell2net_with_variant import Cell2NetWithVariant

@@ -130,7 +130,7 @@ class MuTorchDataset(Dataset):
         return data_map
 
 
-class MuTorchDatasetWithVariants(Dataset):
+class MuTorchDatasetPersonalGenome(Dataset):
     """
     A PyTorch Dataset for single-cell multi-modal data.
 
@@ -205,7 +205,7 @@ class MuTorchDatasetWithVariants(Dataset):
         rna_mod: str = "rna",
         atac_mod: str = "atac",
         peak_to_gene_key: str = "peak_to_gene",
-        peak_seq_key: str = "seq_with_variants",
+        peak_seq_key: str = "personal_genome_seq",
         covariates: Sequence[str] | None = None,
         train: bool = True,
     ) -> None:
@@ -224,28 +224,42 @@ class MuTorchDatasetWithVariants(Dataset):
         self.peak_dist = np.array(mdata.uns[peak_to_gene_key]["distance"].values, dtype=np.float32)
         self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
 
-        self.samples = mdata[rna_mod].obs["bestSample"].values.tolist()
-
         # prepare peak sequence
         # subset seq to only include peaks in peak_to_gene
+        self.donors = mdata[rna_mod].obs["donor"].values.tolist()
+
         self.df_seq = mdata[atac_mod].uns[peak_seq_key]
         self.df_seq = self.df_seq[
             self.df_seq["peak"].isin(mdata.uns[peak_to_gene_key]["peak"].values.tolist())
         ].reset_index(drop=True)
 
-        # convert DNA sequence to one-hot encoding for each sample
+        # convert DNA sequence to one-hot encoding for each donor
         self.peak_seq = {}
-        for sample in list(set(self.samples)):
-            _df_seq = self.df_seq[self.df_seq["sample"] == sample].set_index("peak")
+        for donor in list(set(self.donors)):
+            _df_seq = self.df_seq[self.df_seq["donor"] == donor].set_index("peak")
+
             # resort the seq to the same order as peak_acc
             _df_seq = _df_seq.loc[mdata[atac_mod].var_names.tolist()]
             # encode seq
-            # seq_1 = encode_seq(_df_seq["seq_1"].values.tolist())
-            # seq_2 = encode_seq(_df_seq["seq_2"].values.tolist())
-            seq_1 = np.random.rand(len(_df_seq), 4).astype(np.float32)  # Placeholder for actual encoding
-            seq_2 = np.random.rand(len(_df_seq), 4).astype(np.float32)  # Placeholder for actual encoding
-            peak_seq = torch.add(seq_1, seq_2) / 2.0
-            self.peak_seq[sample] = peak_seq
+
+            seq_1, seq_2 = [], []
+            for seq in _df_seq["seq_1"].values.tolist():
+                one_hot_encode = seq_to_one_hot(seq)
+                if one_hot_encode is None:
+                    logger.error(f"Failed to encode sequence: {seq}")
+
+                seq_1.append(torch.from_numpy(one_hot_encode))
+
+            for seq in _df_seq["seq_2"].values.tolist():
+                one_hot_encode = seq_to_one_hot(seq)
+                if one_hot_encode is None:
+                    logger.error(f"Failed to encode sequence: {seq}")
+
+                seq_2.append(torch.from_numpy(one_hot_encode))
+
+            seq_1 = torch.stack(seq_1)
+            seq_2 = torch.stack(seq_2)
+            self.peak_seq[donor] = torch.add(seq_1, seq_2) / 2.0
 
         self.train = train
         self.len = mdata.n_obs
@@ -256,7 +270,7 @@ class MuTorchDatasetWithVariants(Dataset):
     def __getitem__(self, idx):
         data_map = {}
         data_map["peak_acc"] = self.peak_acc[idx]
-        data_map["peak_seq"] = self.peak_seq[self.samples[idx]]
+        data_map["peak_seq"] = self.peak_seq[self.donors[idx]]
         data_map["peak_dist"] = self.peak_dist
         data_map["tf_exp"] = self.tf_exp[idx]
         data_map["covariates"] = self.covariates[idx]

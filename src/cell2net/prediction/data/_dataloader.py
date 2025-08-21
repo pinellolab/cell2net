@@ -5,14 +5,14 @@ from torch.utils.data import DataLoader
 
 from cell2net._logging import logger
 
-from ._dataset import MuTorchDataset, MuTorchDatasetWithVariants
+from ._dataset import MuTorchDataset, MuTorchDatasetPersonalGenome
 
 
 def get_dataloader(
     mdata: MuData,
     rna_mod: str = "rna",
     atac_mod: str = "atac",
-    with_variants: bool = False,
+    use_personal_genome: bool = False,
     idx: Sequence[int] | Sequence[str] | None = None,
     covariates: Sequence[str] | None = None,
     batch_size: int = 128,
@@ -87,8 +87,8 @@ def get_dataloader(
             f"Subsetted MuData object does not have the same feature names as the original {rna_mod} modality."
         )
 
-    if with_variants:
-        dataset = MuTorchDatasetWithVariants(
+    if use_personal_genome:
+        dataset = MuTorchDatasetPersonalGenome(
             mdata=_mdata,  # type: ignore
             rna_mod=rna_mod,
             atac_mod=atac_mod,

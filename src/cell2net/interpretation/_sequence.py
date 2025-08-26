@@ -2,8 +2,8 @@ from collections.abc import Sequence
 
 import numpy as np
 import torch
-from captum.attr import DeepLift, DeepLiftShap
-from tqdm import tqdm
+from captum.attr import DeepLift
+from tqdm.auto import tqdm
 
 from cell2net._logging import logger
 from cell2net.interpretation._utils import is_sequence_of_ints, is_sequence_of_strings
@@ -277,7 +277,8 @@ def saturation_mutagenesis(
 
 
     # get reference sequence for the peak
-    ref_seq = model.mdata[atac_mod].var["dna_sequence"].values.tolist()[peak_idx]
+    # ref_seq = model.mdata[atac_mod].var["dna_sequence"].values.tolist()[peak_idx]
+    ref_seq = model.mdata[atac_mod].uns["peaks"]["sequence"].values.tolist()[peak_idx]
 
     logger.info("Predicting expression using mutated sequences")
     bases = ['A', 'C', 'G', 'T']
@@ -289,7 +290,7 @@ def saturation_mutagenesis(
         for alt in bases:
             if alt != ref_seq[i]:
                 alt_seq = ref_seq[:i] + alt + ref_seq[i+1:]
-                model.mdata[atac_mod].var["dna_sequence"][peak_idx] = alt_seq
+                model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx] = alt_seq
 
                 pred_alt += model.predict(model.mdata,
                                           rna_mod=rna_mod,
@@ -303,7 +304,7 @@ def saturation_mutagenesis(
         # compute the effect size across all cells
         effects.append(np.mean(pred_ref - pred_alt))
 
-    model.mdata[atac_mod].var["dna_sequence"][peak_idx] = ref_seq  # restore the original sequence
+    model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx] = ref_seq  # restore the original sequence
 
     effects = np.array(effects)
     if normalize:

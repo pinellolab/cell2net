@@ -359,7 +359,8 @@ class Cell2Net(BaseModel):
                 atac_mod: str = "atac",
                 use_personal_genome: bool = False,
                 batch_size: int = 128,
-                num_workers: int = 4) -> np.ndarray:
+                num_workers: int = 4,
+                pin_memory: bool = False) -> np.ndarray:
 
         self.module = self.module.to(self.device)
         self.module.eval()
@@ -372,7 +373,7 @@ class Cell2Net(BaseModel):
             covariates=self.covariates,
             batch_size=batch_size,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=pin_memory,
             shuffle=False,
             drop_last=False,
         )
@@ -412,7 +413,7 @@ class Cell2Net(BaseModel):
             idx=test_idx,
             batch_size=batch_size,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=False,
             shuffle=False,
             drop_last=False,
         )

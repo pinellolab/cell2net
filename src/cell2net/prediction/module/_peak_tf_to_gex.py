@@ -167,13 +167,141 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
         return x
 
 
-# Testing
-# seq_input = torch.randn(8, 79, 256, 4)
-# atac_input = torch.randn(8, 79)
-# tf_input = torch.randn(8, 513)
-# covariates_input = torch.randn(8, 2)
-# m = PeaksTF2GeneExpressionPoisson_Jc(79, 256, 513, 2)
-# total_params = sum(p.numel() for p in m.parameters() if p.requires_grad)
-# print(f'Total trainable parameters: {total_params}')
-# out = m(seq_input, atac_input, tf_input, covariates_input)
-# print(out)
+
+class PeaksTF2GeneExpressionWithPersonalGenome(nn.Module):
+    """
+    A PyTorch module to predict gene expression using peaks, transcription factors, and covariates.
+
+    This model predicts the log(lambda) of a Poisson distribution for gene expression. It integrates
+    sequence-based information, peak accessibility, transcription factor (TF) expression,
+    and covariates through a combination of convolutional, attention, and fully connected layers.
+
+    Parameters
+    ----------
+    n_peaks : int
+        Number of input peaks
+    peak_len: int
+        Length of each peak
+    n_tfs: int
+        Number of TFs used for prediction
+    n_covariates: int
+        Number of covariates
+    n_channels: int
+        Number of input channels of peak sequence. Default: 4 (ACTG)
+    kernel_size: int
+        Kernel size for convolutional layer. Default: 5
+    n_dims: int
+        Embedding size for peak sequence. Default: 16
+    n_attn_blocks: int
+        Number of attention blocks of transformer layers. Default: 1
+    dropout_rate: float
+        Dropout rate. Default: 0.25
+    """
+
+    def __init__(
+        self,
+        n_peaks: int,
+        peak_len: int,
+        n_tfs: int,
+        n_covariates: int,
+        n_filters: Sequence[int] | None = None,
+        n_channels: int = 4,
+        kernel_size: int = 5,
+        n_dims: int = 16,
+        n_attn_blocks: int = 1,
+        dropout_rate: float = 0.25,
+    ) -> None:
+        if n_filters is None:
+            n_filters = [64, 32, 32, 16]
+        super().__init__()
+
+        self.n_peaks = n_peaks
+        self.n_tfs = n_tfs
+        self.peak_len = peak_len
+        self.n_covariates = n_covariates
+
+        # parameters for sequence encoder
+        self.n_filters = n_filters
+        self.n_channels = n_channels
+        self.kernel_size = kernel_size
+        self.n_dims = n_dims
+        self.dropout_rate = dropout_rate
+        self.n_attn_blocks = n_attn_blocks
+
+        # build sequence encoders
+        self.seq_encoder1 = SeqEncoder(
+            base_size=self.n_channels,
+            kernel_size=self.kernel_size,
+            n_filters=self.n_filters,
+        )
+        self.seq_encoder2 = SeqEncoder(
+            base_size=self.n_channels,
+            kernel_size=self.kernel_size,
+            n_filters=self.n_filters,
+        )
+        self.embd_len = self.peak_len // (2 ** len(self.n_filters))
+        self.attn_blocks = get_clones(
+            AttentionBlock(n_embd=self.n_dims), self.n_attn_blocks
+        )
+
+        self.merge_seq_atac = nn.Sequential(
+            nn.Conv1d(
+                in_channels=self.embd_len * self.n_filters[-1] + 1,
+                out_channels=126,
+                kernel_size=1,
+            ),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=126, out_channels=self.n_dims, kernel_size=1),
+            nn.ReLU(),
+        )
+        self.embed_len = self.peak_len
+
+        # fully connected layers to predict the log(lambda) of Poisson distribution
+        self.fc = nn.Sequential(
+            nn.Linear(
+                self.n_peaks * (self.n_dims + 1) + self.n_tfs + self.n_covariates, 32
+            ),
+            nn.ReLU(),
+            nn.BatchNorm1d(32),
+            nn.Dropout(self.dropout_rate),
+            nn.Linear(32, 1),
+        )
+
+    def forward(self, peak_seq1, peak_seq2, peak_acc, peak_dist=None, tf_exp=None, covariates=None):
+        assert (
+            peak_seq1.shape[1] == self.n_peaks
+        ), f"Incorrect input size, found {peak_seq1.shape[1]} peaks, expected {self.n_peaks} peaks!"
+        assert (
+            peak_seq2.shape[1] == self.n_peaks
+        ), f"Incorrect input size, found {peak_seq2.shape[1]} peaks, expected {self.n_peaks} peaks!"
+
+
+        # Embed peak sequence
+        seq_embd1 = self.seq_encoder1(peak_seq1)
+        seq_embd2 = self.seq_encoder2(peak_seq2)
+
+        seq_embd1 = torch.flatten(seq_embd1.permute(0, 2, 1, 3), start_dim=2)
+        seq_embd2 = torch.flatten(seq_embd2.permute(0, 2, 1, 3), start_dim=2)
+
+        # element-wise addition to combine the two sequence embeddings
+        seq_embd = seq_embd1 + seq_embd2
+
+        peak_acc = peak_acc.unsqueeze(-1)
+
+        # Merge signal with sequence embedding
+        seq_atac_embd = self.merge_seq_atac(
+            torch.concat([seq_embd, peak_acc], axis=-1).permute(0, 2, 1)  # type: ignore
+        ).permute(0, 2, 1)
+
+        # Send merged embeding to Transformer encoder
+        attn_list = []
+        for i in range(self.n_attn_blocks):
+            seq_atac_embd, attn = self.attn_blocks[i](seq_atac_embd)
+            attn_list.append(attn.unsqueeze(0))
+        seq_atac_embd = torch.flatten(seq_atac_embd, start_dim=1)
+
+        x = torch.concat([seq_atac_embd, peak_dist, tf_exp, covariates], dim=1)  # type: ignore
+
+        # Concat peak accessibility, tf expression, and covariates
+        x = self.fc(x)
+        return x

@@ -240,8 +240,8 @@ class MuTorchDatasetPersonalGenome(Dataset):
 
             # resort the seq to the same order as peak_acc
             _df_seq = _df_seq.loc[mdata[atac_mod].var_names.tolist()]
-            # encode seq
 
+            # encode seq
             seq_1, seq_2 = [], []
             for seq in _df_seq["seq_1"].values.tolist():
                 one_hot_encode = seq_to_one_hot(seq)
@@ -271,6 +271,91 @@ class MuTorchDatasetPersonalGenome(Dataset):
         data_map = {}
         data_map["peak_acc"] = self.peak_acc[idx]
         data_map["peak_seq"] = self.peak_seq[self.donors[idx]]
+        data_map["peak_dist"] = self.peak_dist
+        data_map["tf_exp"] = self.tf_exp[idx]
+        data_map["covariates"] = self.covariates[idx]
+
+        if self.train:
+            data_map["target_exp"] = self.target_exp[idx]
+
+        return data_map
+
+
+class MuTorchDatasetPersonalGenomeV2(Dataset):
+    def __init__(
+        self,
+        mdata: MuData,
+        rna_mod: str = "rna",
+        atac_mod: str = "atac",
+        peak_to_gene_key: str = "peak_to_gene",
+        peak_seq_key: str = "personal_genome_seq",
+        covariates: Sequence[str] | None = None,
+        train: bool = True,
+    ) -> None:
+        super().__init__()
+
+        self.rna_mod = rna_mod
+        self.atac_mod = atac_mod
+
+        self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
+        self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
+        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
+        self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
+
+        # distance of peak to TSS, normalized by the maximum value
+        self.peak_dist = np.array(mdata.uns[peak_to_gene_key]["distance"].values, dtype=np.float32)
+        self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
+
+        # prepare peak sequence
+        # subset seq to only include peaks in peak_to_gene
+        self.donors = mdata.obs["donor"].values.tolist()
+
+        self.df_seq = mdata[atac_mod].uns[peak_seq_key]
+        self.df_seq = self.df_seq[
+            self.df_seq["peak"].isin(mdata.uns[peak_to_gene_key]["peak"].values.tolist())
+        ].reset_index(drop=True)
+
+        # convert DNA sequence to one-hot encoding for each donor
+        self.peak_seq1 = {}
+        self.peak_seq2 = {}
+        for donor in list(set(self.donors)):
+            _df_seq = self.df_seq[self.df_seq["donor"] == donor].set_index("peak")
+
+            # resort the seq to the same order as peak_acc
+            _df_seq = _df_seq.loc[mdata[atac_mod].var_names.tolist()]
+
+            # encode seq
+            seq_1, seq_2 = [], []
+            for seq in _df_seq["seq_1"].values.tolist():
+                one_hot_encode = seq_to_one_hot(seq)
+                if one_hot_encode is None:
+                    logger.error(f"Failed to encode sequence: {seq}")
+
+                seq_1.append(torch.from_numpy(one_hot_encode))
+
+            for seq in _df_seq["seq_2"].values.tolist():
+                one_hot_encode = seq_to_one_hot(seq)
+                if one_hot_encode is None:
+                    logger.error(f"Failed to encode sequence: {seq}")
+
+                seq_2.append(torch.from_numpy(one_hot_encode))
+
+            seq_1 = torch.stack(seq_1)
+            seq_2 = torch.stack(seq_2)
+            self.peak_seq1[donor] = seq_1
+            self.peak_seq2[donor] = seq_2
+
+        self.train = train
+        self.len = mdata.n_obs
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        data_map = {}
+        data_map["peak_acc"] = self.peak_acc[idx]
+        data_map["peak_seq1"] = self.peak_seq1[self.donors[idx]]
+        data_map["peak_seq2"] = self.peak_seq2[self.donors[idx]]
         data_map["peak_dist"] = self.peak_dist
         data_map["tf_exp"] = self.tf_exp[idx]
         data_map["covariates"] = self.covariates[idx]

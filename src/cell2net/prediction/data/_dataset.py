@@ -259,7 +259,7 @@ class MuTorchDatasetPersonalGenome(Dataset):
 
             seq_1 = torch.stack(seq_1)
             seq_2 = torch.stack(seq_2)
-            self.peak_seq[donor] = torch.add(seq_1, seq_2) / 2.0
+            self.peak_seq[donor] = torch.add(seq_1, seq_2)
 
         self.train = train
         self.len = mdata.n_obs

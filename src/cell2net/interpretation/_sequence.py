@@ -282,7 +282,7 @@ def saturation_mutagenesis(
 
     logger.info("Predicting expression using alternative sequences")
     bases = ['A', 'C', 'G', 'T']
-    effects = []
+    ism_scores = []
     for i in tqdm(range(len(ref_seq))):
         pred_alt = np.zeros(model.mdata.n_obs)
 
@@ -303,31 +303,32 @@ def saturation_mutagenesis(
 
         # compute the effect size across all cells
         if logfc:
-            effects.append(np.log2(np.mean(pred_ref) / np.mean(pred_alt)))
+            ism_scores.append(np.log2(np.mean(pred_ref) / np.mean(pred_alt)))
         else:
-            effects.append(np.mean(pred_ref - pred_alt))
+            ism_scores.append(np.mean(pred_ref - pred_alt))
 
     model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx] = ref_seq  # restore the original sequence
 
-    effects = np.array(effects)
+    ism_scores = np.array(ism_scores)
     if normalize:
-        logger.info("Normalizing effects by centering around 0")
-        effects -= np.mean(effects)  # center the effects around 0
+        logger.info("Normalizing ISM scores by centering around 0")
+        ism_scores -= np.mean(ism_scores)  # center the effects around 0
 
     # if smoothing is needed, we can use a simple moving average
     if smoothing:
-        effects = np.convolve(effects, np.ones(window_size)/window_size, mode='same')
+        ism_scores = np.convolve(ism_scores, np.ones(window_size)/window_size, mode='same')
 
-    effects = np.tile(effects, (4, 1))
+    ism_scores = np.tile(ism_scores, (4, 1))
 
     ref_seq_encode = seq_to_one_hot(ref_seq).transpose()
     if multiply_by_inputs:
-        effects = effects * ref_seq_encode
+        ism_scores = ism_scores * ref_seq_encode
 
     if return_seq:
-        return effects, ref_seq_encode
+        return ism_scores, ref_seq_encode
     else:
-        return effects
+        return ism_scores
+
 
 
 def saturation_mutagenesis_v2(
@@ -338,6 +339,8 @@ def saturation_mutagenesis_v2(
     batch_size: int = 32,
     num_workers: int = 1,
     multiply_by_inputs: bool = True,
+    normalize: bool = False,
+    logfc: bool = False,
     smoothing: bool = True,
     window_size: int = 3,
     return_seq: bool = False,
@@ -355,25 +358,22 @@ def saturation_mutagenesis_v2(
 
     logger.info(f"Compute saturation mutagenesis for peak {peak_idx}")
 
-    logger.info("Predicting expression using original sequence")
+    logger.info("Predicting expression using reference sequence")
     pred_ref = model.predict(model.mdata,
                              rna_mod=rna_mod,
                              atac_mod=atac_mod,
                              batch_size=batch_size,
                              num_workers=num_workers)
 
-    pred_ref = np.median(pred_ref)
-
-    print(pred_ref)
 
     # get reference sequence for the peak
     ref_seq = model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx]
 
-    logger.info("Predicting expression using mutated sequences")
+    logger.info("Predicting expression using alternative sequences")
     bases = ['A', 'C', 'G', 'T']
     ism_scores = []
     for i in tqdm(range(len(ref_seq))):
-        pred_alt = []
+        pred_alt = np.zeros(model.mdata.n_obs)
 
         # compute predictions for mutated sequence
         for alt in bases:
@@ -381,25 +381,25 @@ def saturation_mutagenesis_v2(
                 alt_seq = ref_seq[:i] + alt + ref_seq[i+1:]
                 model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx] = alt_seq
 
-                _pred_alt = model.predict(model.mdata,
+                pred_alt += model.predict(model.mdata,
                                           rna_mod=rna_mod,
                                           atac_mod=atac_mod,
                                           batch_size=batch_size,
                                           num_workers=num_workers)
 
-                pred_alt.append(np.median(_pred_alt))
+        # average predictions for the alternative base
+        pred_alt /= (len(bases) - 1)
 
-        pred_alt.append(pred_ref)  # include the reference prediction
-
-        # print the alternative predictions
-        print(pred_alt)
-
-        # compute the effect size across all cells
-        ism_scores.append(pred_ref - np.mean(np.array(pred_alt)))
-
-    ism_scores = np.array(ism_scores)
+        fc = np.divide(pred_ref, pred_alt, out=np.zeros_like(pred_ref), where=pred_alt!=0)
+        logfc = np.log2(fc).sum()
+        ism_scores.append(logfc)
 
     model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx] = ref_seq  # restore the original sequence
+
+    ism_scores = np.array(ism_scores)
+    if normalize:
+        logger.info("Normalizing ISM scores by centering around 0")
+        ism_scores -= np.mean(ism_scores)  # center the effects around 0
 
     # if smoothing is needed, we can use a simple moving average
     if smoothing:

@@ -33,6 +33,7 @@ class Cell2Net(BaseModel):
         atac_mod: str = "atac",
         peak_to_gene_key: str = "peak_to_gene",
         covariates: Sequence[str] | None = None,
+        peak_len: int = 256,
         n_filters: Sequence[int] | None = None,
         n_channels: int = 4,
         kernel_size: int = 5,
@@ -86,6 +87,7 @@ class Cell2Net(BaseModel):
         self.n_tfs = len(tfs)
 
         # Parameters for sequence encoder
+        self.peak_len = peak_len
         self.n_channels = n_channels
         self.n_filters = n_filters
         self.kernel_size = kernel_size
@@ -94,7 +96,7 @@ class Cell2Net(BaseModel):
 
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
-            peak_len=256,
+            peak_len=self.peak_len,
             kernel_size=self.kernel_size,
             n_tfs=self.n_tfs,
             n_covariates=self.n_covariates,
@@ -106,7 +108,7 @@ class Cell2Net(BaseModel):
 
         self._module_summary = {
             "n_peaks": self.n_peaks,
-            "peak_len": 256,
+            "peak_len": self.peak_len,
             "n_tfs": self.n_tfs,
             "n_covariates": self.n_covariates,
             "n_filters": self.n_filters,
@@ -117,7 +119,7 @@ class Cell2Net(BaseModel):
         self.summary_ = (
             f"gene_name: {self.gene}, "
             f"n_peaks: {self.n_peaks}, "
-            f"peak_len: 256, "
+            f"peak_len: {self.peak_len}, "
             f"n_tfs: {self.n_tfs}, "
             f"n_covariates: {self.n_covariates}, "
             f"n_filters: {self.n_filters}, "
@@ -515,7 +517,7 @@ class Cell2Net(BaseModel):
 
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
-            peak_len=256,
+            peak_len=self.peak_len,
             n_tfs=self.n_tfs,
             n_covariates=self.n_covariates,
             n_filters=self.n_filters,

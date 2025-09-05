@@ -168,7 +168,7 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
 
 
 
-class PeaksTF2GeneExpressionWithPersonalGenome(nn.Module):
+class PeaksTF2GeneExpressionWithVariants(nn.Module):
     """
     A PyTorch module to predict gene expression using peaks, transcription factors, and covariates.
 

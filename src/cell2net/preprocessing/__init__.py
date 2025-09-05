@@ -31,3 +31,4 @@ from ._sequence import (
 )
 from ._utils import bgzip, tabix_index
 from ._variants import get_genomic_variants, add_variants_to_sequence
+from ._mdata import prepare_mdata

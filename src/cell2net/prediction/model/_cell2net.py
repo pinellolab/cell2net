@@ -206,7 +206,6 @@ class Cell2Net(BaseModel):
 
     def train(
         self,
-        use_personal_genome: bool = False,
         device_name: str = "cuda",
         train_size: float | None = 0.8,
         train_idx: list[int] | list[str] | None = None,
@@ -247,7 +246,6 @@ class Cell2Net(BaseModel):
 
         self.train_dl = get_dataloader(
             mdata=self.mdata,
-            use_personal_genome=use_personal_genome,
             covariates=self.covariates,
             idx=train_idx,
             batch_size=batch_size,
@@ -260,7 +258,6 @@ class Cell2Net(BaseModel):
 
         self.valid_dl = get_dataloader(
             mdata=self.mdata,
-            use_personal_genome=use_personal_genome,
             covariates=self.covariates,
             idx=valid_idx,
             batch_size=batch_size,
@@ -359,7 +356,6 @@ class Cell2Net(BaseModel):
                 mdata: MuData,
                 rna_mod: str = "rna",
                 atac_mod: str = "atac",
-                use_personal_genome: bool = False,
                 batch_size: int = 128,
                 num_workers: int = 4,
                 pin_memory: bool = False) -> np.ndarray:
@@ -371,7 +367,6 @@ class Cell2Net(BaseModel):
             mdata=mdata,
             rna_mod=rna_mod,
             atac_mod=atac_mod,
-            use_personal_genome=use_personal_genome,
             covariates=self.covariates,
             batch_size=batch_size,
             num_workers=num_workers,

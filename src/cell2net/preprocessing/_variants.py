@@ -3,8 +3,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import vcfpy
+import pyranges as pr
+from anndata import AnnData
 from mudata import MuData
 from tqdm.auto import tqdm
+from scipy.sparse import csr_matrix
 
 from cell2net._logging import logger
 
@@ -603,5 +606,73 @@ def add_variants_to_sequence(
 
     adata.uns[personal_genome_seq] = df_seq
     logger.info("Adding variants finished!")
+
+    return None
+
+
+def add_variants(
+    mdata: MuData,
+    df_variants: pd.DataFrame,
+    df_genotypes: pd.DataFrame,
+    atac_mod: str = "atac",
+    donor_col_key: str = "donor",
+) -> None:
+
+    if atac_mod not in mdata.mod_names:
+        logger.error(f"Cannot find modality: {atac_mod}")
+        return None
+
+    adata_atac = mdata[atac_mod]
+
+    # convert peaks to pyranges object
+    logger.info("Getting peaks")
+    df_peaks = pd.DataFrame(
+            data={
+                "Chromosome": adata_atac.uns["peaks"]['chr'],
+                "Start": adata_atac.uns["peaks"]['start'],
+                "End": adata_atac.uns["peaks"]['end'],
+            }
+        )
+
+    gr_peaks = pr.from_dict(df_peaks)
+    gr_peaks.Peaks = df_peaks.index.values
+
+    # convert variants to pyranges object
+    logger.info("Getting variants")
+    _df_variants = df_variants.copy()
+    _df_variants["Chromosome"] = _df_variants["chrom"].astype(str)
+    _df_variants["Start"] = _df_variants["pos"]
+    _df_variants["End"] = _df_variants["pos"] + 1
+    _df_variants = _df_variants[["Chromosome", "Start", "End"]]
+    gr_variants = pr.from_dict(_df_variants)
+    gr_variants.Name = _df_variants.index.values
+
+    # find overlaps between peaks and variants
+    overlap = gr_variants.overlap(gr_peaks)
+    _df_genotypes = df_genotypes.loc[overlap.Name.tolist(), :].copy()
+
+    # create matrix of cells and variants with genotype as values
+    # index: cell, columns: variant, values: genotype
+    counts = np.zeros((adata_atac.n_obs, _df_genotypes.shape[0]), dtype=np.int8)
+    for idx, cell in enumerate(adata_atac.obs.index):
+        donor = adata_atac.obs.loc[cell, donor_col_key]
+        if donor not in _df_genotypes.columns:
+            counts[idx, :] = -9
+        else:
+            counts[idx, :] = _df_genotypes.loc[:, donor].values
+
+    # set genotype to reference is missing
+    counts[counts == -9] = 0
+
+    df_var = overlap.df
+    df_var.set_index('Name', inplace=True)
+
+    adata = AnnData(X=csr_matrix(counts),
+                    obs=adata_atac.obs.index.to_frame(),
+                    var=df_var)
+
+    adata.layers["counts"] = adata.X.copy()
+    mdata.mod["variants"] = adata.copy()
+    logger.info(f"Added {adata.n_vars} variants to mdata['variants']")
 
     return None

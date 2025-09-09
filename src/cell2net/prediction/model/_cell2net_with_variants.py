@@ -9,7 +9,6 @@ import copy
 import torch
 from mudata import MuData
 from scipy import stats
-from scipy.sparse import csr_matrix
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -17,7 +16,7 @@ from tqdm.auto import tqdm
 
 from cell2net._logging import logger
 from cell2net.prediction.data import get_dataloader
-from cell2net.prediction.module import PeaksTF2GeneExpressionPoisson
+from cell2net.prediction.module import PeaksTF2GeneExpressionWithVariants
 
 from ._base import BaseModel
 from ._constants import SAVE_KEYS
@@ -25,7 +24,7 @@ from ._constants import SAVE_KEYS
 warnings.filterwarnings("ignore")
 
 
-class Cell2NetWithVariant(BaseModel):
+class Cell2NetWithVariants(BaseModel):
     def __init__(
         self,
         mdata: MuData,
@@ -33,8 +32,8 @@ class Cell2NetWithVariant(BaseModel):
         rna_mod: str = "rna",
         atac_mod: str = "atac",
         peak_to_gene_key: str = "peak_to_gene",
-        sample_col: str = "bestSample",
         covariates: Sequence[str] | None = None,
+        peak_len: int = 256,
         n_filters: Sequence[int] | None = None,
         n_channels: int = 4,
         kernel_size: int = 5,
@@ -46,16 +45,6 @@ class Cell2NetWithVariant(BaseModel):
         if n_filters is None:
             n_filters = [64, 32, 32, 16]
 
-        if rna_mod not in mdata.mod:
-            logger.error(f"{rna_mod} not found in the MuData object.")
-        if atac_mod not in mdata.mod:
-            logger.error(f"{atac_mod} not found in the MuData object.")
-
-        if peak_to_gene_key not in mdata.uns:
-            logger.error(f"{peak_to_gene_key} not found in the MuData object.")
-        if gene not in mdata[rna_mod].var_names:
-            logger.error(f"{gene} not found in the MuData object.")
-
         self.gene = gene
 
         peak_to_gene = mdata.uns[peak_to_gene_key][
@@ -64,62 +53,53 @@ class Cell2NetWithVariant(BaseModel):
         peak_to_gene = peak_to_gene.reset_index(drop=True)
 
         self.n_peaks = len(peak_to_gene)
-
-        if self.n_peaks == 0:
-            logger.error(f"No associated peaks found for gene {gene}.")
+        assert self.n_peaks > 0, "Cannot find any associated peaks!"
 
         self.covariates = covariates
-        self.n_covariates = len(covariates) if covariates is not None else 0
+        if covariates is not None:
+            self.n_covariates = len(covariates)
+        else:
+            self.n_covariates = 0
 
-        # create anndata for RNA and ATAC
-        # use copy to avoid modifying the original data
-        adata_atac = mdata[atac_mod][:, peak_to_gene["peak"].values.tolist()].copy()
+        # Create anndata for RNA and ATAC
+        peaks = peak_to_gene["peak"].values.tolist()
+        adata_atac = mdata[atac_mod][:, peaks].copy()
+
+        # Subset ATAC peaks to those associated with the gene
+        adata_atac.uns["peaks"] = adata_atac.uns["peaks"].loc[peaks].copy()
+
         adata_rna = mdata[rna_mod][:, gene].copy()
 
         self.max_gex = np.max(adata_rna.layers["counts"])  # type: ignore
         self.min_gex = np.min(adata_rna.layers["counts"])  # type: ignore
 
-        # get associated TFs for each sample
-        tfs = []
-        samples = list(mdata[rna_mod].uns["gene_tf"].keys())
-        for sample in samples:
-            row = mdata[rna_mod].uns["gene_tf"][sample].loc[gene]
-            tfs.append(row)
+        # Get associated TFs for each cell
+        row = mdata[rna_mod].uns["gene_tf"].loc[gene]
+        tfs = row[row != 0].index.tolist()
 
-        df_tfs = pd.DataFrame(tfs, index=samples)
+        adata_rna.obsm["tf"] = mdata[rna_mod][:, tfs].layers["counts"].copy()  # type: ignore
 
-        adata_rna.obsm["tf"] = mdata[rna_mod][:, df_tfs.columns].layers["counts"].copy().todense()  # type: ignore
-
-        # update input TF expression for each cell based on its matching results
-        # with genomic variants information
-        samples = adata_rna.obs[sample_col].values.tolist()
-        for i, sample_name in enumerate(samples):
-            tf = np.array(df_tfs.loc[sample_name].values.tolist())
-            adata_rna.obsm["tf"][i,] = tf * adata_rna.obsm["tf"][i,]  # type: ignore
-
-        # convert adata_rna.obsm["tf"] to sparse matrix
-        adata_rna.obsm["tf"] = csr_matrix(adata_rna.obsm["tf"])
-
-        # create a mudata object as input for the model
         self.mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac})  # type: ignore
         self.mdata.obs = mdata.obs.copy()
-        self.mdata.uns["tfs"] = df_tfs
-        self.mdata.uns[peak_to_gene_key] = peak_to_gene
+        self.mdata.uns["tfs"] = tfs
+        self.mdata.uns["peak_to_gene"] = peak_to_gene
 
-        self.n_tfs = df_tfs.shape[1]
+        self.n_tfs = len(tfs)
 
         # Parameters for sequence encoder
+        self.peak_len = peak_len
         self.n_channels = n_channels
         self.n_filters = n_filters
         self.kernel_size = kernel_size
         self.n_dims = n_dims
         self.dropout_rate = dropout_rate
 
-        self.module = PeaksTF2GeneExpressionPoisson(
+        self.module = PeaksTF2GeneExpressionWithVariants(
             n_peaks=self.n_peaks,
-            peak_len=256,
+            peak_len=self.peak_len,
             kernel_size=self.kernel_size,
             n_tfs=self.n_tfs,
+            n_variants=self.n_variants,
             n_covariates=self.n_covariates,
             n_filters=self.n_filters,
             n_channels=self.n_channels,
@@ -129,7 +109,7 @@ class Cell2NetWithVariant(BaseModel):
 
         self._module_summary = {
             "n_peaks": self.n_peaks,
-            "peak_len": 256,
+            "peak_len": self.peak_len,
             "n_tfs": self.n_tfs,
             "n_covariates": self.n_covariates,
             "n_filters": self.n_filters,
@@ -140,7 +120,7 @@ class Cell2NetWithVariant(BaseModel):
         self.summary_ = (
             f"gene_name: {self.gene}, "
             f"n_peaks: {self.n_peaks}, "
-            f"peak_len: 256, "
+            f"peak_len: {self.peak_len}, "
             f"n_tfs: {self.n_tfs}, "
             f"n_covariates: {self.n_covariates}, "
             f"n_filters: {self.n_filters}, "
@@ -233,7 +213,7 @@ class Cell2NetWithVariant(BaseModel):
         valid_idx: list[int] | list[str] | None = None,
         stratify: list[str] | None = None,
         batch_size: int = 128,
-        num_workers: int = 4,
+        num_workers: int = 1,
         pin_memory: bool = False,
         persistent_workers: bool = False,
         max_epochs: int = 20,
@@ -242,7 +222,7 @@ class Cell2NetWithVariant(BaseModel):
         weight_decay: float = 1e-04,
         verbose: bool = True,
     ) -> None:
-        if train_idx and valid_idx:
+        if train_idx is not None and valid_idx is not None:
             if verbose:
                 logger.info("Using provided index for training and validation")
 
@@ -257,7 +237,7 @@ class Cell2NetWithVariant(BaseModel):
                 stratify=stratify,
             )
         else:
-            logger.error(
+            raise ValueError(
                 "Please provide train_size or indices for trainging and validation"
             )
 
@@ -275,7 +255,6 @@ class Cell2NetWithVariant(BaseModel):
             persistent_workers=persistent_workers,
             shuffle=True,
             drop_last=True,
-            with_variants=True,
         )
 
         self.valid_dl = get_dataloader(
@@ -288,7 +267,6 @@ class Cell2NetWithVariant(BaseModel):
             persistent_workers=persistent_workers,
             shuffle=False,
             drop_last=False,
-            with_variants=True,
         )
 
         # Move module to device
@@ -301,7 +279,7 @@ class Cell2NetWithVariant(BaseModel):
         )
         lr_scheduler = ReduceLROnPlateau(self.optimizer, "max", min_lr=1e-5, patience=5)
 
-        self.best_score, self.best_epoch = -np.inf, 0
+        self.best_valid_corr, self.best_epoch = -np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
         train_corrs, valid_corrs = [], []
 
@@ -319,10 +297,20 @@ class Cell2NetWithVariant(BaseModel):
             train_corrs.append(train_corr)
             valid_corrs.append(valid_corr)
 
+            # print validation results
+            if verbose:
+                logger.info(f"Epoch {epoch}:, Train loss: {train_loss:.4f}, Valid loss: {valid_loss:.4f}, Train correlation: {train_corr:.4f}, Valid correlation: {valid_corr:.4f}")
+
             # Save model if find a better validation score
-            if valid_corr > self.best_score:
-                self.best_score = valid_corr
+            if valid_corr > self.best_valid_corr:
+
+                if verbose:
+                    logger.info(f"New best valid correlation: {valid_corr:.4f}")
+
+                self.best_valid_corr = valid_corr
                 self.best_epoch = epoch
+
+                # Use deep copy to create a new checkpoint
                 self.check_point = copy.deepcopy(self.module.state_dict())
 
                 self.train_loss = train_loss
@@ -334,6 +322,15 @@ class Cell2NetWithVariant(BaseModel):
                 self.valid_corr = valid_corr
                 self.valid_pred = np.exp(valid_pred)
                 self.valid_true = valid_true
+
+                self.results = pd.DataFrame(
+                    data={
+                        "true": np.concatenate([self.train_true, self.valid_true]),
+                        "pred": np.concatenate([self.train_pred, self.valid_pred]),
+                        "data": ["train"] * len(self.train_true)
+                        + ["valid"] * len(self.valid_true),
+                    }
+                )
 
             lr_scheduler.step(valid_corr)  # type: ignore
 
@@ -349,12 +346,53 @@ class Cell2NetWithVariant(BaseModel):
 
         logger.info("Training finished")
         logger.info(
-            f"Find best model at epoch {self.best_epoch} with valid correation {self.best_score: .3f}"
+            f"Find best model at epoch {self.best_epoch} with valid correation {self.best_valid_corr: .3f}"
         )
 
         self.is_trained_ = True
 
         return None
+
+    def predict(self,
+                mdata: MuData,
+                rna_mod: str = "rna",
+                atac_mod: str = "atac",
+                batch_size: int = 128,
+                num_workers: int = 4,
+                pin_memory: bool = False) -> np.ndarray:
+
+        self.module = self.module.to(self.device)
+        self.module.eval()
+
+        dataloader = get_dataloader(
+            mdata=mdata,
+            rna_mod=rna_mod,
+            atac_mod=atac_mod,
+            covariates=self.covariates,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            shuffle=False,
+            drop_last=False,
+        )
+
+        rna_pred = []
+        with torch.no_grad():
+            for data in dataloader:
+                # get input features
+                peak_seq = data["peak_seq"].to(self.device)
+                peak_acc = data["peak_acc"].to(self.device)
+                peak_dist = data["peak_dist"].to(self.device)
+                tf_exp = data["tf_exp"].to(self.device)
+                covariates = data["covariates"].to(self.device)
+
+                pred = self.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
+                pred = pred.detach().cpu().view(-1)
+                rna_pred.append(pred)
+
+        # convert log(lambda) to lambda
+        rna_pred = torch.concat(rna_pred).exp().numpy()
+        return rna_pred
 
     def test(
         self,
@@ -373,7 +411,7 @@ class Cell2NetWithVariant(BaseModel):
             idx=test_idx,
             batch_size=batch_size,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=False,
             shuffle=False,
             drop_last=False,
         )
@@ -456,6 +494,7 @@ class Cell2NetWithVariant(BaseModel):
                 SAVE_KEYS.MODEL_HISTORY: self.history_.to_dict(),
                 SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
                 SAVE_KEYS.MODULE_SUMMARY_DICT_KEY: self._module_summary,
+                "results": self.results.to_dict(),
             },
             model_save_path,
         )
@@ -474,7 +513,7 @@ class Cell2NetWithVariant(BaseModel):
 
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
-            peak_len=256,
+            peak_len=self.peak_len,
             n_tfs=self.n_tfs,
             n_covariates=self.n_covariates,
             n_filters=self.n_filters,
@@ -484,6 +523,7 @@ class Cell2NetWithVariant(BaseModel):
 
         self.module.load_state_dict(state_dict[SAVE_KEYS.MODEL_STATE_DICT_KEY])
         self.history_ = pd.DataFrame.from_dict(state_dict[SAVE_KEYS.MODEL_HISTORY])
+        self.results = pd.DataFrame.from_dict(state_dict["results"])
 
         if load_mdata:
             self.mdata = md.read_h5mu(os.path.join(dir_path, f"{self.gene}.h5mu"))  # type: ignore

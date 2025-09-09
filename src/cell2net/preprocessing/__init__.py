@@ -30,5 +30,5 @@ from ._sequence import (
     seq_to_one_hot,
 )
 from ._utils import bgzip, tabix_index
-from ._variants import get_genomic_variants, add_variants_to_sequence
-from ._mdata import subset_mdata
+from ._variants import get_genomic_variants, add_variants_to_sequence, add_variants
+from ._mdata import setup_mudata

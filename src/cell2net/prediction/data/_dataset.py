@@ -130,6 +130,87 @@ class MuTorchDataset(Dataset):
         return data_map
 
 
+class MuTorchDatasetWithVariants(Dataset):
+    """
+    A PyTorch Dataset for single-cell multi-modal data with genetic variants.
+
+    This dataset extends the MuTorchDataset to include information about genetic variants
+    associated with each peak.
+
+    Parameters
+    ----------
+    mdata:
+        A MuData object containing multi-modal data.
+    rna_mod:
+        The modality name for RNA data in the MuData object.
+    atac_mod:
+        The modality name for ATAC data in the MuData object.
+    covariates: Sequence[str], optional
+        A list of column names in `mdata.obs` representing covariates to include in the dataset.
+    train:
+        Whether the dataset is used for training.
+
+    Attributes
+    ----------
+    variant_info : np.ndarray
+        Information about genetic variants associated with each peak.
+    """
+
+    def __init__(
+        self,
+        mdata: MuData,
+        rna_mod: str = "rna",
+        atac_mod: str = "atac",
+        covariates: Sequence[str] | None = None,
+        train: bool = True,
+    ) -> None:
+        super().__init__()
+
+        self.mdata = mdata
+        self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
+        self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
+        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
+
+        self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
+
+        self.variants = np.array(mdata.uns["variant"].values.tolist(), dtype=np.float32)
+
+        # distance of peak to TSS, normalized by the maximum value
+        self.peak_dist = np.array(mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32)
+        self.peak_dist = np.exp(-self.peak_dist / 500000).astype(np.float32)
+
+        # convert sequence to one-hot encoding
+        self.peak_seq = []
+        for seq in self.mdata[atac_mod].uns["peaks"]["sequence"].values.tolist():
+            # Ensure seq_to_one_hot is defined or imported
+            one_hot_encode = seq_to_one_hot(seq)
+            if one_hot_encode is None:
+                logger.error(f"Failed to encode sequence: {seq}")
+
+            self.peak_seq.append(torch.from_numpy(one_hot_encode))
+
+        self.peak_seq = torch.stack(self.peak_seq)
+
+        self.train = train
+        self.len = self.mdata.n_obs
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        data_map = {}
+        data_map["peak_acc"] = self.peak_acc[idx]
+        data_map["peak_seq"] = self.peak_seq
+        data_map["peak_dist"] = self.peak_dist
+        data_map["variants"] = self.variants[idx]
+        data_map["tf_exp"] = self.tf_exp[idx]
+        data_map["covariates"] = self.covariates[idx]
+
+        if self.train:
+            data_map["target_exp"] = self.target_exp[idx]
+
+        return data_map
+
 class MuTorchDatasetPersonalGenome(Dataset):
     """
     A PyTorch Dataset for single-cell multi-modal data.

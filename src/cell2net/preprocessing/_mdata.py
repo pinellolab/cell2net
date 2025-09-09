@@ -1,6 +1,10 @@
+import pandas as pd
+from anndata import AnnData
 from mudata import MuData
 
-def subset_mdata(
+from cell2net._logging import logger
+
+def setup_mudata(
     mdata: MuData,
     gene: str,
     rna_mod: str = "rna",
@@ -128,6 +132,8 @@ def subset_mdata(
     cell2net.preprocessing.peak_to_gene : Function to create peak-to-gene linkages
     cell2net.preprocessing.tf_to_gene : Function to create TF-to-gene relationships
     """
+    logger.info(f"Subsetting MuData for gene: {gene}")
+
     peak_to_gene = mdata.uns[peak_to_gene_key][
             mdata.uns[peak_to_gene_key]["gene"] == gene
         ]
@@ -146,9 +152,17 @@ def subset_mdata(
     row = mdata[rna_mod].uns["gene_tf"].loc[gene]
     tfs = row[row != 0].index.tolist()
 
-    adata_rna.obsm["tf"] = mdata[rna_mod][:, tfs].layers["counts"].copy()  # type: ignore
+    tf_exp = mdata[rna_mod][:, tfs].layers["counts"].copy()  # type: ignore
 
-    _mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac})  # type: ignore
+    df_tf_var = pd.DataFrame(
+        data={"gene_name": tfs},
+        index=tfs
+    )
+    adata_tf = AnnData(X=tf_exp,
+                       obs=mdata[rna_mod].obs.index.to_frame(),
+                       var=df_tf_var)
+
+    _mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac, "tf_exp": adata_tf})  # type: ignore
     _mdata.obs = mdata.obs.copy()
     _mdata.uns["tfs"] = tfs
     _mdata.uns["peak_to_gene"] = peak_to_gene

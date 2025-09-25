@@ -1,2 +1,2 @@
-from ._dataloader import get_dataloader
-from ._dataset import MuTorchDataset, MuTorchDatasetPersonalGenome
+from ._dataloader import get_dataloader, get_dataloader_with_variants
+from ._dataset import MuTorchDataset, MuTorchDatasetPersonalGenome, MuTorchDatasetWithVariants

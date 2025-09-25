@@ -615,6 +615,7 @@ def add_variants(
     df_variants: pd.DataFrame,
     df_genotypes: pd.DataFrame,
     atac_mod: str = "atac",
+    variant_mod: str = "variant",
     donor_col_key: str = "donor",
 ) -> None:
 
@@ -672,7 +673,7 @@ def add_variants(
                     var=df_var)
 
     adata.layers["counts"] = adata.X.copy()
-    mdata.mod["variants"] = adata.copy()
-    logger.info(f"Added {adata.n_vars} variants to mdata['variants']")
+    mdata.mod[variant_mod] = adata.copy()
+    logger.info(f"Added {adata.n_vars} variants to mdata['{variant_mod}']")
 
     return None

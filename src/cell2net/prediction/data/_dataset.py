@@ -87,7 +87,6 @@ class MuTorchDataset(Dataset):
     ) -> None:
         super().__init__()
 
-        self.mdata = mdata
         self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
         self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
         self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
@@ -100,7 +99,7 @@ class MuTorchDataset(Dataset):
 
         # convert sequence to one-hot encoding
         self.peak_seq = []
-        for seq in self.mdata[atac_mod].uns["peaks"]["sequence"].values.tolist():
+        for seq in mdata[atac_mod].uns["peaks"]["sequence"].values.tolist():
             # Ensure seq_to_one_hot is defined or imported
             one_hot_encode = seq_to_one_hot(seq)
             if one_hot_encode is None:
@@ -111,7 +110,7 @@ class MuTorchDataset(Dataset):
         self.peak_seq = torch.stack(self.peak_seq)
 
         self.train = train
-        self.len = self.mdata.n_obs
+        self.len = mdata.n_obs
 
     def __len__(self):
         return self.len
@@ -161,19 +160,19 @@ class MuTorchDatasetWithVariants(Dataset):
         mdata: MuData,
         rna_mod: str = "rna",
         atac_mod: str = "atac",
+        tf_exp_mod: str = "tf_exp",
+        variant_mod: str = "variant",
         covariates: Sequence[str] | None = None,
         train: bool = True,
     ) -> None:
         super().__init__()
 
-        self.mdata = mdata
         self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
         self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
-        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
+        self.tf_exp = np.array(mdata[tf_exp_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
+        self.variants = np.array(mdata[variant_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
 
         self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
-
-        self.variants = np.array(mdata.uns["variant"].values.tolist(), dtype=np.float32)
 
         # distance of peak to TSS, normalized by the maximum value
         self.peak_dist = np.array(mdata.uns["peak_to_gene"]["distance"].values, dtype=np.float32)
@@ -181,7 +180,7 @@ class MuTorchDatasetWithVariants(Dataset):
 
         # convert sequence to one-hot encoding
         self.peak_seq = []
-        for seq in self.mdata[atac_mod].uns["peaks"]["sequence"].values.tolist():
+        for seq in mdata[atac_mod].uns["peaks"]["sequence"].values.tolist():
             # Ensure seq_to_one_hot is defined or imported
             one_hot_encode = seq_to_one_hot(seq)
             if one_hot_encode is None:
@@ -192,7 +191,7 @@ class MuTorchDatasetWithVariants(Dataset):
         self.peak_seq = torch.stack(self.peak_seq)
 
         self.train = train
-        self.len = self.mdata.n_obs
+        self.len = mdata.n_obs
 
     def __len__(self):
         return self.len
@@ -202,7 +201,7 @@ class MuTorchDatasetWithVariants(Dataset):
         data_map["peak_acc"] = self.peak_acc[idx]
         data_map["peak_seq"] = self.peak_seq
         data_map["peak_dist"] = self.peak_dist
-        data_map["variants"] = self.variants[idx]
+        data_map["variant"] = self.variants[idx]
         data_map["tf_exp"] = self.tf_exp[idx]
         data_map["covariates"] = self.covariates[idx]
 

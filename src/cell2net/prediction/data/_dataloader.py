@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 
 from cell2net._logging import logger
 
-from ._dataset import MuTorchDataset, MuTorchDatasetPersonalGenome
+from ._dataset import MuTorchDataset, MuTorchDatasetPersonalGenome, MuTorchDatasetWithVariants
 
 
 def get_dataloader(
@@ -99,6 +99,50 @@ def get_dataloader(
             mdata=_mdata,  # type: ignore
             rna_mod=rna_mod,
             atac_mod=atac_mod,
+            covariates=covariates,
+        )
+
+    dataloader = DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        shuffle=shuffle,
+        drop_last=drop_last,
+        persistent_workers=persistent_workers,
+        **kwargs,
+    )
+
+    return dataloader
+
+
+def get_dataloader_with_variants(
+    mdata: MuData,
+    rna_mod: str = "rna",
+    atac_mod: str = "atac",
+    tf_exp_mod: str = "tf_exp",
+    variant_mod: str = "variants",
+    idx: Sequence[int] | Sequence[str] | None = None,
+    covariates: Sequence[str] | None = None,
+    batch_size: int = 128,
+    num_workers: int = 4,
+    pin_memory: bool = True,
+    shuffle: bool = True,
+    drop_last: bool = True,
+    persistent_workers: bool = True,
+    **kwargs,
+) -> DataLoader:
+    if idx is not None:
+        _mdata = mdata[idx]
+    else:
+        _mdata = mdata
+
+    dataset = MuTorchDatasetWithVariants(
+            mdata=_mdata,  # type: ignore
+            rna_mod=rna_mod,
+            atac_mod=atac_mod,
+            tf_exp_mod=tf_exp_mod,
+            variant_mod=variant_mod,
             covariates=covariates,
         )
 

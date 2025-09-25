@@ -162,6 +162,8 @@ def setup_mudata(
                        obs=mdata[rna_mod].obs.index.to_frame(),
                        var=df_tf_var)
 
+    adata_tf.layers["counts"] = adata_tf.X.copy()  # type: ignore
+
     _mdata = MuData({rna_mod: adata_rna, atac_mod: adata_atac, "tf_exp": adata_tf})  # type: ignore
     _mdata.obs = mdata.obs.copy()
     _mdata.uns["tfs"] = tfs

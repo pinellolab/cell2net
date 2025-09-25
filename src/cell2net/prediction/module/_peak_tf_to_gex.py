@@ -169,40 +169,12 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
 
 
 class PeaksTF2GeneExpressionWithVariants(nn.Module):
-    """
-    A PyTorch module to predict gene expression using peaks, transcription factors, and covariates.
-
-    This model predicts the log(lambda) of a Poisson distribution for gene expression. It integrates
-    sequence-based information, peak accessibility, transcription factor (TF) expression,
-    and covariates through a combination of convolutional, attention, and fully connected layers.
-
-    Parameters
-    ----------
-    n_peaks : int
-        Number of input peaks
-    peak_len: int
-        Length of each peak
-    n_tfs: int
-        Number of TFs used for prediction
-    n_covariates: int
-        Number of covariates
-    n_channels: int
-        Number of input channels of peak sequence. Default: 4 (ACTG)
-    kernel_size: int
-        Kernel size for convolutional layer. Default: 5
-    n_dims: int
-        Embedding size for peak sequence. Default: 16
-    n_attn_blocks: int
-        Number of attention blocks of transformer layers. Default: 1
-    dropout_rate: float
-        Dropout rate. Default: 0.25
-    """
-
     def __init__(
         self,
         n_peaks: int,
         peak_len: int,
         n_tfs: int,
+        n_variants: int,
         n_covariates: int,
         n_filters: Sequence[int] | None = None,
         n_channels: int = 4,
@@ -219,6 +191,7 @@ class PeaksTF2GeneExpressionWithVariants(nn.Module):
         self.n_tfs = n_tfs
         self.peak_len = peak_len
         self.n_covariates = n_covariates
+        self.n_variants = n_variants
 
         # parameters for sequence encoder
         self.n_filters = n_filters
@@ -229,12 +202,7 @@ class PeaksTF2GeneExpressionWithVariants(nn.Module):
         self.n_attn_blocks = n_attn_blocks
 
         # build sequence encoders
-        self.seq_encoder1 = SeqEncoder(
-            base_size=self.n_channels,
-            kernel_size=self.kernel_size,
-            n_filters=self.n_filters,
-        )
-        self.seq_encoder2 = SeqEncoder(
+        self.seq_encoder = SeqEncoder(
             base_size=self.n_channels,
             kernel_size=self.kernel_size,
             n_filters=self.n_filters,
@@ -259,7 +227,7 @@ class PeaksTF2GeneExpressionWithVariants(nn.Module):
         # fully connected layers to predict the log(lambda) of Poisson distribution
         self.fc = nn.Sequential(
             nn.Linear(
-                self.n_peaks * (self.n_dims + 1) + self.n_tfs + self.n_covariates, 32
+                self.n_peaks * (self.n_dims + 1) + self.n_tfs + self.n_covariates + self.n_variants, 32
             ),
             nn.ReLU(),
             nn.BatchNorm1d(32),
@@ -267,25 +235,14 @@ class PeaksTF2GeneExpressionWithVariants(nn.Module):
             nn.Linear(32, 1),
         )
 
-    def forward(self, peak_seq1, peak_seq2, peak_acc, peak_dist=None, tf_exp=None, covariates=None):
+    def forward(self, peak_seq, peak_acc=None, peak_dist=None, tf_exp=None, variants=None, covariates=None):
         assert (
-            peak_seq1.shape[1] == self.n_peaks
-        ), f"Incorrect input size, found {peak_seq1.shape[1]} peaks, expected {self.n_peaks} peaks!"
-        assert (
-            peak_seq2.shape[1] == self.n_peaks
-        ), f"Incorrect input size, found {peak_seq2.shape[1]} peaks, expected {self.n_peaks} peaks!"
-
+            peak_seq.shape[1] == self.n_peaks
+        ), f"Incorrect input size, found {peak_seq.shape[1]} peaks, expected {self.n_peaks} peaks!"
 
         # Embed peak sequence
-        seq_embd1 = self.seq_encoder1(peak_seq1)
-        seq_embd2 = self.seq_encoder2(peak_seq2)
-
-        seq_embd1 = torch.flatten(seq_embd1.permute(0, 2, 1, 3), start_dim=2)
-        seq_embd2 = torch.flatten(seq_embd2.permute(0, 2, 1, 3), start_dim=2)
-
-        # element-wise addition to combine the two sequence embeddings
-        seq_embd = seq_embd1 + seq_embd2
-
+        seq_embd = self.seq_encoder(peak_seq)
+        seq_embd = torch.flatten(seq_embd.permute(0, 2, 1, 3), start_dim=2)
         peak_acc = peak_acc.unsqueeze(-1)
 
         # Merge signal with sequence embedding
@@ -300,7 +257,7 @@ class PeaksTF2GeneExpressionWithVariants(nn.Module):
             attn_list.append(attn.unsqueeze(0))
         seq_atac_embd = torch.flatten(seq_atac_embd, start_dim=1)
 
-        x = torch.concat([seq_atac_embd, peak_dist, tf_exp, covariates], dim=1)  # type: ignore
+        x = torch.concat([seq_atac_embd, peak_dist, tf_exp, variants, covariates], dim=1)  # type: ignore
 
         # Concat peak accessibility, tf expression, and covariates
         x = self.fc(x)

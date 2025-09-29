@@ -160,7 +160,6 @@ def saturation_mutagenesis(
     batch_size: int = 32,
     num_workers: int = 1,
     multiply_by_inputs: bool = True,
-    normalize: bool = False,
     logfc: bool = False,
     smoothing: bool = True,
     window_size: int = 3,
@@ -310,9 +309,6 @@ def saturation_mutagenesis(
     model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx] = ref_seq  # restore the original sequence
 
     ism_scores = np.array(ism_scores)
-    if normalize:
-        logger.info("Normalizing ISM scores by centering around 0")
-        ism_scores -= np.mean(ism_scores)  # center the effects around 0
 
     # if smoothing is needed, we can use a simple moving average
     if smoothing:
@@ -339,7 +335,6 @@ def saturation_mutagenesis_v2(
     batch_size: int = 32,
     num_workers: int = 1,
     multiply_by_inputs: bool = True,
-    normalize: bool = False,
     logfc: bool = False,
     smoothing: bool = True,
     window_size: int = 3,
@@ -391,15 +386,12 @@ def saturation_mutagenesis_v2(
         pred_alt /= (len(bases) - 1)
 
         fc = np.divide(pred_ref, pred_alt, out=np.zeros_like(pred_ref), where=pred_alt!=0)
-        logfc = np.log2(fc).sum()
+        logfc = np.log2(fc).mean()
         ism_scores.append(logfc)
 
     model.mdata[atac_mod].uns["peaks"]["sequence"][peak_idx] = ref_seq  # restore the original sequence
 
     ism_scores = np.array(ism_scores)
-    if normalize:
-        logger.info("Normalizing ISM scores by centering around 0")
-        ism_scores -= np.mean(ism_scores)  # center the effects around 0
 
     # if smoothing is needed, we can use a simple moving average
     if smoothing:

@@ -372,19 +372,17 @@ class Cell2NetWithGenotype(BaseModel):
                 mdata: MuData,
                 rna_mod: str = "rna",
                 atac_mod: str = "atac",
-                use_personal_genome: bool = False,
                 batch_size: int = 128,
                 num_workers: int = 4,
                 pin_memory: bool = False) -> np.ndarray:
 
-        self.module = self.module.to(self.device)
         self.module.eval()
 
         dataloader = get_dataloader(
             mdata=mdata,
+            with_genotype=True,
             rna_mod=rna_mod,
             atac_mod=atac_mod,
-            use_personal_genome=use_personal_genome,
             covariates=self.covariates,
             batch_size=batch_size,
             num_workers=num_workers,
@@ -397,13 +395,20 @@ class Cell2NetWithGenotype(BaseModel):
         with torch.no_grad():
             for data in dataloader:
                 # get input features
-                peak_seq = data["peak_seq"].to(self.device)
+                peak_seq1 = data["peak_seq1"].to(self.device)
+                peak_seq2 = data["peak_seq2"].to(self.device)
                 peak_acc = data["peak_acc"].to(self.device)
                 peak_dist = data["peak_dist"].to(self.device)
                 tf_exp = data["tf_exp"].to(self.device)
                 covariates = data["covariates"].to(self.device)
 
-                pred = self.module(peak_seq, peak_acc, peak_dist, tf_exp, covariates)
+                pred = self.module(
+                    peak_seq1=peak_seq1,
+                    peak_seq2=peak_seq2,
+                    peak_acc=peak_acc,
+                    peak_dist=peak_dist,
+                    tf_exp=tf_exp,
+                    covariates=covariates)
                 pred = pred.detach().cpu().view(-1)
                 rna_pred.append(pred)
 
@@ -528,7 +533,7 @@ class Cell2NetWithGenotype(BaseModel):
         model_path = os.path.join(dir_path, f"{self.gene}.pt")
         state_dict = torch.load(model_path, weights_only=weights_only)
 
-        self.module = PeaksTF2GeneExpressionPoisson(
+        self.module = PeaksTF2GeneExpressionPoissonWithGenotype(
             n_peaks=self.n_peaks,
             peak_len=self.peak_len,
             n_tfs=self.n_tfs,

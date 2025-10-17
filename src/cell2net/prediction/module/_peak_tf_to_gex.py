@@ -130,7 +130,7 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
         # fully connected layers to predict the log(lambda) of Poisson distribution
         self.fc = nn.Sequential(
             nn.Linear(
-                self.n_peaks * (self.n_dims + 1) + self.n_tfs + self.n_covariates, 32
+                self.n_peaks * (self.n_dims + 1) + self.n_covariates, 32
             ),
             nn.ReLU(),
             nn.BatchNorm1d(32),
@@ -160,7 +160,7 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
             attn_list.append(attn.unsqueeze(0))
         seq_atac_embd = torch.flatten(seq_atac_embd, start_dim=1)
 
-        x = torch.concat([seq_atac_embd, peak_dist, tf_exp, covariates], dim=1)  # type: ignore
+        x = torch.concat([seq_atac_embd, peak_dist, covariates], dim=1)  # type: ignore
 
         # Concat peak accessibility, tf expression, and covariates
         x = self.fc(x)
@@ -259,7 +259,7 @@ class PeaksTF2GeneExpressionPoissonWithGenotype(nn.Module):
         # fully connected layers to predict the log(lambda) of Poisson distribution
         self.fc = nn.Sequential(
             nn.Linear(
-                self.n_peaks * (self.n_dims + 1) + self.n_tfs + self.n_covariates, 32
+                self.n_peaks * (self.n_dims + 1) + self.n_covariates, 32
             ),
             nn.ReLU(),
             nn.BatchNorm1d(32),
@@ -300,7 +300,9 @@ class PeaksTF2GeneExpressionPoissonWithGenotype(nn.Module):
             attn_list.append(attn.unsqueeze(0))
         seq_atac_embd = torch.flatten(seq_atac_embd, start_dim=1)
 
-        x = torch.concat([seq_atac_embd, peak_dist, tf_exp, covariates], dim=1)  # type: ignore
+        # x = torch.concat([seq_atac_embd, peak_dist, tf_exp, covariates], dim=1)  # type: ignore
+
+        x = torch.concat([seq_atac_embd, peak_dist, covariates], dim=1)  # type: ignore
 
         # Concat peak accessibility, tf expression, and covariates
         x = self.fc(x)

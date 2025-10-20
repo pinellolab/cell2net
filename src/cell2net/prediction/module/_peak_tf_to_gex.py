@@ -229,12 +229,7 @@ class PeaksTF2GeneExpressionPoissonWithGenotype(nn.Module):
         self.n_attn_blocks = n_attn_blocks
 
         # build sequence encoders
-        self.seq_encoder1 = SeqEncoder(
-            base_size=self.n_channels,
-            kernel_size=self.kernel_size,
-            n_filters=self.n_filters,
-        )
-        self.seq_encoder2 = SeqEncoder(
+        self.seq_encoder = SeqEncoder(
             base_size=self.n_channels,
             kernel_size=self.kernel_size,
             n_filters=self.n_filters,
@@ -277,8 +272,8 @@ class PeaksTF2GeneExpressionPoissonWithGenotype(nn.Module):
 
 
         # Embed peak sequence
-        seq_embd1 = self.seq_encoder1(peak_seq1)
-        seq_embd2 = self.seq_encoder2(peak_seq2)
+        seq_embd1 = self.seq_encoder(peak_seq1)
+        seq_embd2 = self.seq_encoder(peak_seq2)
 
         seq_embd1 = torch.flatten(seq_embd1.permute(0, 2, 1, 3), start_dim=2)
         seq_embd2 = torch.flatten(seq_embd2.permute(0, 2, 1, 3), start_dim=2)

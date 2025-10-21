@@ -12,7 +12,9 @@ from scipy import stats
 from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.nn.utils import clip_grad_norm_
 from tqdm.auto import tqdm
+
 
 from cell2net._logging import logger
 from cell2net.prediction.data import get_dataloader
@@ -153,6 +155,10 @@ class Cell2Net(BaseModel):
             # optimize parameters
             self.optimizer.zero_grad()
             loss.backward()
+
+            # Clip gradients before optimizer step
+            clip_grad_norm_(self.module.parameters(), max_norm=1.0)  # 1.0 is common
+
             self.optimizer.step()
 
             train_loss += loss.item() / len(self.train_dl)
@@ -219,6 +225,8 @@ class Cell2Net(BaseModel):
         max_epochs: int = 20,
         random_state: int = 42,
         lr: float = 3e-04,
+        min_lr: float = 1e-06,
+        patience: int = 5,
         weight_decay: float = 1e-04,
         verbose: bool = True,
     ) -> None:
@@ -277,9 +285,14 @@ class Cell2Net(BaseModel):
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)
         self.optimizer = Adam(
-            self.module.parameters(), lr=lr, weight_decay=weight_decay
+            self.module.parameters(),
+            lr=lr,
+            weight_decay=weight_decay
         )
-        lr_scheduler = ReduceLROnPlateau(self.optimizer, "max", min_lr=1e-5, patience=5)
+        lr_scheduler = ReduceLROnPlateau(self.optimizer,
+                                         "max",
+                                         min_lr=min_lr,
+                                         patience=patience)
 
         self.best_valid_corr, self.best_epoch = -np.inf, 0
         epochs, train_losses, valid_losses = [], [], []
@@ -364,7 +377,6 @@ class Cell2Net(BaseModel):
                 num_workers: int = 4,
                 pin_memory: bool = False) -> np.ndarray:
 
-        self.module = self.module.to(self.device)
         self.module.eval()
 
         dataloader = get_dataloader(

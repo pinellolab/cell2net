@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import pyBigWig
+from tqdm import tqdm
 
 from cell2net._logging import logger
 from cell2net.utils import santize_str_for_filename
@@ -438,8 +439,9 @@ def split_fragments(
 
     # make group name safe for use as a filename
     groups = [santize_str_for_filename(s) for s in groups]
+    df_barcodes = pd.DataFrame({"barcode": cell_barcodes, "group": groups})
 
-    group_barcode_dict = pd.Series(groups, index=cell_barcodes).to_dict()
+    # group_barcode_dict = pd.Series(groups, index=cell_barcodes).to_dict()
 
     # create a files to write fragments
     logger.info("Create output files")
@@ -454,23 +456,36 @@ def split_fragments(
 
     for fragment_file in fragment_files:
         open_fn = gzip.open if fragment_file.endswith(".gz") else open
+        skip_rows = 0
         with open_fn(fragment_file, "rt") as f:
             for line in f:
-                # Remove newlines and spaces.
                 line = line.strip()
-
-                # Skip lines with #
+                # Count number of empty lines and lines which start with a comment
+                # before the actual data.
                 if not line or line.startswith("#"):
-                    continue
+                    skip_rows += 1
+                else:
+                    break
 
-                # Assuming the 4th column is the cell barcode
-                columns = line.strip().split("\t")
-                cell_barcode = columns[3]
+        logger.info(f"Reading fragments from {fragment_file}")
+        df_fragments = pl.read_csv(
+            fragment_file,
+            skip_rows=skip_rows,
+            has_header=False,
+            separator="\t",
+            use_pyarrow=False,
+            new_columns=["Chromosome", "Start", "End", "Barcode", "Count"],
+        )
 
-                # Get the corresponding cell type and write to the respective file
-                if cell_barcode in group_barcode_dict:
-                    cell_type = group_barcode_dict[cell_barcode]
-                    file_handles[cell_type].write(line + "\n")
+        # filter fragments to only those with barcodes in the provided list
+        # for each group and write to respective file
+        for group in set(groups):
+            cell_barcodes = df_barcodes[df_barcodes["group"] == group]["barcode"].tolist()
+            _df_fragments = df_fragments.filter(pl.col("Barcode").is_in(cell_barcodes))
+
+            for row in _df_fragments.iter_rows():
+                line = "\t".join([str(x) for x in row])
+                file_handles[group].write(line + "\n")
 
     # Close output files
     for group in set(groups):

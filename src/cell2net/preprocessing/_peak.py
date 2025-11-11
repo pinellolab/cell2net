@@ -226,6 +226,10 @@ def peak_to_gene(
         logger.error("Cannot find gene TSS coordinates in adata_rna.uns['gene_tss_coord'], please run `cn.pp.add_gene_tss_coord()` first")
         return None
 
+    if gene_name_col not in adata_rna.var.columns:
+        logger.error(f"Cannot find {gene_name_col} in mdata[{rna_mod}].var")
+        return None
+
     logger.info("Fetching TSS coordinates")
     df_tss = adata_rna.uns["gene_tss_coord"]
     df_tss["Start"] = df_tss["tss"] - 1
@@ -262,22 +266,20 @@ def peak_to_gene(
     pyf = pyfaidx.Fasta(ref_fasta)
     gr_genes = gf.genome_bounds(gr_genes, chromsizes=pyf, clip=True)
 
-
     if "peaks" not in adata_atac.uns:
         logger.error("Cannot find peaks in adata_atac.uns['peaks']")
         return None
 
     df_peaks = pd.DataFrame(
-        data={
-            "Chromosome": adata_atac.uns["peaks"]['chr'],
-            "Start": adata_atac.uns["peaks"]['start'],
-            "End": adata_atac.uns["peaks"]['end'],
-        }
-    )
-
+            data={
+                "Chromosome": adata_atac.uns["peaks"]['chr'],
+                "Start": adata_atac.uns["peaks"]['start'],
+                "End": adata_atac.uns["peaks"]['end'],
+                "Peaks": adata_atac.uns["peaks"].index,
+                "Summit": adata_atac.uns["peaks"]['summit'],
+            }
+        )
     gr_peaks = pr.from_dict(df_peaks)
-    gr_peaks.Peaks = df_peaks.index.values
-    gr_peaks.Summit = (gr_peaks.End + gr_peaks.Start) // 2
 
     logger.info(f"Number of peaks: {len(gr_peaks)}")
 

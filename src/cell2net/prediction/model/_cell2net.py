@@ -230,13 +230,11 @@ class Cell2Net(BaseModel):
         verbose: bool = True,
     ) -> None:
         if train_idx is not None and valid_idx is not None:
-            if verbose:
-                logger.info("Using provided index for training and validation")
+            logger.info("Using provided index for training and validation")
 
         elif train_size:
-            if verbose:
-                logger.info(f"Training size is provided: {train_size}")
-                logger.info("Split the data for training and validation")
+            logger.info(f"Training size is provided: {train_size}")
+            logger.info("Split the data for training and validation")
             train_idx, valid_idx = train_test_split(
                 self.mdata.obs_names.values.tolist(),
                 train_size=train_size,

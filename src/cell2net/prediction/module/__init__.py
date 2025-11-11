@@ -1,2 +1,3 @@
 from ._peak_tf_to_gex import PeaksTF2GeneExpressionPoisson, PeaksTF2GeneExpressionPoissonWithGenotype
 from ._seq_encoder import SeqEncoder
+from ._peak_to_acc import Peaks2Accessibility

@@ -56,9 +56,26 @@ class SeqEncoder(nn.Module):
             )
 
     def forward(self, seq_input):
+        # seq_input: (B, 1, L, 4)
         x = seq_input.permute(0, 3, 1, 2).contiguous()
         x = self.stem_conv(x)
         for i in range(0, len(self.conv_tower), 2):
             x = self.conv_tower[i](x)
             x = self.conv_tower[i + 1](x) + x
         return x
+
+if __name__ == "__main__":
+    # unit test
+    import torch
+
+    batch_size = 10
+    seq_len = 128
+    n_channels = 4
+
+    seq_input = torch.randn(batch_size, 1, seq_len, n_channels)
+    model = SeqEncoder()
+    print(seq_input.shape)  # Expected output: (2, 1, 128, 4)
+
+    embd = model(seq_input)
+
+    print(embd.shape)  # Expected output shape depends on the architecture

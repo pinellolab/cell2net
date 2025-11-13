@@ -80,15 +80,13 @@ class PeaksTF2GeneExpressionPoisson(nn.Module):
         peak_len: int,
         n_tfs: int,
         n_covariates: int,
-        n_filters: Sequence[int] | None = None,
+        n_filters: Sequence[int] | None = [64, 32, 32, 16],
         n_channels: int = 4,
         kernel_size: int = 5,
         n_dims: int = 16,
         n_attn_blocks: int = 1,
         dropout_rate: float = 0.25,
     ) -> None:
-        if n_filters is None:
-            n_filters = [64, 32, 32, 16]
         super().__init__()
 
         self.n_peaks = n_peaks

@@ -130,6 +130,17 @@ class Cell2Net(BaseModel):
             f"n_dims: {self.n_dims}"
         )
 
+    def load_pretrained_seq_encoder(self, pretrained_model_path: str) -> None:
+        """Load pretrained sequence encoder weights from a pretrained model."""
+        pretrained_state_dict = torch.load(pretrained_model_path, map_location="cpu")
+
+        # Load the sequence encoder weights into the current model
+        self.module.seq_encoder.load_state_dict(pretrained_state_dict)
+
+        logger.info("Pretrained sequence encoder weights loaded successfully.")
+
+        return None
+
     def _train(self) -> tuple[float, float, np.ndarray, np.ndarray]:
         self.module.train()
 

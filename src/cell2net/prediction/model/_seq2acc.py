@@ -205,7 +205,7 @@ class Seq2Acc(BaseModel):
     ) -> None:
 
         # split data into training and validation
-        train_idx, valid_idx = train_test_split(
+        self.train_idx, self.valid_idx = train_test_split(
                 self.adata.var_names.tolist(),
                 train_size=train_size,
                 random_state=random_state,
@@ -213,12 +213,12 @@ class Seq2Acc(BaseModel):
 
         # create dataloaders for training and validation
         logger.info("Creating dataloaders for training and validation")
-        train_ds = SequenceDataset(self.adata[:, train_idx].copy(),
+        train_ds = SequenceDataset(self.adata[:, self.train_idx].copy(),
                                    peaks_key=self.peaks_key,
                                    seq_col=self.seq_col,
                                    atac_layer=self.atac_layer)
 
-        valid_ds = SequenceDataset(self.adata[:, valid_idx].copy(),
+        valid_ds = SequenceDataset(self.adata[:, self.valid_idx].copy(),
                                    peaks_key=self.peaks_key,
                                    seq_col=self.seq_col,
                                    atac_layer=self.atac_layer)

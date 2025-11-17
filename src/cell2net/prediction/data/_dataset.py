@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 from mudata import MuData
-from anndata import AnnData
+import pandas as pd
 from torch.utils.data import Dataset
 
 from cell2net.preprocessing import seq_to_one_hot
@@ -217,52 +217,25 @@ class MuTorchDatasetWithGenotype(Dataset):
 class SequenceDataset(Dataset):
     def __init__(
         self,
-        adata: AnnData,
-        peaks_key: str = "peaks",
-        seq_col: str = "sequence",
-        atac_layer: str | None = "counts",
-        train: bool = True,
+        df: pd.DataFrame,
     ) -> None:
         super().__init__()
-        self.adata = adata
-
-        # check if peaks_key exists
-        if peaks_key not in self.adata.uns:
-            logger.error(f"{peaks_key} not found in adata.uns")
-
-        # check if seq_col exists
-        if seq_col not in self.adata.uns[peaks_key].columns:
-            logger.error(f"{seq_col} not found in adata.uns[{peaks_key}]")
-
+        self.df = df
         # convert sequence to one-hot encoding
         self.peak_seq = []
-        for var_name in self.adata.var_names:
-            if var_name not in self.adata.uns[peaks_key].index:
-                logger.error(f"Peak {var_name} not found in adata.uns[{peaks_key}] index")
-            else:
-                seq = self.adata.uns[peaks_key].loc[var_name, seq_col]
-                one_hot_encode = seq_to_one_hot(seq)
-                if one_hot_encode is None:
-                    logger.error(f"Failed to encode sequence: {seq}")
+        for seq in self.df['sequence'].values.tolist():
+            one_hot_encode = seq_to_one_hot(seq)
+            if one_hot_encode is None:
+                logger.error(f"Failed to encode sequence: {seq}")
 
-                self.peak_seq.append(torch.from_numpy(one_hot_encode))
+            self.peak_seq.append(torch.from_numpy(one_hot_encode))
 
         self.peak_seq = torch.stack(self.peak_seq)
 
         # add 1 dim for channel
         self.peak_seq = self.peak_seq.unsqueeze(1)  # (n_peaks, 1, peak_len, 4)
-
-        if atac_layer is None:
-            self.peak_acc = self.adata.X.todense()
-        else:
-            self.peak_acc = self.adata.layers[atac_layer].todense()
-
-        self.peak_acc = np.array(self.peak_acc, dtype=np.float32)
-        self.peak_acc = self.peak_acc.T  # (n_peaks, n_cells)
-        # self.peak_acc = np.log1p(self.peak_acc)
-
-        self.train = train
-        self.len = self.adata.n_vars
+        self.peak_acc = df['acc'].values.astype(np.float32)
+        self.len = self.df.shape[0]
 
     def __len__(self):
         return self.len

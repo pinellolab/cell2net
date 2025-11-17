@@ -2,7 +2,6 @@ from collections.abc import Sequence
 
 import torch
 from torch import nn
-from typing import List
 
 from cell2net.prediction.module import SeqEncoder
 
@@ -33,7 +32,6 @@ class Peaks2Accessibility(nn.Module):
 
     def __init__(
         self,
-        n_cells: int,
         peak_len: int,
         n_filters: Sequence[int] | None = None,
         n_channels: int = 4,
@@ -45,7 +43,6 @@ class Peaks2Accessibility(nn.Module):
             n_filters = [64, 32, 32, 16]
         super().__init__()
 
-        self.n_cells = n_cells
         self.peak_len = peak_len
 
         # parameters for sequence encoder
@@ -64,19 +61,22 @@ class Peaks2Accessibility(nn.Module):
         self.embd_len = (self.peak_len // (2 ** len(self.n_filters))) * self.n_dims
 
         self.fc = nn.Sequential(
-            nn.Linear(self.embd_len, 32),
-            nn.ReLU(),
-            nn.BatchNorm1d(32),
+            nn.Flatten(),
+            nn.Linear(self.embd_len, 512),
+            nn.ELU(),
+            nn.BatchNorm1d(512),
             nn.Dropout(self.dropout_rate),
-            nn.Linear(32, self.n_cells),
+            nn.Linear(512, 512),
+            nn.ELU(),
+            nn.BatchNorm1d(512),
+            nn.Dropout(self.dropout_rate),
+            nn.Linear(512, 1),
         )
 
     def forward(self, peak_seq):
         # Embed peak sequence
         seq_embd = self.seq_encoder(peak_seq)  # (batch, 1, L, 4)
         seq_embd = torch.flatten(seq_embd.permute(0, 2, 1, 3), start_dim=1)  # (batch, embd_len)
-
-        # Concat peak accessibility, tf expression, and covariates
         x = self.fc(seq_embd)
         return x
 
@@ -84,12 +84,10 @@ class Peaks2Accessibility(nn.Module):
 
 if __name__ == "__main__":
     # unit test
-    n_cells = 10
     batch_size = 10
     peak_len = 128
 
     model = Peaks2Accessibility(
-        n_cells=n_cells,
         peak_len=peak_len,
         n_filters=[64, 32, 32, 16],
         n_channels=4,
@@ -106,10 +104,11 @@ if __name__ == "__main__":
     print(output)
 
     # generate random binary target
-    target = torch.randn(batch_size, n_cells)
-    target = (target > 0).float()
+    target = torch.poisson(torch.ones(batch_size, 1) * 10)
+
+    print(target)
 
     # compute BCE loss
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.PoissonNLLLoss(log_input=True)
     loss = criterion(output, target)
     print("Loss:", loss.item())

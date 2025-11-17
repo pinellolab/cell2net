@@ -24,23 +24,8 @@ from ._constants import SAVE_KEYS
 
 warnings.filterwarnings("ignore")
 
-def poisson_loss(log_lambda: torch.Tensor,
-                 counts: torch.Tensor,
-                 mask: torch.Tensor | None = None) -> torch.Tensor:
-    crit = nn.PoissonNLLLoss(log_input=True, full=False, reduction="none", eps=1e-8)
-    nll = crit(log_lambda, counts)             # (B, n_cells)
-    if mask is not None:
-        nll = nll * mask                       # same shape; 1=keep, 0=ignore
-        return nll.sum() / mask.sum().clamp_min(1.0)
-    return nll.mean()
-
 class Seq2Acc(BaseModel):
     def __init__(self,
-                 mdata: MuData,
-                 atac_mod: str = "atac",
-                 atac_layer: str | None = "counts",
-                 peaks_key: str = "peaks",
-                 seq_col: str = "sequence",
                  peak_len: int = 256,
                  n_filters: Sequence[int] | None = None,
                  n_channels: int = 4,
@@ -48,13 +33,6 @@ class Seq2Acc(BaseModel):
                  n_dims: int = 16,
                  dropout_rate: float = 0.25):
         super().__init__()
-
-        # parameters for input data
-        self.atac_mod = atac_mod
-        self.atac_layer = atac_layer
-        self.peaks_key = peaks_key
-        self.seq_col = seq_col
-
         # parameters for sequence encoder
         self.peak_len = peak_len
         self.n_filters = n_filters
@@ -63,17 +41,7 @@ class Seq2Acc(BaseModel):
         self.n_dims = n_dims
         self.dropout_rate = dropout_rate
 
-        # check if atac_mod exists
-        if atac_mod not in mdata.mod:
-            logger.error(f"{atac_mod} not found in MuData object")
-
-        self.adata = mdata[self.atac_mod].copy()
-        self.n_cells = self.adata.n_obs
-        self.n_vars = self.adata.n_vars
-
-
-        self.module = Peaks2Accessibility(n_cells=self.n_cells,
-                                          peak_len=self.peak_len,
+        self.module = Peaks2Accessibility(peak_len=self.peak_len,
                                           n_filters=self.n_filters,
                                           n_channels=self.n_channels,
                                           kernel_size=self.kernel_size,
@@ -81,7 +49,6 @@ class Seq2Acc(BaseModel):
                                           dropout_rate=self.dropout_rate)
 
         self._module_summary = {
-            "n_cells": self.n_cells,
             "peak_len": self.peak_len,
             "n_filters": self.n_filters,
             "n_channels": self.n_channels,
@@ -89,7 +56,6 @@ class Seq2Acc(BaseModel):
         }
 
         self.summary_ = (
-            f"n_cells: {self.n_cells}, "
             f"peak_len: {self.peak_len}, "
             f"n_filters: {self.n_filters}, "
             f"n_channels: {self.n_channels}, "
@@ -101,10 +67,7 @@ class Seq2Acc(BaseModel):
 
         train_loss = 0.0
         for data in self.train_dl:
-            # get input features
             peak_seq = data["peak_seq"].to(self.device)
-
-            # get target accessibility
             target_acc = data["peak_acc"].to(self.device)
 
             # get prediction
@@ -117,7 +80,7 @@ class Seq2Acc(BaseModel):
             loss.backward()
 
             # Clip gradients before optimizer step
-            clip_grad_norm_(self.module.parameters(), max_norm=1.0)  # 1.0 is common
+            # clip_grad_norm_(self.module.parameters(), max_norm=1.0)  # 1.0 is common
             self.optimizer.step()
             train_loss += loss.item() / len(self.train_dl)
 
@@ -139,13 +102,11 @@ class Seq2Acc(BaseModel):
                 pred_acc = self.module(peak_seq)
                 loss = self.criterion(pred_acc, target_acc)
 
-                # loss = poisson_loss(pred_acc, target_acc)
-
                 valid_loss += loss.item() / len(self.valid_dl)
 
         return valid_loss
 
-    def predict(self) -> pd.DataFrame:
+    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
         """Predict accessibility for all peaks in the AnnData object.
 
         Returns
@@ -157,16 +118,14 @@ class Seq2Acc(BaseModel):
             logger.error("Model is not trained yet. Cannot predict.")
 
         # create dataloader for all peaks
-        dataset = SequenceDataset(self.adata.copy(),
-                                  peaks_key=self.peaks_key,
-                                  seq_col=self.seq_col,
-                                  atac_layer=self.atac_layer)
+        dataset = SequenceDataset(df)
 
         dataloader = DataLoader(dataset,
-                                batch_size=128,
+                                batch_size=1280,
                                 shuffle=False,
                                 num_workers=1,
-                                pin_memory=False)
+                                pin_memory=False,
+                                drop_last=False)
 
         all_preds = []
         self.module.eval()
@@ -177,26 +136,20 @@ class Seq2Acc(BaseModel):
                 all_preds.append(pred_acc.cpu())
 
         all_preds = torch.cat(all_preds, dim=0)  # (n_peaks, n_cells)
-        all_preds = torch.sigmoid(all_preds).numpy().transpose()  # (n_cells, n_peaks)
+        all_preds = all_preds.squeeze().numpy()
 
-        pred_df = pd.DataFrame(
-            data=all_preds,
-            index=self.adata.obs_names,
-            columns=self.adata.var_names,
-        )
-
-        return pred_df
+        return all_preds
 
     def train(
         self,
         device_name: str = "cuda",
-        train_size: float | None = 0.8,
+        df_train: pd.DataFrame | None = None,
+        df_valid: pd.DataFrame | None = None,
         batch_size: int = 128,
         num_workers: int = 1,
         pin_memory: bool = False,
         persistent_workers: bool = False,
         max_epochs: int = 20,
-        random_state: int = 42,
         lr: float = 3e-04,
         min_lr: float = 1e-06,
         patience: int = 5,
@@ -204,43 +157,31 @@ class Seq2Acc(BaseModel):
         verbose: bool = True,
     ) -> None:
 
-        # split data into training and validation
-        self.train_idx, self.valid_idx = train_test_split(
-                self.adata.var_names.tolist(),
-                train_size=train_size,
-                random_state=random_state,
-        )
-
         # create dataloaders for training and validation
         logger.info("Creating dataloaders for training and validation")
-        train_ds = SequenceDataset(self.adata[:, self.train_idx].copy(),
-                                   peaks_key=self.peaks_key,
-                                   seq_col=self.seq_col,
-                                   atac_layer=self.atac_layer)
+        self.train_ds = SequenceDataset(df_train)
+        self.valid_ds = SequenceDataset(df_valid)
 
-        valid_ds = SequenceDataset(self.adata[:, self.valid_idx].copy(),
-                                   peaks_key=self.peaks_key,
-                                   seq_col=self.seq_col,
-                                   atac_layer=self.atac_layer)
+        self.train_dl = DataLoader(self.train_ds,
+                                   batch_size=batch_size,
+                                   shuffle=True,
+                                   num_workers=num_workers, pin_memory=pin_memory,
+                                   persistent_workers=persistent_workers,
+                                   drop_last=True)
 
-        self.train_dl = DataLoader(train_ds,
-                              batch_size=batch_size, shuffle=True,
-                              num_workers=num_workers, pin_memory=pin_memory,
-                              persistent_workers=persistent_workers)
-
-        self.valid_dl = DataLoader(valid_ds,
+        self.valid_dl = DataLoader(self.valid_ds,
                               batch_size=batch_size, shuffle=False,
                               num_workers=num_workers, pin_memory=pin_memory,
-                              persistent_workers=persistent_workers)
+                              persistent_workers=persistent_workers,
+                              drop_last=False)
 
-        logger.info(f"Training peaks: {len(train_ds)}, Validation peaks: {len(valid_ds)}")
+        logger.info(f"Training peaks: {len(self.train_ds)}, Validation peaks: {len(self.valid_ds)}")
 
         # Move module to device
         self.to_device(device_name=device_name)
 
         # Setup loss and optimizer
-        # self.criterion = torch.nn.MSELoss()
-        self.criterion = torch.nn.BCEWithLogitsLoss()
+        self.criterion = torch.nn.MSELoss()
         self.optimizer = Adam(
             self.module.parameters(),
             lr=lr,

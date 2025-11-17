@@ -330,3 +330,29 @@ def annotate_peaks(
     end_var_key: str = "end",
 ):
     pass
+
+
+def random_regions(chrom_sizes: dict,
+                   n_regions: int, length: int = 256, random_seed=42) -> pd.DataFrame:
+    """Generate random genomic regions matching the size distribution of input regions."""
+    import random
+    random.seed(random_seed)
+
+    chroms = list(chrom_sizes.keys())
+    records = []
+
+    for i in range(n_regions):
+        chrom = random.choice(chroms)
+        chrom_len = chrom_sizes[chrom]
+
+        max_start = max(0, chrom_len - length - 1)
+        start = random.randint(0, max_start)
+        end = start + length
+
+        records.append((chrom, start, end))
+
+    df = pd.DataFrame(
+        records,
+        columns=["chrom", "start", "end"]
+    )
+    return df

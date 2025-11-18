@@ -41,6 +41,7 @@ class Cell2Net(BaseModel):
         kernel_size: int = 5,
         n_dims: int = 16,
         dropout_rate: float = 0.25,
+        regularization: bool = False,
     ):
         super().__init__()
 
@@ -95,6 +96,7 @@ class Cell2Net(BaseModel):
         self.kernel_size = kernel_size
         self.n_dims = n_dims
         self.dropout_rate = dropout_rate
+        self.regularization = regularization
 
         self.module = PeaksTF2GeneExpressionPoisson(
             n_peaks=self.n_peaks,
@@ -162,6 +164,15 @@ class Cell2Net(BaseModel):
             loss = self.criterion(
                 pred_exp.view(-1).float(), target_exp.view(-1).float()
             )
+
+            # add regularization loss if any
+            if self.regularization:
+                reg_loss = 0.0
+                for p, p0 in zip(self.module.seq_encoder.parameters(),
+                                 self.seq_encoder_params_init):
+                    reg_loss = reg_loss + (p - p0).pow(2).sum()
+
+                loss = loss + 1e-3 * reg_loss  # 1e-4 is the regularization weight
 
             # optimize parameters
             self.optimizer.zero_grad()
@@ -287,6 +298,12 @@ class Cell2Net(BaseModel):
 
         # Move module to device
         self.to_device(device_name=device_name)
+
+        # Get initial sequence encoder parameters for regularization
+        self.seq_encoder_params_init = []
+        if self.regularization:
+            for param in self.module.seq_encoder.parameters():
+                self.seq_encoder_params_init.append(param.detach().clone())
 
         # Setup loss and optimizer
         self.criterion = torch.nn.PoissonNLLLoss(log_input=True)

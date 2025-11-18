@@ -7,7 +7,7 @@ import pyfaidx
 import pyranges as pr
 import pyranges.genomicfeatures as gf
 from mudata import MuData
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from cell2net._logging import logger
 from cell2net.genome import Genome

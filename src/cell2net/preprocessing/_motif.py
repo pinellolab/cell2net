@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from mudata import MuData
 from scipy.sparse import csr_matrix
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from cell2net._logging import logger
 

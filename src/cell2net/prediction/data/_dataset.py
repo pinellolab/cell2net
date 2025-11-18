@@ -234,7 +234,7 @@ class SequenceDataset(Dataset):
 
         # add 1 dim for channel
         self.peak_seq = self.peak_seq.unsqueeze(1)  # (n_peaks, 1, peak_len, 4)
-        self.peak_acc = df['acc'].values.astype(np.float32)
+        self.peak_acc = df['acc'].values.tolist()
         self.len = self.df.shape[0]
 
     def __len__(self):

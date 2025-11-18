@@ -76,7 +76,10 @@ class Peaks2Accessibility(nn.Module):
     def forward(self, peak_seq):
         # Embed peak sequence
         seq_embd = self.seq_encoder(peak_seq)  # (batch, 1, L, 4)
-        seq_embd = torch.flatten(seq_embd.permute(0, 2, 1, 3), start_dim=1)  # (batch, embd_len)
+        seq_embd = torch.flatten(seq_embd.permute(0, 2, 1, 3), start_dim=2)
+
+        # print("seq_embd shape:", seq_embd.shape)
+
         x = self.fc(seq_embd)
         return x
 

@@ -1,3 +1,4 @@
+import logging
 import os
 import warnings
 from collections.abc import Sequence
@@ -73,14 +74,13 @@ class Seq2Acc(BaseModel):
             # get prediction
             pred_acc = self.module(peak_seq)
 
-            loss = self.criterion(pred_acc, target_acc)
+            loss = self.criterion(pred_acc.view(-1).float(),
+                                  target_acc.view(-1).float())
 
             # optimize parameters
             self.optimizer.zero_grad()
             loss.backward()
 
-            # Clip gradients before optimizer step
-            # clip_grad_norm_(self.module.parameters(), max_norm=1.0)  # 1.0 is common
             self.optimizer.step()
             train_loss += loss.item() / len(self.train_dl)
 
@@ -100,13 +100,14 @@ class Seq2Acc(BaseModel):
 
                 # get prediction
                 pred_acc = self.module(peak_seq)
-                loss = self.criterion(pred_acc, target_acc)
+                loss = self.criterion(pred_acc.view(-1).float(),
+                                      target_acc.view(-1).float())
 
                 valid_loss += loss.item() / len(self.valid_dl)
 
         return valid_loss
 
-    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
         """Predict accessibility for all peaks in the AnnData object.
 
         Returns
@@ -121,7 +122,7 @@ class Seq2Acc(BaseModel):
         dataset = SequenceDataset(df)
 
         dataloader = DataLoader(dataset,
-                                batch_size=1280,
+                                batch_size=128,
                                 shuffle=False,
                                 num_workers=1,
                                 pin_memory=False,
@@ -133,9 +134,9 @@ class Seq2Acc(BaseModel):
             for data in tqdm(dataloader, desc="Predicting"):
                 peak_seq = data["peak_seq"].to(self.device)
                 pred_acc = self.module(peak_seq)
-                all_preds.append(pred_acc.cpu())
+                all_preds.append(pred_acc.view(-1).cpu())
 
-        all_preds = torch.cat(all_preds, dim=0)  # (n_peaks, n_cells)
+        all_preds = torch.cat(all_preds, dim=0)  # (n_peaks)
         all_preds = all_preds.squeeze().numpy()
 
         return all_preds
@@ -165,13 +166,16 @@ class Seq2Acc(BaseModel):
         self.train_dl = DataLoader(self.train_ds,
                                    batch_size=batch_size,
                                    shuffle=True,
-                                   num_workers=num_workers, pin_memory=pin_memory,
+                                   num_workers=num_workers,
+                                   pin_memory=pin_memory,
                                    persistent_workers=persistent_workers,
                                    drop_last=True)
 
         self.valid_dl = DataLoader(self.valid_ds,
-                              batch_size=batch_size, shuffle=False,
-                              num_workers=num_workers, pin_memory=pin_memory,
+                              batch_size=batch_size,
+                              shuffle=False,
+                              num_workers=num_workers,
+                              pin_memory=pin_memory,
                               persistent_workers=persistent_workers,
                               drop_last=False)
 
@@ -206,12 +210,8 @@ class Seq2Acc(BaseModel):
             train_losses.append(train_loss)
             valid_losses.append(valid_loss)
 
-            logger.info(f"Epoch {epoch}:, Train loss: {train_loss:.4f}, Valid loss: {valid_loss:.4f}")
-
             # Save model if find a better validation score
             if valid_loss < self.best_valid_loss:
-                logger.info(f"New best valid loss: {valid_loss:.4f}")
-
                 self.best_valid_loss = valid_loss
 
                 # save parameters for sequence encoder in module
@@ -220,6 +220,15 @@ class Seq2Acc(BaseModel):
                 self.train_loss = train_loss
                 self.valid_loss = valid_loss
 
+                patience = 10 # reset patience
+            else:
+                # early stop
+                patience -= 1
+                if patience == 0:
+                    logger.info("Early stop!")
+                    break
+
+            logger.info(f"Epoch {epoch}:, Train: {train_loss:.4f}, Valid: {valid_loss:.4f}, Best: {self.best_valid_loss:.4f}")
             lr_scheduler.step(valid_loss)  # type: ignore
 
         self.history_ = pd.DataFrame(

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import vcfpy
 from mudata import MuData
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from cell2net._logging import logger
 

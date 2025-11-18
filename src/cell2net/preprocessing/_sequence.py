@@ -1,11 +1,10 @@
 """Functions to process DNA sequences"""
 
 import numpy as np
-import pandas as pd
 from mudata import MuData
 from pysam import FastaFile
-from tqdm.auto import tqdm
-import torch
+from tqdm import tqdm
+
 from cell2net._logging import logger
 
 def random_seq(seq_len: int, bases: list[str] | None = None) -> str:

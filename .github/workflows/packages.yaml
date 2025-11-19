@@ -1,4 +1,4 @@
-name: Build & Publish Docs
+name: Build & Publish Packages
 
 on:
   push:
@@ -97,5 +97,5 @@ jobs:
         if: steps.should_publish.outputs.publish == 'true'
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.CELL2NET_PUBLISH }}
         run: twine upload dist/*

@@ -16,10 +16,12 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v5.0.1
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v6.0.0
         with:
           python-version: "3.11"
+
       - name: Install dependency
         shell: bash
         run: |
@@ -27,33 +29,32 @@ jobs:
           pip install sphinx pydata-sphinx-theme pandoc \
             nbsphinx sphinx-autodoc-typehints myst-parser myst_nb \
             sphinx_copybutton sphinxcontrib.bibtex sphinx_tabs sphinxext-opengraph
+
       - name: Install cell2net
         shell: bash
         run: |
           pip install ${GITHUB_WORKSPACE}
+
       - name: Get Cell2net version
+        id: get_version
         shell: bash
         run: |
-          VERSION_NUMBER=$(python -c "import cell2net;print('.'.join(cell2net.__version__.split('.')[:2]))")
-          echo $VERSION_NUMBER
+          VERSION_NUMBER=$(python -c "import cell2net; print(cell2net.__version__)")
+          echo "Cell2net version: $VERSION_NUMBER"
           echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
-          IS_DEV=$(python -c "import cell2net;print('dev' in cell2net.__version__)")
-          if [[ $IS_DEV == "True" ]]; then
-            echo "DEPLOYMENT=dev" >> $GITHUB_ENV
-          else
-            echo "DEPLOYMENT=stable" >> $GITHUB_ENV
-          fi
-          echo "============================== Info ================================"
-          echo "DEPLOYMENT=${{ env.DEPLOYMENT }}"
-          echo "VERSION=${{ env.VERSION }}"
-          echo "===================================================================="
+
       - name: Build doc
         shell: bash
-        run: sphinx-build -b ${GITHUB_WORKSPACE}/docs _build/html
+        run: sphinx-build -b html ${GITHUB_WORKSPACE}/docs _build/html
+
       - name: Deploy doc
+        # only deploy when pushing to main branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4.7.4
         with:
-          single-commit: true
           branch: gh-pages
           folder: _build/html
+          # deploy to versioned folder
+          target-folder: docs/${{ env.VERSION }}
           clean: true
+          single-commit: true

@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "cell2net"
-version = "0.1.3-dev0"
+version = "0.13"
 license = { file = "LICENSE" }
 
 description = "Inferring multi-scale gene regulatory networks"

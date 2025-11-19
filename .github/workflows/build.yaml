@@ -63,3 +63,5 @@ jobs:
         run: python -m build
       - name: Check package
         run: twine check --strict dist/*.whl
+      - name: Install package (for version check)
+        run: pip install .

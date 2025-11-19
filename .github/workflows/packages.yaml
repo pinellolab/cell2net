@@ -1,0 +1,101 @@
+name: Build & Publish Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5.0.1
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6.0.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip wheel twine build
+      - name: Build package
+        run: python -m build
+      - name: Check package
+        run: twine check --strict dist/*.whl
+      - name: Install package (for version check)
+        run: pip install .
+  publish_package:
+    needs: build_package
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5.0.1
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6.0.0
+        with:
+          python-version: "3.11"
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip wheel twine build
+      - name: Install package (for version check)
+        run: pip install .
+
+      - name: Get local version
+        id: get_local_version
+        run: |
+          LOCAL_VERSION=$(python -c "import cell2net; print(cell2net.__version__)")
+          echo "Local version: $LOCAL_VERSION"
+          echo "local_version=$LOCAL_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Get version on PyPI
+        id: get_pypi_version
+        run: |
+          VERSION_ON_PYPI=$(python - << 'EOF'
+          import json, urllib.request
+          pkg = "cell2net"
+          url = f"https://pypi.org/pypi/{pkg}/json"
+          try:
+              with urllib.request.urlopen(url) as f:
+                  data = json.load(f)
+              print(data["info"]["version"])
+          except Exception:
+              # if the package is not found on PyPI, return an empty string
+              print("")
+          EOF
+          )
+          echo "PyPI version: $VERSION_ON_PYPI"
+          echo "version_on_pypi=$VERSION_ON_PYPI" >> $GITHUB_OUTPUT
+
+      - name: Decide whether to publish
+        id: should_publish
+        run: |
+          echo "Local:  ${{ steps.get_local_version.outputs.local_version }}"
+          echo "PyPI:   ${{ steps.get_pypi_version.outputs.version_on_pypi }}"
+          if [ "${{ steps.get_local_version.outputs.local_version }}" = "${{ steps.get_pypi_version.outputs.version_on_pypi }}" ]; then
+            echo "No version change, skip publish."
+            echo "publish=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version changed (or not on PyPI yet), will publish."
+            echo "publish=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build package
+        if: steps.should_publish.outputs.publish == 'true'
+        run: python -m build
+
+      - name: Check package
+        if: steps.should_publish.outputs.publish == 'true'
+        run: twine check --strict dist/*
+
+      - name: Upload to PyPI
+        if: steps.should_publish.outputs.publish == 'true'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*

@@ -34,8 +34,19 @@ jobs:
       - name: Get Cell2net version
         shell: bash
         run: |
-          VERSION_NUMBER=$(python -c "import cell2net;print('.'.join(cell2net.__version__.split('.')[:3]))")
+          VERSION_NUMBER=$(python -c "import cell2net;print('.'.join(cell2net.__version__.split('.')[:2]))")
           echo $VERSION_NUMBER
+          echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
+          IS_DEV=$(python -c "import cell2net;print('dev' in cell2net.__version__)")
+          if [[ $IS_DEV == "True" ]]; then
+            echo "DEPLOYMENT=dev" >> $GITHUB_ENV
+          else
+            echo "DEPLOYMENT=stable" >> $GITHUB_ENV
+          fi
+          echo "============================== Info ================================"
+          echo "DEPLOYMENT=${{ env.DEPLOYMENT }}"
+          echo "VERSION=${{ env.VERSION }}"
+          echo "===================================================================="
       - name: Build doc
         shell: bash
         run: sphinx-build -b ${GITHUB_WORKSPACE}/docs _build/html

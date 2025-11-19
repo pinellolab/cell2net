@@ -47,14 +47,55 @@ jobs:
         shell: bash
         run: sphinx-build -b html ${GITHUB_WORKSPACE}/docs _build/html
 
-      - name: Deploy doc
-        # only deploy when pushing to main branch
+      # 1) 部署到按版本命名的目录：docs/<version>/
+      - name: Deploy versioned docs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4.7.4
         with:
           branch: gh-pages
           folder: _build/html
-          # deploy to versioned folder
           target-folder: docs/${{ env.VERSION }}
-          clean: true
+          clean: false
+          single-commit: true
+
+      # 2) 部署一份到 docs/latest/，作为“当前版本”
+      - name: Deploy latest docs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: JamesIves/github-pages-deploy-action@v4.7.4
+        with:
+          branch: gh-pages
+          folder: _build/html
+          target-folder: docs/latest
+          clean: false
+          single-commit: true
+
+      # 3) 生成根目录 index.html，重定向到 /docs/latest/
+      - name: Create root redirect to latest
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          mkdir -p redirect-root
+          cat > redirect-root/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <meta http-equiv="refresh" content="0; url=docs/latest/" />
+              <title>Redirecting to docs/latest/...</title>
+            </head>
+            <body>
+              <p>Redirecting to <a href="docs/latest/">docs/latest/</a>...</p>
+            </body>
+          </html>
+          EOF
+
+      # 4) 把 index.html 部署到 gh-pages 根目录（/）
+      - name: Deploy root redirect
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: JamesIves/github-pages-deploy-action@v4.7.4
+        with:
+          branch: gh-pages
+          folder: redirect-root
+          target-folder: .     # 根目录
+          clean: false
           single-commit: true

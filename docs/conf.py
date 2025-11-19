@@ -5,11 +5,15 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 import re
+from sphinx.ext import apidoc
 import cell2net as cn
+
+sys.path.insert(0, os.path.abspath("../src"))
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
@@ -37,7 +41,6 @@ print(
     f"Building documentation for Cell2net {release} (short version: {version}, switcher version: {switcher_version})"
 )
 
-
 bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
 nitpicky = True  # Warn about broken links
@@ -61,7 +64,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
-    "sphinx.ext.napoleon",
+    "sphinx.ext.napoleon", # numpy / Google style docstrings
     "sphinxcontrib.bibtex",
     "sphinx_autodoc_typehints",
     "sphinx_tabs.tabs",
@@ -160,3 +163,21 @@ nitpick_ignore = [
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
 ]
+
+# function to run sphinx-apidoc
+def run_apidoc(app):
+    here = os.path.dirname(__file__)
+    src_dir = os.path.abspath(os.path.join(here, "../src/cell2net"))
+    out_dir = os.path.join(here, "api")
+
+    # sphinx-apidoc -o docs/api src/cell2net -f -e -M
+    apidoc.main([
+        "--force",
+        "--separate",
+        "--module-first",
+        "-o", out_dir,
+        src_dir,
+    ])
+
+def setup(app):
+    app.connect("builder-inited", run_apidoc)

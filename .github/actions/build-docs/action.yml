@@ -19,7 +19,7 @@ runs:
 
   - name: Build doc
     shell: bash
-    run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html
+    run: sphinx-build -b ${GITHUB_WORKSPACE}/docs _build/html
 
   - name: Get cell2net version
     id: get_version

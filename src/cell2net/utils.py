@@ -1,31 +1,17 @@
-import os
-import random
 import anndata as ad
 import numpy as np
 import torch
-from lightning.pytorch import seed_everything
 
 from cell2net._logging import logger
 
 def set_random_seed(seed: int = 42):
+    from lightning.pytorch import seed_everything
+
     """Set random seed for reproducibility."""
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
     seed_everything(seed, verbose=False)
-
-# def seed_everything(seed: int = 42):
-#     """Set random seed"""
-#     if not isinstance(seed, int):
-#         seed = int(seed)
-
-#     random.seed(seed)
-#     os.environ["PYTHONHASHSEED"] = str(seed)
-#     np.random.seed(seed)
-#     torch.manual_seed(seed)
-#     torch.cuda.manual_seed_all(seed)
-#     torch.backends.cudnn.deterministic = True
-
 
 def santize_str_for_filename(s: str) -> str:
     """

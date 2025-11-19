@@ -16,11 +16,7 @@ def santize_str_for_filename(s: str) -> str:
     """
     Sanitize a string to make it safe for use as a filename.
 
-    This function replaces or removes characters that are typically problematic
-    in filenames. Specifically:
-        - Spaces are replaced with underscores (`_`).
-        - Slashes (`/`) are replaced with underscores (`_`).
-        - Parentheses (`(` and `)`) are removed.
+    Remove invalid characters and spaces.
 
     Parameters
     ----------

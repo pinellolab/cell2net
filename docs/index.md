@@ -8,7 +8,7 @@
 
 install.md
 tutorials/index
-api
+api/modules
 changelog.md
 references.md
 ```

@@ -1,0 +1,48 @@
+name: Build & Deploy Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_doc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5.0.1
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6.0.0
+        with:
+          python-version: "3.11"
+      - name: Install dependency
+        shell: bash
+        run: |
+          sudo apt-get install -y pandoc jq
+          pip install sphinx pydata-sphinx-theme pandoc \
+            nbsphinx sphinx-autodoc-typehints myst-parser myst_nb \
+            sphinx_copybutton sphinxcontrib.bibtex sphinx_tabs sphinxext-opengraph
+      - name: Install cell2net
+        shell: bash
+        run: |
+          pip install ${GITHUB_WORKSPACE}
+      - name: Get Cell2net version
+        shell: bash
+        run: |
+          VERSION_NUMBER=$(python -c "import cell2net;print('.'.join(cell2net.__version__.split('.')[:3]))")
+          echo $VERSION_NUMBER
+      - name: Build doc
+        shell: bash
+        run: sphinx-build -b ${GITHUB_WORKSPACE}/docs _build/html
+      - name: Deploy doc
+        uses: JamesIves/github-pages-deploy-action@v4.7.4
+        with:
+          single-commit: true
+          branch: gh-pages
+          folder: _build/html
+          clean: true

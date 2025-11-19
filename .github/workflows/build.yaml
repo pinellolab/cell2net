@@ -2,9 +2,9 @@ name: Check Build
 
 on:
   push:
-    branches: [zl]
+    branches: [main]
   pull_request:
-    branches: [zl]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5.0.1
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: "3.11"
       - name: Install dependency
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: sphinx-build ${GITHUB_WORKSPACE}/docs _build/html
       - name: Deploy doc
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: JamesIves/github-pages-deploy-action@v4.7.4
         with:
           single-commit: true
           branch: gh-pages
@@ -50,9 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5.0.1
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: "3.11"
           cache: "pip"

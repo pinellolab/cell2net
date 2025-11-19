@@ -8,3 +8,5 @@ It covers data loading, preprocessing, model training, and evaluation.
 
    01_pretrain_seq_encoder
    02_prepare_data
+   03_train
+   04_interpret

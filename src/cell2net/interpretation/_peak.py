@@ -78,7 +78,6 @@ def peak_attr(
     (number_of_samples, number_of_features)
     """
     # create a dataloader
-    logger.info("Create dataloader")
     data_loader = get_dataloader(
         mdata=model.mdata,
         covariates=model.covariates,
@@ -96,7 +95,6 @@ def peak_attr(
     # Use Integrated Gradients to estimate feature importances
     ig = IntegratedGradients(model.module, multiply_by_inputs=multiply_by_inputs)
 
-    logger.info("Compute attribution for peak accessibility")
     attr = []
     for data in data_loader:
         peak_seq = data["peak_seq"].to(model.device)

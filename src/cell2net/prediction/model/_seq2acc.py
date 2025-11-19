@@ -1,5 +1,3 @@
-import logging
-import os
 import warnings
 from collections.abc import Sequence
 
@@ -7,13 +5,9 @@ import numpy as np
 import pandas as pd
 import copy
 import torch
-from mudata import MuData
-import torch.nn as nn
-from sklearn.model_selection import train_test_split
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.nn.utils import clip_grad_norm_
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from cell2net._logging import logger
@@ -195,14 +189,11 @@ class Seq2Acc(BaseModel):
                                          min_lr=min_lr,
                                          patience=patience)
 
-        iterator = (
-            tqdm(range(max_epochs), desc="Training") if verbose else range(max_epochs)
-        )
         self.best_valid_loss = np.inf
         epochs, train_losses, valid_losses = [], [], []
 
         logger.info("Start training")
-        for epoch in iterator:
+        for epoch in range(max_epochs):
             train_loss = self._train()
             valid_loss = self._valid()
 

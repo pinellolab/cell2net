@@ -1,55 +1,91 @@
-# cell2net
+# Introduction
 
-[![Tests][badge-tests]][link-tests]
-[![Documentation][badge-docs]][link-docs]
+## About Cell2Net
 
-[badge-tests]: https://img.shields.io/github/actions/workflow/status/lzj1769/cell2net/test.yaml?branch=main
-[link-tests]: https://github.com/lzj1769/cell2net/actions/workflows/test.yml
-[badge-docs]: https://img.shields.io/readthedocs/cell2net
+**Cell2Net** is a comprehensive Python framework for analyzing multimodal single-cell data, specifically designed to dissect multi-scale gene regulation by predicting expression using multiple input features, including TF expression, peak accessibility, and DNA sequence. This powerful toolkit enables researchers to model and understand gene regulatory networks by connecting chromatin accessibility patterns with gene expression profiles.
 
-cell2net
+### Key Features
 
-## Getting started
+🧬 **Multiome Data Preprocessing**
 
-Please refer to the [documentation][link-docs]. In particular, the
+- Seamless handling of paired RNA-seq and ATAC-seq data
+- Built on MuData framework for efficient multimodal data storage
+- Supports 10x Genomics multiome and other paired assay formats
 
--   [API documentation][link-api].
+🤖 **Deep Learning Models**
 
-## Installation
+- Sequence-to-accessibility prediction models (similar to ChromBPNet)
+- Joint RNA-ATAC modeling with neural networks
+- Pretrained encoders for transfer learning across cell types
 
-You need to have Python 3.10 or newer installed on your system. If you don't have
-Python installed, we recommend installing [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge).
+🔬 **Regulatory Network Analysis**
 
-There are several alternative options to install cell2net:
+- Peak-to-gene linking algorithms
+- Transcription factor motif scanning and analysis
+- TF-target gene relationship inference
+- Regulatory circuit reconstruction
 
-<!--
-1) Install the latest release of `cell2net` from [PyPI][link-pypi]:
+📊 **Comprehensive Preprocessing**
 
-```bash
-pip install cell2net
+- Metacell generation for noise reduction
+- Genomic annotation integration (genes, peaks, motifs)
+- Batch effect correction and normalization
+
+🎯 **Interpretability Tools**
+
+- Attribution-based model interpretation
+- Saturation mutagenesis for sequence analysis
+- Perturbation prediction and analysis (Ongoing)
+- Visualization utilities for regulatory networks
+
+### Use Cases
+
+- **Gene Regulatory Network Reconstruction**: Build interpretable models connecting TFs → chromatin accessibility → gene expression
+- **Cell Type Analysis**: Compare regulatory programs across different cell types and conditions
+- **Perturbation Prediction**: Model effects of genetic variants, TF knockdowns, or drug treatments
+- **Developmental Biology**: Analyze regulatory changes during differentiation and development
+- **Disease Research**: Understand regulatory dysregulation in disease contexts
+
+### Scientific Background
+
+Cell2Net addresses the challenge of understanding how chromatin accessibility changes drive gene expression differences across cells. By jointly modeling both modalities with deep learning, it captures complex regulatory relationships that traditional correlation-based methods miss. The framework incorporates:
+
+- **Sequence context**: DNA sequence features that determine TF binding
+- **Chromatin state**: Accessibility patterns that enable or restrict binding
+- **Expression coupling**: Direct modeling of accessibility-expression relationships
+- **Regulatory hierarchy**: TF → peak → gene causal relationships
+
+## Quick Start
+
+After installation, verify your setup:
+
+```python
+import cell2net as cn
+import mudata as md
+
+# Load example data
+mdata = md.read_h5mu("path/to/multiome_data.h5mu")
+
+# Basic preprocessing
+cn.pp.add_peaks(mdata, mod_name='atac')
+cn.pp.add_dna_sequence(mdata, ref_fasta='genome.fa')
+
+# Create and train a model
+model = cn.tl.Cell2Net(mdata, gene='GENE_OF_INTEREST')
+model.train()
 ```
--->
 
-1. Install the latest development version:
+## Getting Help
 
-```bash
-pip install git+https://github.com/lzj1769/cell2net.git@main
-```
-
-## Release notes
-
-See the [changelog][changelog].
-
-## Contact
-
-If you found a bug, please use the [issue tracker][issue-tracker].
+- 📖 **Documentation**: [Complete tutorials and API reference](docs/)
+- 🐛 **Issues**: [Report bugs or request features](https://github.com/pinellolab/cell2net/issues)
+- 💬 **Discussions**: [Community Q&A and discussions](https://github.com/pinellolab/cell2net/discussions)
+- 📧 **Contact**: For research collaborations or questions
 
 ## Citation
 
-> t.b.a
+If you use Cell2Net in your research, please cite our paper:
 
-[issue-tracker]: https://github.com/pinellolab/cell2net/issues
-[changelog]: https://pinellolab.github.io/cell2net/changelog.html
-[link-docs]: https://pinellolab.github.io/cell2net/
-[link-api]: https://pinellolab.github.io/cell2net/api/index.html
-[link-pypi]: https://pypi.org/project/cell2net
+```bibtex
+[Citation information will be added upon publication]
+```

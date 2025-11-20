@@ -1,60 +1,5 @@
 # Cell2Net Installation Guide
 
-## About Cell2Net
-
-**Cell2Net** is a comprehensive Python framework for analyzing multimodal single-cell data, specifically designed to dissect multi-scale gene regulation by predicting expression using multiple input features, including TF expression, peak accessibility, and DNA sequence. This powerful toolkit enables researchers to model and understand gene regulatory networks by connecting chromatin accessibility patterns with gene expression profiles.
-
-### Key Features
-
-🧬 **Multiome Data Preprocessing**
-
-- Seamless handling of paired RNA-seq and ATAC-seq data
-- Built on MuData framework for efficient multimodal data storage
-- Supports 10x Genomics multiome and other paired assay formats
-
-🤖 **Deep Learning Models**
-
-- Sequence-to-accessibility prediction models (similar to ChromBPNet)
-- Joint RNA-ATAC modeling with neural networks
-- Pretrained encoders for transfer learning across cell types
-
-🔬 **Regulatory Network Analysis**
-
-- Peak-to-gene linking algorithms
-- Transcription factor motif scanning and analysis
-- TF-target gene relationship inference
-- Regulatory circuit reconstruction
-
-📊 **Comprehensive Preprocessing**
-
-- Metacell generation for noise reduction
-- Genomic annotation integration (genes, peaks, motifs)
-- Batch effect correction and normalization
-
-🎯 **Interpretability Tools**
-
-- Attribution-based model interpretation
-- Saturation mutagenesis for sequence analysis
-- Perturbation prediction and analysis (Ongoing)
-- Visualization utilities for regulatory networks
-
-### Use Cases
-
-- **Gene Regulatory Network Reconstruction**: Build interpretable models connecting TFs → chromatin accessibility → gene expression
-- **Cell Type Analysis**: Compare regulatory programs across different cell types and conditions
-- **Perturbation Prediction**: Model effects of genetic variants, TF knockdowns, or drug treatments
-- **Developmental Biology**: Analyze regulatory changes during differentiation and development
-- **Disease Research**: Understand regulatory dysregulation in disease contexts
-
-### Scientific Background
-
-Cell2Net addresses the challenge of understanding how chromatin accessibility changes drive gene expression differences across cells. By jointly modeling both modalities with deep learning, it captures complex regulatory relationships that traditional correlation-based methods miss. The framework incorporates:
-
-- **Sequence context**: DNA sequence features that determine TF binding
-- **Chromatin state**: Accessibility patterns that enable or restrict binding
-- **Expression coupling**: Direct modeling of accessibility-expression relationships
-- **Regulatory hierarchy**: TF → peak → gene causal relationships
-
 ## Installation
 
 ### Prerequisites
@@ -98,39 +43,4 @@ pip install logomaker
 
 # For GPU acceleration (if not already installed)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-```
-
-## Quick Start
-
-After installation, verify your setup:
-
-```python
-import cell2net as cn
-import mudata as md
-
-# Load example data
-mdata = md.read_h5mu("path/to/multiome_data.h5mu")
-
-# Basic preprocessing
-cn.pp.add_peaks(mdata, mod_name='atac')
-cn.pp.add_dna_sequence(mdata, ref_fasta='genome.fa')
-
-# Create and train a model
-model = cn.tl.Cell2Net(mdata, gene='GENE_OF_INTEREST')
-model.train()
-```
-
-## Getting Help
-
-- 📖 **Documentation**: [Complete tutorials and API reference](docs/)
-- 🐛 **Issues**: [Report bugs or request features](https://github.com/pinellolab/cell2net/issues)
-- 💬 **Discussions**: [Community Q&A and discussions](https://github.com/pinellolab/cell2net/discussions)
-- 📧 **Contact**: For research collaborations or questions
-
-## Citation
-
-If you use Cell2Net in your research, please cite our paper:
-
-```bibtex
-[Citation information will be added upon publication]
 ```

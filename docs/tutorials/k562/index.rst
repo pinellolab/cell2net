@@ -1,4 +1,4 @@
-Tutorial for K562 Dataset
+K562 Dataset
 =============================
 
 This tutorial provides a step-by-step guide to using Cell2Net with the K562 dataset.

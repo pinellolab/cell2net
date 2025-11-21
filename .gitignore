@@ -22,6 +22,7 @@ __pycache__/
 docs/tutorials/.ipynb_checkpoints/
 docs/tutorials/k562/pretrained_seq2acc.pth
 docs/tutorials/k562/02_prepare_data/
+docs/tutorials/k562/03_train/
 _build
 build_doc.sh
 .ipynb_checkpoints

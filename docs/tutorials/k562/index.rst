@@ -11,3 +11,4 @@ It covers data loading, preprocessing, model training, and evaluation.
    02_prepare_data
    03_train
    04_peak_to_gene
+   05_process_p2g

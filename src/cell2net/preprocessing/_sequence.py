@@ -219,7 +219,7 @@ def dinucleotide_shuffle_str(seq: str, random_state: int = 42) -> str:
 #         shuffled_sequence = dinucleotide_shuffle_str(dna_seq)
 
 
-def dinucleotide_shuffle_one_hot(one_hot: np.ndarray) -> np.ndarray:
+def dinucleotide_shuffle_one_hot(one_hot: np.ndarray, random_state: int = 42) -> np.ndarray:
     """
     Shuffle a one-hot encoded DNA sequence while preserving its dinucleotide composition.
 
@@ -266,7 +266,7 @@ def dinucleotide_shuffle_one_hot(one_hot: np.ndarray) -> np.ndarray:
     """
     # Convert one-hot encoded sequence to nucleotide sequence
     seq = one_hot_to_seq(one_hot)
-    shuffled_sequence = dinucleotide_shuffle_str(seq)
+    shuffled_sequence = dinucleotide_shuffle_str(seq, random_state=random_state)
     shuffled_one_hot = seq_to_one_hot(shuffled_sequence)
 
     return shuffled_one_hot

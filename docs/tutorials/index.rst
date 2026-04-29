@@ -8,3 +8,4 @@ We provide several tutorials to help you get started with Cell2Net and explore i
 
    k562/index
    pbmc/index
+   misc/index

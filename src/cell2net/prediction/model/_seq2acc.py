@@ -1,21 +1,20 @@
 import warnings
 from collections.abc import Sequence
+from copy import copy
 
 import numpy as np
 import pandas as pd
-import copy
 import torch
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from tqdm import tqdm
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from cell2net._logging import logger
 from cell2net.prediction.data import SequenceDataset
 from cell2net.prediction.module import Peaks2Accessibility
 
 from ._base import BaseModel
-from ._constants import SAVE_KEYS
 
 warnings.filterwarnings("ignore")
 
@@ -137,9 +136,9 @@ class Seq2Acc(BaseModel):
 
     def train(
         self,
+        df_train: pd.DataFrame,
+        df_valid: pd.DataFrame,
         device_name: str = "cuda",
-        df_train: pd.DataFrame | None = None,
-        df_valid: pd.DataFrame | None = None,
         batch_size: int = 128,
         num_workers: int = 1,
         pin_memory: bool = False,

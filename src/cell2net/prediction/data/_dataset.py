@@ -2,12 +2,42 @@ from collections.abc import Sequence
 
 import numpy as np
 import torch
+from scipy.sparse import issparse
+from typing import Optional
 from mudata import MuData
 import pandas as pd
 from torch.utils.data import Dataset
 
 from cell2net.preprocessing import seq_to_one_hot
 from cell2net._logging import logger
+
+
+def to_dense(x, dtype=np.float32) -> np.ndarray:
+    """
+    Convert an AnnData layer/obsm entry to a dense C-contiguous ndarray.
+
+    Handles scipy sparse, np.matrix, plain ndarray, pandas DataFrame,
+    dask arrays, and anndata's backed sparse datasets.
+    """
+    # Backed sparse (anndata CSRDataset/CSCDataset): materialize first
+    if hasattr(x, "to_memory"):
+        x = x.to_memory()
+
+    # Dask / other lazy arrays
+    if hasattr(x, "compute"):
+        x = x.compute()
+
+    if issparse(x):
+        x = x.toarray()          # prefer toarray() over todense(): returns ndarray, not np.matrix
+    elif hasattr(x, "to_numpy"):  # pandas DataFrame / Series
+        x = x.to_numpy()
+    elif hasattr(x, "toarray"):   # sparse-like not caught by issparse (e.g. sparse arrays)
+        x = x.toarray()
+    else:
+        x = np.asarray(x)        # also unwraps np.matrix into a base ndarray
+
+    return np.ascontiguousarray(x, dtype=dtype)
+
 
 class MuTorchDataset(Dataset):
     """
@@ -89,9 +119,17 @@ class MuTorchDataset(Dataset):
         super().__init__()
 
         self.mdata = mdata
-        self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
-        self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
-        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
+
+        if mdata is None:
+            raise ValueError("mdata is required")
+
+        self.target_exp = to_dense(mdata[rna_mod].layers["counts"]).ravel() # type: ignore
+        self.peak_acc = to_dense(mdata[atac_mod].layers["counts"]) # type: ignore
+        self.tf_exp = to_dense(mdata[rna_mod].obsm["tf"]) # type: ignore
+
+        # self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
+        # self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
+        # self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
 
         self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
 
@@ -133,7 +171,7 @@ class MuTorchDataset(Dataset):
 class MuTorchDatasetWithGenotype(Dataset):
     def __init__(
         self,
-        mdata: MuData,
+        mdata: Optional[MuData] = None,
         rna_mod: str = "rna",
         atac_mod: str = "atac",
         peak_to_gene_key: str = "peak_to_gene",
@@ -146,9 +184,16 @@ class MuTorchDatasetWithGenotype(Dataset):
         self.rna_mod = rna_mod
         self.atac_mod = atac_mod
 
-        self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
-        self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
-        self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
+        if mdata is None:
+            raise ValueError("mdata is required")
+
+        self.target_exp = to_dense(mdata[rna_mod].layers["counts"]).ravel() # type: ignore
+        self.peak_acc = to_dense(mdata[atac_mod].layers["counts"]) # type: ignore
+        self.tf_exp = to_dense(mdata[rna_mod].obsm["tf"]) # type: ignore
+
+        # self.target_exp = np.array(mdata[rna_mod].layers["counts"].todense(), dtype=np.float32).reshape(-1)  # type: ignore
+        # self.peak_acc = np.array(mdata[atac_mod].layers["counts"].todense(), dtype=np.float32)  # type: ignore
+        # self.tf_exp = np.array(mdata[rna_mod].obsm["tf"].todense(), dtype=np.float32)  # type: ignore
         self.covariates = mdata.obs[covariates].to_numpy(dtype=np.float32)
 
         # distance of peak to TSS, normalized by the maximum value

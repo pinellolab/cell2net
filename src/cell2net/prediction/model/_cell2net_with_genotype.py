@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import mudata as md
 import numpy as np
 import pandas as pd
-import copy
+from copy import deepcopy
 import torch
 from mudata import MuData
 from scipy import stats
@@ -326,7 +326,7 @@ class Cell2NetWithGenotype(BaseModel):
                 self.best_epoch = epoch
 
                 # Use deep copy to create a new checkpoint
-                self.check_point = copy.deepcopy(self.module.state_dict())
+                self.check_point = deepcopy(self.module.state_dict())
 
                 self.train_loss = train_loss
                 self.train_corr = train_corr

@@ -35,7 +35,7 @@ dependencies = [
   "pandas>=2.2.3",
   "scanpy>=1.10.3",
   "pyfaidx>=0.8.1.2",
-  "pyranges>=0.1.2",
+  "pyranges==0.1.2",
   "muon==0.1.6",
   "session-info",
   "pyjaspar==3.0.0",

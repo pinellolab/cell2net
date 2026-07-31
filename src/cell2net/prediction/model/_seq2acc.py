@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Sequence
-from copy import copy
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -205,7 +205,7 @@ class Seq2Acc(BaseModel):
                 self.best_valid_loss = valid_loss
 
                 # save parameters for sequence encoder in module
-                self.check_point = copy.deepcopy(self.module.seq_encoder.state_dict())
+                self.check_point = deepcopy(self.module.seq_encoder.state_dict())
 
                 self.train_loss = train_loss
                 self.valid_loss = valid_loss

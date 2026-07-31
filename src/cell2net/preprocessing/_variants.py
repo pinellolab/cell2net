@@ -9,6 +9,8 @@ from tqdm import tqdm
 from cell2net._logging import logger
 
 
+VALID_GENOTYPES = {"0|0", "0|1", "1|0", "1|1"}
+
 def _get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int):
     """
     Extracts SNP (single nucleotide polymorphism) information and genotypes from a VCF file within a specified genomic region.
@@ -74,7 +76,7 @@ def _get_genomic_variants(vcf_file: str | Path, chrom: str, start: int, end: int
         # Extract genotype information
         genotype = [call.data.get("GT") or "./." for call in record.calls]
         genotype = [str(x) for x in genotype]  # Ensure all elements are strings
-        genotype = [0 if x == "0/0" else 1 if x == "0/1" else 2 if x == "1/1" else np.nan for x in genotype]
+        # genotype = [0 if x == "0/0" else 1 if x == "0/1" else 2 if x == "1/1" else np.nan for x in genotype]
 
         genotypes.append(genotype)
 
@@ -355,7 +357,8 @@ def _add_variants_to_sequence(
     df_seq = df_seq.set_index(["peak", "donor"])
 
     # Update the sequences with variants
-    for _, row in tqdm(df_var.iterrows(), total=len(df_var)):
+    for _, row in df_var.iterrows():
+    # for _, row in tqdm(df_var.iterrows(), total=len(df_var)):
         peak, donor, genotype = row["peak"], row["donor"], row["genotype"]
 
         start = df_seq.loc[(peak, donor)]["start"]
@@ -370,14 +373,24 @@ def _add_variants_to_sequence(
             seq_2[row["pos"] - start - 1] == row["ref"]
         ), f"peak: {peak}, donor: {donor}, ref: {row['ref']}, seq_2: {seq_2[row['pos'] - start - 1]}, pos: {row['pos']}, start: {start}"
 
-        if genotype == 1:
+        # add variant to seq 1
+        if genotype == "1|0":
+            df_seq.loc[(peak, donor), "seq_1"] = (
+                seq_1[: row["pos"] - start - 1]
+                + row["alt"]
+                + seq_1[row["pos"] - start :]
+            )
+
+        # add variant to seq 2
+        elif genotype == "0|1":
             df_seq.loc[(peak, donor), "seq_2"] = (
                 seq_2[: row["pos"] - start - 1]
                 + row["alt"]
                 + seq_2[row["pos"] - start :]
             )
 
-        elif genotype == 2:
+        # add variant to both sequences
+        elif genotype == "1|1":
             df_seq.loc[(peak, donor), "seq_1"] = (
                 seq_1[: row["pos"] - start - 1]
                 + row["alt"]
@@ -406,7 +419,6 @@ def add_variants_to_sequence(
     atac_mod: str = "atac",
     personal_genome_seq: str = "personal_genome_seq",
     n_cpus: int = 1,
-    verbose: bool = False,
 ) -> None:
     """
     Add genomic variants to DNA sequences from peak regions to generate personalized haplotype sequences.
@@ -557,15 +569,19 @@ def add_variants_to_sequence(
     df_seq["seq_1"] = np.repeat(df_peaks['sequence'].tolist(), len(donor_list))
     df_seq["seq_2"] = np.repeat(df_peaks['sequence'].tolist(), len(donor_list))
 
-    # update the sequences with variants
-    # only update the sequences with heterozygous and homozygous alternate genotypes
-    # logger.info("Keep genotypes with alternative alleles")
-    df_var = df_var[df_var["genotype"].isin([1, 2])].reset_index(drop=True)
+    # check genotype in df_var is one of "0|0", "0|1", "1|0", "1|1"
+    unexpected = set(df_var["genotype"].unique()) - VALID_GENOTYPES
+    if unexpected:
+        logger.error(f"unexpected genotype values: {sorted(unexpected)}")
+        return None
+
+    df_var = df_var.drop_duplicates()
+    df_var = df_var[df_var["genotype"].isin(["0|1", "1|0", "1|1"])].reset_index(drop=True)
 
     # logger.info(f"Number of variants with donors: {len(df_var)}")
     if n_cpus == 1:
         df_seq_list = []
-        for donor in tqdm(donor_list, desc="Updating sequences with variants"):
+        for donor in tqdm(donor_list, desc="Adding variants to reference sequences"):
             _df_seq = df_seq[df_seq["donor"] == donor].reset_index(drop=True).copy()
             _df_var = df_var[df_var["donor"] == donor].reset_index(drop=True).copy()
 

@@ -19,7 +19,6 @@ from ._motif import (
 from ._peak import (
     add_peaks,
     peak_to_gene,
-    annotate_peaks,
     random_regions
 )
 from ._sequence import (

@@ -1,0 +1,6 @@
+﻿cell2net.preprocessing.dinucleotide\_shuffle\_str
+=================================================
+
+.. currentmodule:: cell2net.preprocessing
+
+.. autofunction:: dinucleotide_shuffle_str

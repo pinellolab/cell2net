@@ -1,0 +1,6 @@
+﻿cell2net.interpretation.tf\_to\_gene
+====================================
+
+.. currentmodule:: cell2net.interpretation
+
+.. autofunction:: tf_to_gene

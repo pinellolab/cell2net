@@ -1,0 +1,7 @@
+cell2net.datasets package
+=========================
+
+.. automodule:: cell2net.datasets
+   :members:
+   :show-inheritance:
+   :undoc-members:

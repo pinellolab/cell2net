@@ -1,0 +1,15 @@
+cell2net.evaluation package
+===========================
+
+.. automodule:: cell2net.evaluation
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   cell2net.evaluation.utils

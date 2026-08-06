@@ -1,0 +1,6 @@
+﻿cell2net.preprocessing.match\_motif
+===================================
+
+.. currentmodule:: cell2net.preprocessing
+
+.. autofunction:: match_motif

@@ -1,0 +1,6 @@
+﻿cell2net.preprocessing.peak\_to\_gene
+=====================================
+
+.. currentmodule:: cell2net.preprocessing
+
+.. autofunction:: peak_to_gene

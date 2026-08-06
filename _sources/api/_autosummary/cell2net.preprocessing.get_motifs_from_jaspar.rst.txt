@@ -1,0 +1,6 @@
+﻿cell2net.preprocessing.get\_motifs\_from\_jaspar
+================================================
+
+.. currentmodule:: cell2net.preprocessing
+
+.. autofunction:: get_motifs_from_jaspar

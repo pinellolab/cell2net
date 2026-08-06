@@ -1,0 +1,1238 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta property="og:title" content="Cell2Net Transcription Factor Activity Analysis" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="tutorials/pbmc/06_tf_activity.html" />
+<meta property="og:site_name" content="Cell2net" />
+<meta property="og:description" content="This tutorial demonstrates how to analyze transcription factor (TF) activity patterns across different PBMC cell types using the regulatory networks generated from Cell2Net model interpretations. B..." />
+<meta property="og:image:width" content="1146" />
+<meta property="og:image:height" content="600" />
+<meta property="og:image" content="_images/social_previews/summary_tutorials_pbmc_06_tf_activity_56074484.png" />
+<meta property="og:image:alt" content="This tutorial demonstrates how to analyze transcription factor (TF) activity patterns across different PBMC cell types using the regulatory networks generated from Cell2Net model interpretations. B..." />
+<meta name="description" content="This tutorial demonstrates how to analyze transcription factor (TF) activity patterns across different PBMC cell types using the regulatory networks generated from Cell2Net model interpretations. B..." />
+<meta name="twitter:card" content="summary_large_image" />
+
+    <title>Cell2Net Transcription Factor Activity Analysis &#8212; Cell2net 0.13 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css?v=84fe55bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../../_static/documentation_options.js?v=9bec1924"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/pbmc/06_tf_activity';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.20.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://raw.githubusercontent.com/pinellolab/cell2net/main/docs/_static/versions.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.13';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Miscellaneous" href="../misc/index.html" />
+    <link rel="prev" title="Cell2Net Model Interpretation: Transcription Factor Attribution" href="05_tf_to_gene.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.13" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class=" navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Cell2net 0.13 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class=" navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../install.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../index.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/modules.html">
+    cell2net
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../references.html">
+    References
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/pinellolab/cell2net" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+          
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../install.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../index.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/modules.html">
+    cell2net
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../references.html">
+    References
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/pinellolab/cell2net" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../k562/index.html">K562</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../k562/01_pretrain_seq_encoder.html">Pretrain Sequence Encoder for K562</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/02_prepare_data.html">Prepare data for training Cell2net model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/03_train.html">Training Cell2Net models for K562</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/04_peak_to_gene.html">Peak-to-gene analysis with Cell2Net</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/05_process_p2g.html">Processing peak-to-gene links for method comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/06_evaluate_p2g.html">Evaluating Peak-to-Gene Predictions with Experimental Validation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">PBMC</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_pretrain.html">Pretrain Sequence Encoder for PBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_prepare_data.html">Prepare Data for Cell2Net Training on PBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_train_cell2net.html">Training Cell2net for PBMC Dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_get_correlation.html">Cell2Net Model Evaluation with Correlation Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_tf_to_gene.html">Cell2Net Model Interpretation: Transcription Factor Attribution</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Cell2Net Transcription Factor Activity Analysis</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../misc/index.html">Miscellaneous</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/01_create_mudata.html">in this tutorial, we show how to create mudata from 10x multiome output file</a></li>
+
+</ul>
+</details></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Tutorials</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">PBMC</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Cell2Net Transcription Factor Activity Analysis</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="cell2net-transcription-factor-activity-analysis">
+<h1>Cell2Net Transcription Factor Activity Analysis<a class="headerlink" href="#cell2net-transcription-factor-activity-analysis" title="Link to this heading">#</a></h1>
+<p>This tutorial demonstrates how to analyze transcription factor (TF) activity patterns across different PBMC cell types using the regulatory networks generated from Cell2Net model interpretations. By quantifying and visualizing TF activity, we can understand cell-type-specific regulatory programs and identify key transcriptional drivers of immune cell identity.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
+<p>Transcription factor activity analysis transforms the TF attribution scores from Cell2Net models into biologically interpretable activity patterns:</p>
+<ol class="arabic simple">
+<li><p><strong>Activity Quantification</strong>: Aggregate TF attribution scores across target genes for each cell type</p></li>
+<li><p><strong>Variance Analysis</strong>: Identify TFs with cell-type-specific activity patterns</p></li>
+<li><p><strong>Activity Visualization</strong>: Create dotplots comparing TF activity across immune cell populations</p></li>
+<li><p><strong>Expression Correlation</strong>: Compare predicted TF activity with actual TF gene expression</p></li>
+</ol>
+</section>
+<section id="biological-significance">
+<h2>Biological Significance<a class="headerlink" href="#biological-significance" title="Link to this heading">#</a></h2>
+<p>TF activity analysis reveals:</p>
+<ul class="simple">
+<li><p><strong>Cell Identity Programs</strong>: Which TFs define each immune cell type</p></li>
+<li><p><strong>Regulatory Specificity</strong>: How different cell types use distinct TF combinations</p></li>
+<li><p><strong>Master Regulators</strong>: TFs with broad influence across multiple target genes</p></li>
+<li><p><strong>Lineage Relationships</strong>: Shared regulatory programs between related cell types</p></li>
+</ul>
+<p>This approach bridges the gap between computational predictions and biological understanding of immune cell regulation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scanpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mudata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">md</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cell2net</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cn</span>
+<span class="n">md</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">pull_on_update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="load-and-normalize-expression-data">
+<h2>2. Load and Normalize Expression Data<a class="headerlink" href="#load-and-normalize-expression-data" title="Link to this heading">#</a></h2>
+<p>Load the multiome dataset and perform standard normalization for gene expression analysis:</p>
+<ul class="simple">
+<li><p><strong>mdata.h5mu</strong>: Multiome object containing single-cell RNA expression, ATAC accessibility, and cell annotations.</p></li>
+<li><p><strong>Total-count normalization</strong>: Scale gene expression to 10,000 total counts per cell</p></li>
+<li><p><strong>Log transformation</strong>: Apply log1p transformation for variance stabilization</p></li>
+</ul>
+<p>This normalization enables comparison of TF gene expression levels across different cell types and provides a baseline for correlating predicted TF activity with actual TF expression.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mdata</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">read_h5mu</span><span class="p">(</span><span class="s2">&quot;./mdata.h5mu&quot;</span><span class="p">)</span>
+<span class="n">sc</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">normalize_total</span><span class="p">(</span><span class="n">mdata</span><span class="p">[</span><span class="s1">&#39;rna&#39;</span><span class="p">])</span>
+<span class="n">sc</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">mdata</span><span class="p">[</span><span class="s1">&#39;rna&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="load-tf-gene-regulatory-network">
+<h2>3. Load TF-Gene Regulatory Network<a class="headerlink" href="#load-tf-gene-regulatory-network" title="Link to this heading">#</a></h2>
+<p>Load the  TF-gene regulatory network generated from Cell2Net model interpretations in last step:</p>
+<ul class="simple">
+<li><p><strong>tf_to_gene.csv</strong>: Attribution-based regulatory relationships from previous tutorial step</p></li>
+<li><p><strong>Network structure</strong>: Contains TF names, target genes, cell types, and attribution scores</p></li>
+<li><p><strong>Quantitative measures</strong>: Mean attribution scores represent regulatory strength</p></li>
+</ul>
+<p>This dataset provides the foundation for computing TF activity by aggregating regulatory impact across all target genes for each transcription factor.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;./05_tf_to_gene/tf_to_gene.csv&quot;</span><span class="p">,</span> 
+                 <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>tf</th>
+      <th>gene</th>
+      <th>cell_type_v2</th>
+      <th>mean_attr</th>
+      <th>std_attr</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>KLF2</td>
+      <td>ISG15</td>
+      <td>B cell</td>
+      <td>1.415844</td>
+      <td>0.468231</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>ELF1</td>
+      <td>ISG15</td>
+      <td>B cell</td>
+      <td>0.975179</td>
+      <td>0.298402</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>MEF2C</td>
+      <td>ISG15</td>
+      <td>B cell</td>
+      <td>0.851608</td>
+      <td>0.448217</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>IKZF3</td>
+      <td>ISG15</td>
+      <td>B cell</td>
+      <td>0.699268</td>
+      <td>0.239014</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>JUNB</td>
+      <td>ISG15</td>
+      <td>B cell</td>
+      <td>0.691353</td>
+      <td>0.323894</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>75</th>
+      <td>ARID3A</td>
+      <td>CLIC2</td>
+      <td>pDC</td>
+      <td>0.167850</td>
+      <td>0.062825</td>
+    </tr>
+    <tr>
+      <th>76</th>
+      <td>MAX</td>
+      <td>CLIC2</td>
+      <td>pDC</td>
+      <td>0.154308</td>
+      <td>0.050194</td>
+    </tr>
+    <tr>
+      <th>77</th>
+      <td>CREB3L2</td>
+      <td>CLIC2</td>
+      <td>pDC</td>
+      <td>0.151772</td>
+      <td>0.049553</td>
+    </tr>
+    <tr>
+      <th>78</th>
+      <td>MGA</td>
+      <td>CLIC2</td>
+      <td>pDC</td>
+      <td>0.150544</td>
+      <td>0.062157</td>
+    </tr>
+    <tr>
+      <th>79</th>
+      <td>JUNB</td>
+      <td>CLIC2</td>
+      <td>pDC</td>
+      <td>0.141468</td>
+      <td>0.071961</td>
+    </tr>
+  </tbody>
+</table>
+<p>154160 rows × 5 columns</p>
+</div></div></div>
+</div>
+</section>
+<section id="compute-tf-activity-scores">
+<h2>4. Compute TF Activity Scores<a class="headerlink" href="#compute-tf-activity-scores" title="Link to this heading">#</a></h2>
+<p>Calculate transcription factor activity by aggregating attribution scores across target genes:</p>
+<section id="activity-computation-process">
+<h3>Activity Computation Process<a class="headerlink" href="#activity-computation-process" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Group by TF and cell type</strong>: Organize regulatory relationships by transcription factor and cellular context</p></li>
+<li><p><strong>Sum attributions</strong>: Aggregate mean attribution scores across all target genes for each TF</p></li>
+<li><p><strong>Pivot table</strong>: Reshape data with TFs as rows and cell types as columns</p></li>
+<li><p><strong>Fill missing values</strong>: Set activity to 0 for TF-cell type combinations without regulatory targets</p></li>
+</ol>
+</section>
+<section id="biological-interpretation">
+<h3>Biological Interpretation<a class="headerlink" href="#biological-interpretation" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>High activity scores</strong>: TFs with strong regulatory impact across many target genes</p></li>
+<li><p><strong>Cell-type specificity</strong>: Different activity patterns reveal regulatory specialization</p></li>
+<li><p><strong>Regulatory breadth</strong>: TFs with activity across multiple cell types may be master regulators</p></li>
+<li><p><strong>Context dependence</strong>: Same TF can have different activity levels in different immune cells</p></li>
+</ul>
+<p>The resulting activity matrix provides a quantitative, cell-type-resolved view of transcriptional regulation learned by Cell2Net models.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># get average regulation of each tf within cell types</span>
+<span class="n">df_act</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;tf&#39;</span><span class="p">,</span> <span class="s1">&#39;cell_type_v2&#39;</span><span class="p">])[</span><span class="s1">&#39;mean_attr&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">df_act</span> <span class="o">=</span> <span class="n">df_act</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s1">&#39;tf&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s1">&#39;cell_type_v2&#39;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="s1">&#39;mean_attr&#39;</span><span class="p">)</span>
+<span class="n">df_act</span> <span class="o">=</span> <span class="n">df_act</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">df_act</span> <span class="o">=</span> <span class="n">df_act</span><span class="o">.</span><span class="n">rename_axis</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">df_act</span> <span class="o">=</span> <span class="n">df_act</span><span class="o">.</span><span class="n">rename_axis</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_act</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>B cell</th>
+      <th>Effector T cell</th>
+      <th>Memory T cell</th>
+      <th>Monocyte</th>
+      <th>NK cell</th>
+      <th>Naive T cell</th>
+      <th>cDC</th>
+      <th>pDC</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>ARID3A</th>
+      <td>0.848500</td>
+      <td>0.000000</td>
+      <td>0.000000</td>
+      <td>4.606098</td>
+      <td>0.000000</td>
+      <td>0.023151</td>
+      <td>1.556543</td>
+      <td>72.943250</td>
+    </tr>
+    <tr>
+      <th>ARID3B</th>
+      <td>0.040328</td>
+      <td>0.358864</td>
+      <td>0.245848</td>
+      <td>0.000000</td>
+      <td>0.391047</td>
+      <td>0.131400</td>
+      <td>0.000000</td>
+      <td>0.071191</td>
+    </tr>
+    <tr>
+      <th>ARID5A</th>
+      <td>0.000000</td>
+      <td>0.000000</td>
+      <td>0.000000</td>
+      <td>0.000000</td>
+      <td>0.157263</td>
+      <td>0.000000</td>
+      <td>0.124857</td>
+      <td>0.000000</td>
+    </tr>
+    <tr>
+      <th>ARNT</th>
+      <td>1.845523</td>
+      <td>1.301548</td>
+      <td>1.280509</td>
+      <td>2.056258</td>
+      <td>2.019301</td>
+      <td>1.109258</td>
+      <td>1.659010</td>
+      <td>2.303763</td>
+    </tr>
+    <tr>
+      <th>ARNTL</th>
+      <td>0.000000</td>
+      <td>3.020990</td>
+      <td>2.020507</td>
+      <td>0.073984</td>
+      <td>7.520797</td>
+      <td>0.000000</td>
+      <td>0.000000</td>
+      <td>0.086325</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>ZNF740</th>
+      <td>0.069531</td>
+      <td>0.072358</td>
+      <td>0.051780</td>
+      <td>0.000000</td>
+      <td>0.069313</td>
+      <td>0.067072</td>
+      <td>0.000000</td>
+      <td>0.000000</td>
+    </tr>
+    <tr>
+      <th>ZNF75A</th>
+      <td>0.153219</td>
+      <td>0.354103</td>
+      <td>0.134158</td>
+      <td>0.000000</td>
+      <td>0.152452</td>
+      <td>0.683735</td>
+      <td>0.000000</td>
+      <td>0.000000</td>
+    </tr>
+    <tr>
+      <th>ZNF76</th>
+      <td>0.038586</td>
+      <td>0.054669</td>
+      <td>0.078891</td>
+      <td>0.063455</td>
+      <td>0.045685</td>
+      <td>0.100084</td>
+      <td>0.041894</td>
+      <td>0.000000</td>
+    </tr>
+    <tr>
+      <th>ZNF766</th>
+      <td>0.279524</td>
+      <td>0.000000</td>
+      <td>0.156850</td>
+      <td>0.000000</td>
+      <td>0.045424</td>
+      <td>0.278122</td>
+      <td>0.065266</td>
+      <td>0.000000</td>
+    </tr>
+    <tr>
+      <th>ZNF770</th>
+      <td>0.000000</td>
+      <td>0.027890</td>
+      <td>0.034100</td>
+      <td>0.000000</td>
+      <td>0.027462</td>
+      <td>0.000000</td>
+      <td>0.000000</td>
+      <td>0.294247</td>
+    </tr>
+  </tbody>
+</table>
+<p>238 rows × 8 columns</p>
+</div></div></div>
+</div>
+</section>
+</section>
+<section id="analyze-tf-activity-variance">
+<h2>5. Analyze TF Activity Variance<a class="headerlink" href="#analyze-tf-activity-variance" title="Link to this heading">#</a></h2>
+<p>Visualize transcription factor activity variance across cell types to identify the most cell-type-specific regulators:</p>
+<section id="variance-analysis">
+<h3>Variance Analysis<a class="headerlink" href="#variance-analysis" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Activity variance</strong>: Measures how much TF activity differs across cell types</p></li>
+<li><p><strong>Cell-type specificity</strong>: High variance indicates specialized regulatory roles</p></li>
+<li><p><strong>Master regulators</strong>: Moderate variance may suggest broad regulatory influence</p></li>
+<li><p><strong>Top variable TFs</strong>: Display the 5 most cell-type-specific transcription factors</p></li>
+</ul>
+</section>
+<section id="id1">
+<h3>Biological Interpretation<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>High variance TFs</strong>: Likely define cell identity and lineage-specific programs</p></li>
+<li><p><strong>Consistent activity</strong>: May represent housekeeping or broadly required regulatory functions</p></li>
+<li><p><strong>Regulatory specialization</strong>: Cell-type-specific TFs drive functional diversification</p></li>
+</ul>
+<p>This analysis helps prioritize transcription factors for detailed biological investigation and experimental validation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cn</span><span class="o">.</span><span class="n">pl</span><span class="o">.</span><span class="n">tf_activity_variance</span><span class="p">(</span><span class="n">df_act</span><span class="p">,</span> <span class="n">n_labels</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<a class="reference internal image-reference" href="../../_images/e089bd27f71269d4f7c2da0d49e5f6810acf73cd8a8d09e520abe1946a36b958.png"><img alt="../../_images/e089bd27f71269d4f7c2da0d49e5f6810acf73cd8a8d09e520abe1946a36b958.png" height="374" src="../../_images/e089bd27f71269d4f7c2da0d49e5f6810acf73cd8a8d09e520abe1946a36b958.png" width="406" />
+</a>
+</div>
+</div>
+</section>
+</section>
+<section id="select-top-variable-tfs-for-visualization">
+<h2>6. Select Top Variable TFs for Visualization<a class="headerlink" href="#select-top-variable-tfs-for-visualization" title="Link to this heading">#</a></h2>
+<p>Identify the most cell-type-specific transcription factors for detailed visualization:</p>
+<section id="selection-criteria">
+<h3>Selection Criteria<a class="headerlink" href="#selection-criteria" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>n_top_tfs=5</strong>: Select top 5 TFs for each cell type based on activity levels</p></li>
+<li><p><strong>var_cutoff=0.3</strong>: Require minimum variance across cell types to ensure specificity</p></li>
+<li><p><strong>Cell-type resolution</strong>: Identify key regulators for each immune cell population</p></li>
+</ul>
+</section>
+<section id="output-structure">
+<h3>Output Structure<a class="headerlink" href="#output-structure" title="Link to this heading">#</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">var_names</span></code> dictionary organizes selected TFs by cell type, enabling focused visualization of:</p>
+<ul class="simple">
+<li><p><strong>Cell identity TFs</strong>: Key regulators that define each immune cell type</p></li>
+<li><p><strong>Regulatory programs</strong>: TF combinations that drive cell-type-specific functions</p></li>
+<li><p><strong>Lineage markers</strong>: Transcription factors associated with immune cell differentiation</p></li>
+</ul>
+<p>This curated selection focuses subsequent analysis on the most biologically relevant and cell-type-specific regulatory relationships.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_top_tfs</span> <span class="o">=</span> <span class="n">cn</span><span class="o">.</span><span class="n">ip</span><span class="o">.</span><span class="n">get_top_tfs</span><span class="p">(</span><span class="n">df_act</span><span class="p">,</span> <span class="n">n_top_tfs</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">var_cutoff</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="n">var_names</span> <span class="o">=</span> <span class="n">df_top_tfs</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s2">&quot;list&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="inspect-selected-tfs-by-cell-type">
+<h3>Inspect Selected TFs by Cell Type<a class="headerlink" href="#inspect-selected-tfs-by-cell-type" title="Link to this heading">#</a></h3>
+<p>Display the selected transcription factors organized by immune cell type. This curated list represents the most cell-type-specific and highly active TFs identified from Cell2Net regulatory network analysis, providing focused targets for biological interpretation and experimental validation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">var_names</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;B cell&#39;: [&#39;PAX5&#39;, &#39;SOX5&#39;, &#39;EBF1&#39;, &#39;BACH2&#39;, &#39;IKZF3&#39;],
+ &#39;Effector T cell&#39;: [&#39;IKZF2&#39;, &#39;RORA&#39;, &#39;KLF12&#39;, &#39;STAT4&#39;, &#39;RUNX1&#39;],
+ &#39;Memory T cell&#39;: [&#39;STAT5B&#39;, &#39;RORA&#39;, &#39;ETS1&#39;, &#39;RUNX1&#39;, &#39;BCL11B&#39;],
+ &#39;Monocyte&#39;: [&#39;TCF7L2&#39;, &#39;FOXO3&#39;, &#39;BACH1&#39;, &#39;STAT1&#39;, &#39;IRF1&#39;],
+ &#39;NK cell&#39;: [&#39;BNC2&#39;, &#39;NFATC2&#39;, &#39;KLF13&#39;, &#39;RUNX3&#39;, &#39;NFATC3&#39;],
+ &#39;Naive T cell&#39;: [&#39;LEF1&#39;, &#39;TCF7&#39;, &#39;FOXP1&#39;, &#39;FOXO1&#39;, &#39;BCL11B&#39;],
+ &#39;cDC&#39;: [&#39;RBPJ&#39;, &#39;JUND&#39;, &#39;SPI1&#39;, &#39;CEBPD&#39;, &#39;NR4A2&#39;],
+ &#39;pDC&#39;: [&#39;CUX2&#39;, &#39;IRF7&#39;, &#39;IRF4&#39;, &#39;ARID3A&#39;, &#39;TCF4&#39;]}
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="visualize-tf-gene-expression">
+<h2>7. Visualize TF Gene Expression<a class="headerlink" href="#visualize-tf-gene-expression" title="Link to this heading">#</a></h2>
+<p>Create a dotplot showing actual transcription factor gene expression across PBMC cell types:</p>
+<section id="visualization-features">
+<h3>Visualization Features<a class="headerlink" href="#visualization-features" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Dotplot format</strong>: Dot size represents expression level, color represents average expression</p></li>
+<li><p><strong>Standard scaling</strong>: Normalize expression values across cell types for comparison</p></li>
+<li><p><strong>Dendrogram</strong>: Hierarchical clustering reveals cell type relationships</p></li>
+<li><p><strong>Gene organization</strong>: TFs grouped by cell type for systematic comparison</p></li>
+</ul>
+</section>
+<section id="biological-context">
+<h3>Biological Context<a class="headerlink" href="#biological-context" title="Link to this heading">#</a></h3>
+<p>This expression analysis provides a baseline for comparing:</p>
+<ul class="simple">
+<li><p><strong>TF availability</strong>: Whether TFs are expressed in cells where they show predicted activity</p></li>
+<li><p><strong>Expression vs. activity</strong>: How TF gene expression correlates with regulatory activity</p></li>
+<li><p><strong>Cell-type patterns</strong>: Which cell types express specific lineage-determining TFs</p></li>
+<li><p><strong>Regulatory potential</strong>: High expression may enable strong regulatory impact</p></li>
+</ul>
+<p>The expression patterns help validate Cell2Net predictions and identify cases where post-transcriptional regulation may modulate TF activity.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sc</span><span class="o">.</span><span class="n">pl</span><span class="o">.</span><span class="n">dotplot</span><span class="p">(</span><span class="n">mdata</span><span class="p">[</span><span class="s1">&#39;rna&#39;</span><span class="p">],</span> <span class="n">groupby</span><span class="o">=</span><span class="s2">&quot;cell_type_v2&quot;</span><span class="p">,</span> 
+              <span class="n">var_names</span><span class="o">=</span><span class="n">var_names</span><span class="p">,</span>
+              <span class="n">standard_scale</span><span class="o">=</span><span class="s1">&#39;var&#39;</span><span class="p">,</span> <span class="n">dendrogram</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">swap_axes</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
+              <span class="n">save</span><span class="o">=</span><span class="s2">&quot;tf_expression.pdf&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>WARNING: dendrogram data not found (using key=dendrogram_cell_type_v2). Running `sc.tl.dendrogram` with default parameters. For fine tuning it is recommended to run `sc.tl.dendrogram` independently.
+WARNING: saving figure to file figures/dotplot_tf_expression.pdf
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../../_images/6506aaefb352c3eb2d986a36726f1c3825489c8676fc6dee3d3c0480c3857663.png"><img alt="../../_images/6506aaefb352c3eb2d986a36726f1c3825489c8676fc6dee3d3c0480c3857663.png" height="456" src="../../_images/6506aaefb352c3eb2d986a36726f1c3825489c8676fc6dee3d3c0480c3857663.png" width="1490" />
+</a>
+</div>
+</div>
+</section>
+</section>
+<section id="visualize-tf-regulatory-activity">
+<h2>8. Visualize TF Regulatory Activity<a class="headerlink" href="#visualize-tf-regulatory-activity" title="Link to this heading">#</a></h2>
+<p>Create a specialized dotplot showing Cell2Net-predicted transcription factor regulatory activity:</p>
+<section id="activity-visualization-features">
+<h3>Activity Visualization Features<a class="headerlink" href="#activity-visualization-features" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Custom TF dotplot</strong>: Specialized visualization for regulatory activity data</p></li>
+<li><p><strong>Green colormap</strong>: Intuitive color scheme for activity levels</p></li>
+<li><p><strong>Cell type ordering</strong>: Organized by immune cell lineage relationships</p></li>
+<li><p><strong>Standard scaling</strong>: Normalized activity scores for cross-TF comparison</p></li>
+<li><p><strong>Target filtering</strong>: Focus on TFs with 0-200 target genes for interpretability</p></li>
+</ul>
+</section>
+<section id="activity-vs-expression-comparison">
+<h3>Activity vs. Expression Comparison<a class="headerlink" href="#activity-vs-expression-comparison" title="Link to this heading">#</a></h3>
+<p>This activity plot complements the expression analysis by showing:</p>
+<ul class="simple">
+<li><p><strong>Regulatory impact</strong>: How strongly TFs regulate their target genes</p></li>
+<li><p><strong>Cell-type specificity</strong>: Where each TF exerts its strongest regulatory influence</p></li>
+<li><p><strong>Functional activity</strong>: Regulatory strength independent of expression level</p></li>
+<li><p><strong>Network-derived insights</strong>: Activity patterns learned from multiome data integration</p></li>
+</ul>
+</section>
+<section id="id2">
+<h3>Biological Interpretation<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>High activity</strong>: TFs with strong regulatory control in specific cell types</p></li>
+<li><p><strong>Activity patterns</strong>: Cell-type-specific regulatory programs</p></li>
+<li><p><strong>Master regulators</strong>: TFs with broad activity across multiple cell types</p></li>
+<li><p><strong>Regulatory modules</strong>: Co-active TFs that may work together in regulatory complexes</p></li>
+</ul>
+<p>The comparison between expression and activity patterns reveals the complex relationship between TF availability and regulatory function in immune cells.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cn</span><span class="o">.</span><span class="n">pl</span><span class="o">.</span><span class="n">tf_dotplot</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> 
+                 <span class="n">group_col</span><span class="o">=</span><span class="s2">&quot;cell_type_v2&quot;</span><span class="p">,</span> 
+                 <span class="n">activity_col</span><span class="o">=</span><span class="s2">&quot;mean_attr&quot;</span><span class="p">,</span>
+                 <span class="n">var_names</span><span class="o">=</span><span class="n">var_names</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;Greens&quot;</span><span class="p">,</span>
+                 <span class="n">categories_order</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Monocyte&#39;</span><span class="p">,</span> <span class="s1">&#39;cDC&#39;</span><span class="p">,</span> <span class="s1">&#39;B cell&#39;</span><span class="p">,</span> <span class="s1">&#39;pDC&#39;</span><span class="p">,</span> <span class="s1">&#39;Memory T cell&#39;</span><span class="p">,</span> <span class="s1">&#39;Naive T cell&#39;</span><span class="p">,</span>
+                                   <span class="s1">&#39;NK cell&#39;</span><span class="p">,</span> <span class="s1">&#39;Effector T cell&#39;</span><span class="p">],</span>
+                 <span class="n">standard_scale</span><span class="o">=</span><span class="s2">&quot;var&quot;</span><span class="p">,</span> <span class="n">n_targets_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_targets_max</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+                 <span class="n">save</span><span class="o">=</span><span class="s2">&quot;tf_activity.pdf&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>WARNING: saving figure to file figures/dotplot_tf_activity.pdf
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../../_images/0a1645f4b425238c68dc4f84a397c26b6283f80693fb7ac9a62e4a64dbd02c65.png"><img alt="../../_images/0a1645f4b425238c68dc4f84a397c26b6283f80693fb7ac9a62e4a64dbd02c65.png" height="381" src="../../_images/0a1645f4b425238c68dc4f84a397c26b6283f80693fb7ac9a62e4a64dbd02c65.png" width="1430" />
+</a>
+</div>
+</div>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="05_tf_to_gene.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Cell2Net Model Interpretation: Transcription Factor Attribution</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../misc/index.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Miscellaneous</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#biological-significance">Biological Significance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-and-normalize-expression-data">2. Load and Normalize Expression Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-tf-gene-regulatory-network">3. Load TF-Gene Regulatory Network</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compute-tf-activity-scores">4. Compute TF Activity Scores</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#activity-computation-process">Activity Computation Process</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#biological-interpretation">Biological Interpretation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#analyze-tf-activity-variance">5. Analyze TF Activity Variance</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#variance-analysis">Variance Analysis</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Biological Interpretation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#select-top-variable-tfs-for-visualization">6. Select Top Variable TFs for Visualization</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#selection-criteria">Selection Criteria</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-structure">Output Structure</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#inspect-selected-tfs-by-cell-type">Inspect Selected TFs by Cell Type</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualize-tf-gene-expression">7. Visualize TF Gene Expression</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#visualization-features">Visualization Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#biological-context">Biological Context</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualize-tf-regulatory-activity">8. Visualize TF Regulatory Activity</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#activity-visualization-features">Activity Visualization Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#activity-vs-expression-comparison">Activity vs. Expression Comparison</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">Biological Interpretation</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/pinellolab/cell2net/edit/main/tutorials/pbmc/06_tf_activity.ipynb">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Zhijian Li..
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.20.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

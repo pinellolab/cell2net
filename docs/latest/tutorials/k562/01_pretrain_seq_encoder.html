@@ -1,0 +1,1097 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta property="og:title" content="Pretrain Sequence Encoder for K562" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="tutorials/k562/01_pretrain_seq_encoder.html" />
+<meta property="og:site_name" content="Cell2net" />
+<meta property="og:description" content="In this tutorial, we will train a sequence encoder to predict chromatin accessibility for K562 cells. This is similar to ChromBPNet and the idea is to learn sequence variation across the whole geno..." />
+<meta property="og:image:width" content="1146" />
+<meta property="og:image:height" content="600" />
+<meta property="og:image" content="_images/social_previews/summary_tutorials_k562_01_pretrain_seq_encoder_5337d9f5.png" />
+<meta property="og:image:alt" content="In this tutorial, we will train a sequence encoder to predict chromatin accessibility for K562 cells. This is similar to ChromBPNet and the idea is to learn sequence variation across the whole geno..." />
+<meta name="description" content="In this tutorial, we will train a sequence encoder to predict chromatin accessibility for K562 cells. This is similar to ChromBPNet and the idea is to learn sequence variation across the whole geno..." />
+<meta name="twitter:card" content="summary_large_image" />
+
+    <title>Pretrain Sequence Encoder for K562 &#8212; Cell2net 0.13 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css?v=84fe55bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../../_static/documentation_options.js?v=9bec1924"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/k562/01_pretrain_seq_encoder';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.20.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://raw.githubusercontent.com/pinellolab/cell2net/main/docs/_static/versions.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.13';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Prepare data for training Cell2net model" href="02_prepare_data.html" />
+    <link rel="prev" title="K562" href="index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.13" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class=" navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Cell2net 0.13 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class=" navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../install.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../index.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/modules.html">
+    cell2net
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../references.html">
+    References
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/pinellolab/cell2net" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+          
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../install.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../index.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/modules.html">
+    cell2net
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../references.html">
+    References
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/pinellolab/cell2net" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">K562</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Pretrain Sequence Encoder for K562</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_prepare_data.html">Prepare data for training Cell2net model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_train.html">Training Cell2Net models for K562</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_peak_to_gene.html">Peak-to-gene analysis with Cell2Net</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_process_p2g.html">Processing peak-to-gene links for method comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_evaluate_p2g.html">Evaluating Peak-to-Gene Predictions with Experimental Validation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../pbmc/index.html">PBMC</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pbmc/01_pretrain.html">Pretrain Sequence Encoder for PBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pbmc/02_prepare_data.html">Prepare Data for Cell2Net Training on PBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pbmc/03_train_cell2net.html">Training Cell2net for PBMC Dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pbmc/04_get_correlation.html">Cell2Net Model Evaluation with Correlation Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pbmc/05_tf_to_gene.html">Cell2Net Model Interpretation: Transcription Factor Attribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pbmc/06_tf_activity.html">Cell2Net Transcription Factor Activity Analysis</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../misc/index.html">Miscellaneous</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/01_create_mudata.html">in this tutorial, we show how to create mudata from 10x multiome output file</a></li>
+
+</ul>
+</details></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Tutorials</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">K562</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Pretrain Sequence Encoder for K562</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="pretrain-sequence-encoder-for-k562">
+<h1>Pretrain Sequence Encoder for K562<a class="headerlink" href="#pretrain-sequence-encoder-for-k562" title="Link to this heading">#</a></h1>
+<p>In this tutorial, we will train a sequence encoder to predict chromatin accessibility for K562 cells. This is similar to ChromBPNet and the idea is to learn sequence variation across the whole genome.</p>
+<p>Let’s get started!</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cell2net</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cn</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mudata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">md</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scanpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
+
+<span class="n">md</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">pull_on_update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;mudata._core.config.set_options at 0x7f510d978a70&gt;
+</pre></div>
+</div>
+</div>
+</div>
+<section id="load-multiome-data">
+<h2>Load Multiome Data<a class="headerlink" href="#load-multiome-data" title="Link to this heading">#</a></h2>
+<p>Let’s first import the multiome single-cell data for K562 cells. This dataset contains paired measurements of gene expression (RNA-seq) and chromatin accessibility (ATAC-seq) from the same cells. The raw sequencing is obtained from <a class="reference external" href="https://www.dropbox.com/scl/fi/8kkyyinosak213ksmp7p9/K562.h5mu?rlkey=4nlcc6zqf2y5lv2at6cw49ygg&amp;st=5hs15lgp&amp;dl=0">here</a> and we preprocessed the data using <a class="reference external" href="https://www.10xgenomics.com/support/software/cell-ranger-arc/latest/getting-started/what-is-cell-ranger-arc">Cell Ranger ARC</a>. You can downloaded the Mudata object <a class="reference external" href="https://www.dropbox.com/scl/fi/8kkyyinosak213ksmp7p9/K562.h5mu?rlkey=4nlcc6zqf2y5lv2at6cw49ygg&amp;st=5hs15lgp&amp;dl=0">here</a>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mdata</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">read_h5mu</span><span class="p">(</span>
+    <span class="s2">&quot;../../../../results/37_K562_10x_multiome/05_create_mdata/mdata.h5mu&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Let’s examine the structure of our multiome data:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mdata</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><pre>MuData object with n_obs × n_vars = 6508 × 151699
+  obs:	&#x27;total_counts_rna&#x27;, &#x27;total_counts_atac&#x27;, &#x27;total_counts_rna_log&#x27;, &#x27;total_counts_atac_log&#x27;
+  2 modalities
+    rna:	6508 x 15735
+      obs:	&#x27;orig.ident&#x27;, &#x27;nCount_RNA&#x27;, &#x27;nFeature_RNA&#x27;, &#x27;Sample&#x27;, &#x27;TSSEnrichment&#x27;, &#x27;ReadsInTSS&#x27;, &#x27;ReadsInPromoter&#x27;, &#x27;ReadsInBlacklist&#x27;, &#x27;PromoterRatio&#x27;, &#x27;PassQC&#x27;, &#x27;NucleosomeRatio&#x27;, &#x27;nMultiFrags&#x27;, &#x27;nMonoFrags&#x27;, &#x27;nFrags&#x27;, &#x27;nDiFrags&#x27;, &#x27;BlacklistRatio&#x27;, &#x27;DoubletScore&#x27;, &#x27;DoubletEnrichment&#x27;, &#x27;ReadsInPeaks&#x27;, &#x27;FRIP&#x27;, &#x27;nCount_ATAC&#x27;, &#x27;nFeature_ATAC&#x27;, &#x27;percent.mt&#x27;, &#x27;n_genes_by_counts&#x27;, &#x27;log1p_n_genes_by_counts&#x27;, &#x27;total_counts&#x27;, &#x27;log1p_total_counts&#x27;, &#x27;pct_counts_in_top_50_genes&#x27;, &#x27;pct_counts_in_top_100_genes&#x27;, &#x27;pct_counts_in_top_200_genes&#x27;, &#x27;pct_counts_in_top_500_genes&#x27;
+      var:	&#x27;genes&#x27;, &#x27;n_cells&#x27;, &#x27;n_cells_by_counts&#x27;, &#x27;mean_counts&#x27;, &#x27;log1p_mean_counts&#x27;, &#x27;pct_dropout_by_counts&#x27;, &#x27;total_counts&#x27;, &#x27;log1p_total_counts&#x27;, &#x27;highly_variable&#x27;, &#x27;highly_variable_rank&#x27;, &#x27;means&#x27;, &#x27;variances&#x27;, &#x27;variances_norm&#x27;
+      uns:	&#x27;hvg&#x27;
+      obsm:	&#x27;X_pca&#x27;, &#x27;X_umap&#x27;
+      layers:	&#x27;counts&#x27;
+    atac:	6508 x 135964
+      obs:	&#x27;orig.ident&#x27;, &#x27;nCount_RNA&#x27;, &#x27;nFeature_RNA&#x27;, &#x27;Sample&#x27;, &#x27;TSSEnrichment&#x27;, &#x27;ReadsInTSS&#x27;, &#x27;ReadsInPromoter&#x27;, &#x27;ReadsInBlacklist&#x27;, &#x27;PromoterRatio&#x27;, &#x27;PassQC&#x27;, &#x27;NucleosomeRatio&#x27;, &#x27;nMultiFrags&#x27;, &#x27;nMonoFrags&#x27;, &#x27;nFrags&#x27;, &#x27;nDiFrags&#x27;, &#x27;BlacklistRatio&#x27;, &#x27;DoubletScore&#x27;, &#x27;DoubletEnrichment&#x27;, &#x27;ReadsInPeaks&#x27;, &#x27;FRIP&#x27;, &#x27;nCount_ATAC&#x27;, &#x27;nFeature_ATAC&#x27;, &#x27;percent.mt&#x27;, &#x27;n_genes_by_counts&#x27;, &#x27;log1p_n_genes_by_counts&#x27;, &#x27;total_counts&#x27;, &#x27;log1p_total_counts&#x27;, &#x27;pct_counts_in_top_50_genes&#x27;, &#x27;pct_counts_in_top_100_genes&#x27;, &#x27;pct_counts_in_top_200_genes&#x27;, &#x27;pct_counts_in_top_500_genes&#x27;
+      var:	&#x27;peaks&#x27;, &#x27;n_cells_by_counts&#x27;, &#x27;mean_counts&#x27;, &#x27;log1p_mean_counts&#x27;, &#x27;pct_dropout_by_counts&#x27;, &#x27;total_counts&#x27;, &#x27;log1p_total_counts&#x27;
+      obsm:	&#x27;X_umap&#x27;
+      layers:	&#x27;counts&#x27;</pre></div></div>
+</div>
+</section>
+<section id="visualize-data">
+<h2>Visualize data<a class="headerlink" href="#visualize-data" title="Link to this heading">#</a></h2>
+<p>Let’s visualize the RNA and ATAC data to understand the cellular diversity and data quality in our K562 dataset.</p>
+<p>RNA UMAP visualization:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sc</span><span class="o">.</span><span class="n">pl</span><span class="o">.</span><span class="n">umap</span><span class="p">(</span><span class="n">mdata</span><span class="p">[</span><span class="s2">&quot;rna&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/3cb50476f0fad6679897b1e09c6fc31d7ba58ef1d868ad00b60101ac41ae1538.png" src="../../_images/3cb50476f0fad6679897b1e09c6fc31d7ba58ef1d868ad00b60101ac41ae1538.png" />
+</div>
+</div>
+<p>ATAC UMAP visualization:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sc</span><span class="o">.</span><span class="n">pl</span><span class="o">.</span><span class="n">umap</span><span class="p">(</span><span class="n">mdata</span><span class="p">[</span><span class="s2">&quot;atac&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/32be408c1363ef3a507900d0c6aad8703b1d637ba06f18797007e72bd3a52198.png" src="../../_images/32be408c1363ef3a507900d0c6aad8703b1d637ba06f18797007e72bd3a52198.png" />
+</div>
+</div>
+</section>
+<section id="prepare-training-data">
+<h2>Prepare Training Data<a class="headerlink" href="#prepare-training-data" title="Link to this heading">#</a></h2>
+<p>Now we prepare the data for sequence encoder training by:</p>
+<ol class="arabic simple">
+<li><p><strong>Adding peak regions</strong> with 256bp windows around accessibility peaks</p></li>
+<li><p><strong>Extracting DNA sequences</strong> from the reference genome for each peak region</p></li>
+</ol>
+<p>This creates paired sequence-accessibility data for training the neural network.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cn</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">add_peaks</span><span class="p">(</span><span class="n">mdata</span><span class="p">,</span> <span class="n">mod_name</span><span class="o">=</span><span class="s1">&#39;atac&#39;</span><span class="p">,</span> <span class="n">peak_len</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
+<span class="n">cn</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">add_dna_sequence</span><span class="p">(</span><span class="n">mdata</span><span class="p">,</span> <span class="n">ref_fasta</span><span class="o">=</span><span class="s1">&#39;../../../../data/refdata-gex-GRCh38-2020-A/fasta/genome.fa&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+</div>
+</div>
+</section>
+<section id="calculate-accessibility-scores">
+<h2>Calculate Accessibility Scores<a class="headerlink" href="#calculate-accessibility-scores" title="Link to this heading">#</a></h2>
+<p>Compute total accessibility for each peak by summing counts across all cells, then apply log1p transformation to normalize the distribution.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_seq</span> <span class="o">=</span> <span class="n">mdata</span><span class="p">[</span><span class="s1">&#39;atac&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">uns</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span>
+<span class="n">df_true</span> <span class="o">=</span> <span class="n">mdata</span><span class="p">[</span><span class="s1">&#39;atac&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;counts&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">df_seq</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df_true</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">df_seq</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">df_seq</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Let’s examine our prepared training data:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_seq</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>chr</th>
+      <th>start</th>
+      <th>end</th>
+      <th>summit</th>
+      <th>sequence</th>
+      <th>acc</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>chr1-812439-812939</th>
+      <td>chr1</td>
+      <td>812561</td>
+      <td>812817</td>
+      <td>812689</td>
+      <td>GATAAACATGGAAGCAACCCACATGTCCATCAGTGGATGAATAGAT...</td>
+      <td>5.802118</td>
+    </tr>
+    <tr>
+      <th>chr1-817080-817580</th>
+      <td>chr1</td>
+      <td>817202</td>
+      <td>817458</td>
+      <td>817330</td>
+      <td>GACAACCTACTGAATGAGAGAAACTATTTGCAAACTATGCATCTGA...</td>
+      <td>5.961005</td>
+    </tr>
+    <tr>
+      <th>chr1-819720-820220</th>
+      <td>chr1</td>
+      <td>819842</td>
+      <td>820098</td>
+      <td>819970</td>
+      <td>TTTCATTCTGAGTAGCTTGATGAAGTCTCATGCCGTCCCACTCAGC...</td>
+      <td>5.552959</td>
+    </tr>
+    <tr>
+      <th>chr1-820480-820980</th>
+      <td>chr1</td>
+      <td>820602</td>
+      <td>820858</td>
+      <td>820730</td>
+      <td>ACACTACCTGCTTGTCCAGCAGGTCCACACTGTCTACACTACCTGC...</td>
+      <td>5.442418</td>
+    </tr>
+    <tr>
+      <th>chr1-821021-821521</th>
+      <td>chr1</td>
+      <td>821143</td>
+      <td>821399</td>
+      <td>821271</td>
+      <td>CAGCTGATCCGCCCTGTCTACACTACCTGCTTGTCGAGCAGATCTG...</td>
+      <td>5.361292</td>
+    </tr>
+  </tbody>
+</table>
+</div></div></div>
+</div>
+</section>
+<section id="create-train-validation-split">
+<h2>Create Train/Validation Split<a class="headerlink" href="#create-train-validation-split" title="Link to this heading">#</a></h2>
+<p>We split the data by chromosome to ensure no sequence similarity between training and validation sets. This approach prevents data leakage and provides a more realistic evaluation of model performance on unseen genomic regions.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># split data into training and validation sets by chromosome</span>
+<span class="n">chromosomes</span> <span class="o">=</span> <span class="n">df_seq</span><span class="p">[</span><span class="s1">&#39;chr&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">chromosomes</span><span class="p">)</span>
+<span class="n">split_idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chromosomes</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.8</span><span class="p">)</span>
+<span class="n">train_chromosomes</span> <span class="o">=</span> <span class="n">chromosomes</span><span class="p">[:</span><span class="n">split_idx</span><span class="p">]</span>
+<span class="n">valid_chromosomes</span> <span class="o">=</span> <span class="n">chromosomes</span><span class="p">[</span><span class="n">split_idx</span><span class="p">:]</span>
+
+<span class="n">df_train</span> <span class="o">=</span> <span class="n">df_seq</span><span class="p">[</span><span class="n">df_seq</span><span class="p">[</span><span class="s1">&#39;chr&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">train_chromosomes</span><span class="p">)]</span>
+<span class="n">df_valid</span> <span class="o">=</span> <span class="n">df_seq</span><span class="p">[</span><span class="n">df_seq</span><span class="p">[</span><span class="s1">&#39;chr&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">valid_chromosomes</span><span class="p">)]</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Prepare final training datasets with only the essential columns (DNA sequence and accessibility score):</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_train</span> <span class="o">=</span> <span class="n">df_train</span><span class="p">[[</span><span class="s1">&#39;sequence&#39;</span><span class="p">,</span> <span class="s1">&#39;acc&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">df_valid</span> <span class="o">=</span> <span class="n">df_valid</span><span class="p">[[</span><span class="s1">&#39;sequence&#39;</span><span class="p">,</span> <span class="s1">&#39;acc&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="visualize-data-distribution">
+<h2>Visualize Data Distribution<a class="headerlink" href="#visualize-data-distribution" title="Link to this heading">#</a></h2>
+<p>Let’s examine the distribution of accessibility scores in our training and validation sets to ensure they are well-balanced.</p>
+<p>Training set distribution:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">histplot</span><span class="p">(</span><span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;Axes: xlabel=&#39;acc&#39;, ylabel=&#39;Count&#39;&gt;
+</pre></div>
+</div>
+<img alt="../../_images/6eeb86a01895b060df24c2ea62b5d04d02d9cfc3fe2854297f2321168ed428ce.png" src="../../_images/6eeb86a01895b060df24c2ea62b5d04d02d9cfc3fe2854297f2321168ed428ce.png" />
+</div>
+</div>
+<p>Validation set distribution:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">histplot</span><span class="p">(</span><span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;Axes: xlabel=&#39;acc&#39;, ylabel=&#39;Count&#39;&gt;
+</pre></div>
+</div>
+<img alt="../../_images/197f305ab75ae97d24eeacf2959b02ca0a7c6ca0d5a2f519120d1301d8172434.png" src="../../_images/197f305ab75ae97d24eeacf2959b02ca0a7c6ca0d5a2f519120d1301d8172434.png" />
+</div>
+</div>
+</section>
+<section id="initialize-sequence-to-accessibility-model">
+<h2>Initialize Sequence-to-Accessibility Model<a class="headerlink" href="#initialize-sequence-to-accessibility-model" title="Link to this heading">#</a></h2>
+<p>Create a Seq2Acc model with:</p>
+<ul class="simple">
+<li><p><strong>peak_len=256</strong>: Input sequence length of 256 base pairs</p></li>
+<li><p><strong>dropout_rate=0.25</strong>: Regularization to prevent overfitting</p></li>
+</ul>
+<p>This model uses convolutional neural networks to learn sequence patterns that predict chromatin accessibility.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">cn</span><span class="o">.</span><span class="n">pd</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Seq2Acc</span><span class="p">(</span><span class="n">peak_len</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">dropout_rate</span><span class="o">=</span><span class="mf">0.25</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="train-the-sequence-encoder">
+<h2>Train the Sequence Encoder<a class="headerlink" href="#train-the-sequence-encoder" title="Link to this heading">#</a></h2>
+<p>Train the model with the following parameters:</p>
+<ul class="simple">
+<li><p><strong>max_epochs=100</strong>: Maximum training iterations</p></li>
+<li><p><strong>batch_size=512</strong>: Number of sequences processed simultaneously</p></li>
+<li><p><strong>weight_decay=1e-04</strong>: L2 regularization strength</p></li>
+<li><p><strong>lr=3e-04</strong>: Learning rate for optimization</p></li>
+</ul>
+<p>The model learns to predict accessibility from DNA sequence patterns through backpropagation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">df_train</span><span class="o">=</span><span class="n">df_train</span><span class="p">,</span> <span class="n">df_valid</span><span class="o">=</span><span class="n">df_valid</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> 
+            <span class="n">batch_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="mf">1e-04</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">3e-04</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+</div>
+</div>
+</section>
+<section id="save-pretrained-model">
+<h2>Save Pretrained Model<a class="headerlink" href="#save-pretrained-model" title="Link to this heading">#</a></h2>
+<p>Save the trained sequence encoder weights for use in downstream Cell2Net modeling. This pretrained encoder captures fundamental sequence-to-accessibility relationships that can improve Cell2Net performance through transfer learning.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">save_module</span><span class="p">(</span><span class="s1">&#39;./pretrained_seq2acc.pth&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+</div>
+</div>
+</section>
+<section id="load-best-model-for-evaluation">
+<h2>Load Best Model for Evaluation<a class="headerlink" href="#load-best-model-for-evaluation" title="Link to this heading">#</a></h2>
+<p>Reload the best model weights (based on validation performance) for final evaluation and prediction visualization.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># load best model weights</span>
+<span class="n">pretrained_state_dict</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;./pretrained_seq2acc.pth&#39;</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">module</span><span class="o">.</span><span class="n">seq_encoder</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">pretrained_state_dict</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;All keys matched successfully&gt;
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="generate-predictions">
+<h2>Generate Predictions<a class="headerlink" href="#generate-predictions" title="Link to this heading">#</a></h2>
+<p>Use the trained model to predict accessibility scores for both training and validation datasets.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">df_train</span><span class="p">)</span>
+<span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">df_valid</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+</div>
+</div>
+</section>
+<section id="evaluate-model-performance">
+<h2>Evaluate Model Performance<a class="headerlink" href="#evaluate-model-performance" title="Link to this heading">#</a></h2>
+<section id="training-set-performance">
+<h3>Training Set Performance<a class="headerlink" href="#training-set-performance" title="Link to this heading">#</a></h3>
+<p>Visualize model predictions vs. true accessibility scores on the training set. The Pearson correlation coefficient measures how well the model learned the sequence-accessibility relationships.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pearsonR</span><span class="p">,</span> <span class="n">pv</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">pearsonr</span><span class="p">(</span><span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">],</span> <span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">])</span>
+
+<span class="n">ax</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">jointplot</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">df_train</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">=</span><span class="s2">&quot;acc&quot;</span><span class="p">,</span>
+    <span class="n">y</span><span class="o">=</span><span class="s2">&quot;pred_acc&quot;</span><span class="p">,</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;scatter&#39;</span><span class="p">,</span>
+    <span class="n">joint_kws</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;marker&#39;</span><span class="p">:</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">:</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">:</span><span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;linewidth&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span>
+    <span class="n">marginal_kws</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;bins&#39;</span><span class="p">:</span><span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;element&#39;</span><span class="p">:</span><span class="s1">&#39;step&#39;</span><span class="p">,</span> <span class="s1">&#39;kde&#39;</span><span class="p">:</span><span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;linewidth&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span>
+<span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot_joint</span><span class="p">(</span><span class="n">sns</span><span class="o">.</span><span class="n">regplot</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">scatter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
+              <span class="n">line_kws</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="s1">&#39;linestyle&#39;</span><span class="p">:</span><span class="s1">&#39;dashed&#39;</span><span class="p">})</span>
+<span class="n">_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)))</span>
+<span class="n">_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)))</span>
+
+<span class="c1"># set axis-x and axis-y the same scale</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">_min</span><span class="p">,</span> <span class="n">_max</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="n">_min</span><span class="p">,</span> <span class="n">_max</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;pearsonR = </span><span class="si">{:.3f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pearsonR</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;True Accessibility (log1p counts)&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Predicted Accessibility (log1p counts)&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/3e65132dc79c4dc843aa61e94266506dd199f918ed26a961154f90e3981ea9a0.png" src="../../_images/3e65132dc79c4dc843aa61e94266506dd199f918ed26a961154f90e3981ea9a0.png" />
+</div>
+</div>
+</section>
+<section id="validation-set-performance">
+<h3>Validation Set Performance<a class="headerlink" href="#validation-set-performance" title="Link to this heading">#</a></h3>
+<p>Evaluate model generalization on unseen chromosomes. This validation performance indicates how well the model can predict accessibility for completely new genomic regions, which is crucial for downstream applications.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pearsonR</span><span class="p">,</span> <span class="n">pv</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">pearsonr</span><span class="p">(</span><span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">],</span> <span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">])</span>
+
+<span class="n">ax</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">jointplot</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">df_valid</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">=</span><span class="s2">&quot;acc&quot;</span><span class="p">,</span>
+    <span class="n">y</span><span class="o">=</span><span class="s2">&quot;pred_acc&quot;</span><span class="p">,</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;scatter&#39;</span><span class="p">,</span>
+    <span class="n">joint_kws</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;marker&#39;</span><span class="p">:</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">:</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">:</span><span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;linewidth&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span>
+    <span class="n">marginal_kws</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;bins&#39;</span><span class="p">:</span><span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;element&#39;</span><span class="p">:</span><span class="s1">&#39;step&#39;</span><span class="p">,</span> <span class="s1">&#39;kde&#39;</span><span class="p">:</span><span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;linewidth&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span>
+<span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot_joint</span><span class="p">(</span><span class="n">sns</span><span class="o">.</span><span class="n">regplot</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">scatter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
+              <span class="n">line_kws</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="s1">&#39;linestyle&#39;</span><span class="p">:</span><span class="s1">&#39;dashed&#39;</span><span class="p">})</span>
+
+<span class="n">_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)))</span>
+<span class="n">_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;pred_acc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)))</span>
+
+<span class="c1"># set axis-x and axis-y the same scale</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">_min</span><span class="p">,</span> <span class="n">_max</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="n">_min</span><span class="p">,</span> <span class="n">_max</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;pearsonR = </span><span class="si">{:.3f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pearsonR</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s1">&#39;box&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;True Accessibility (log1p counts)&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Predicted Accessibility (log1p counts)&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/50b2717cbaae029014ece87e9390c2226ab1b2a07bd83582d6bdb88d0040732f.png" src="../../_images/50b2717cbaae029014ece87e9390c2226ab1b2a07bd83582d6bdb88d0040732f.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="summary-and-next-steps">
+<h2>Summary and Next Steps<a class="headerlink" href="#summary-and-next-steps" title="Link to this heading">#</a></h2>
+<section id="what-we-accomplished">
+<h3>✅ What we accomplished:<a class="headerlink" href="#what-we-accomplished" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Loaded and preprocessed</strong> K562 multiome single-cell data</p></li>
+<li><p><strong>Prepared training datasets</strong> with DNA sequences and accessibility scores</p></li>
+<li><p><strong>Trained a sequence encoder</strong> to predict chromatin accessibility from DNA sequence</p></li>
+<li><p><strong>Evaluated model performance</strong> on held-out chromosomes</p></li>
+<li><p><strong>Saved pretrained weights</strong> for downstream Cell2Net applications</p></li>
+</ol>
+</section>
+<section id="key-results">
+<h3>🎯 Key results:<a class="headerlink" href="#key-results" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>The model successfully learned sequence-to-accessibility relationships</p></li>
+<li><p>Validation performance demonstrates generalization to unseen genomic regions</p></li>
+<li><p>Pretrained encoder is ready for transfer learning in Cell2Net models</p></li>
+</ul>
+</section>
+<section id="biological-insights">
+<h3>💡 Biological insights:<a class="headerlink" href="#biological-insights" title="Link to this heading">#</a></h3>
+<p>The trained sequence encoder has learned fundamental patterns that link DNA sequence features to chromatin accessibility. This knowledge can now be transferred to Cell2Net models, potentially improving their ability to predict gene expression from regulatory sequences and cell-specific accessibility patterns.</p>
+<p>The pretrained encoder serves as a foundation for understanding regulatory grammar and can be fine-tuned for specific cell types or experimental conditions in downstream analyses.</p>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">K562</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="02_prepare_data.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Prepare data for training Cell2net model</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-multiome-data">Load Multiome Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualize-data">Visualize data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prepare-training-data">Prepare Training Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calculate-accessibility-scores">Calculate Accessibility Scores</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-train-validation-split">Create Train/Validation Split</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualize-data-distribution">Visualize Data Distribution</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#initialize-sequence-to-accessibility-model">Initialize Sequence-to-Accessibility Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#train-the-sequence-encoder">Train the Sequence Encoder</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#save-pretrained-model">Save Pretrained Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-best-model-for-evaluation">Load Best Model for Evaluation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generate-predictions">Generate Predictions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#evaluate-model-performance">Evaluate Model Performance</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#training-set-performance">Training Set Performance</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-set-performance">Validation Set Performance</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#summary-and-next-steps">Summary and Next Steps</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-we-accomplished">✅ What we accomplished:</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#key-results">🎯 Key results:</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#biological-insights">💡 Biological insights:</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/pinellolab/cell2net/edit/main/tutorials/k562/01_pretrain_seq_encoder.ipynb">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Zhijian Li..
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.20.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

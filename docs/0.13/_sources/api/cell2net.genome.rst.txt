@@ -1,0 +1,7 @@
+cell2net.genome package
+=======================
+
+.. automodule:: cell2net.genome
+   :members:
+   :show-inheritance:
+   :undoc-members:

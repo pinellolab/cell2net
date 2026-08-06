@@ -1,0 +1,6 @@
+﻿cell2net.interpretation.tf\_attr
+================================
+
+.. currentmodule:: cell2net.interpretation
+
+.. autofunction:: tf_attr

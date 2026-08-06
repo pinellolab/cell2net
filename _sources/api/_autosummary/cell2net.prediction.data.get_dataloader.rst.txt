@@ -1,0 +1,6 @@
+﻿cell2net.prediction.data.get\_dataloader
+========================================
+
+.. currentmodule:: cell2net.prediction.data
+
+.. autofunction:: get_dataloader

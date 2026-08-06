@@ -1,0 +1,6 @@
+﻿cell2net.preprocessing.one\_hot\_to\_seq
+========================================
+
+.. currentmodule:: cell2net.preprocessing
+
+.. autofunction:: one_hot_to_seq

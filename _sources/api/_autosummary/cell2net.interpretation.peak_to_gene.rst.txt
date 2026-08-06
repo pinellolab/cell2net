@@ -1,0 +1,6 @@
+﻿cell2net.interpretation.peak\_to\_gene
+======================================
+
+.. currentmodule:: cell2net.interpretation
+
+.. autofunction:: peak_to_gene

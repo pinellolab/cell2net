@@ -1,0 +1,31 @@
+cell2net package
+================
+
+.. automodule:: cell2net
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   cell2net.datasets
+   cell2net.evaluation
+   cell2net.genome
+   cell2net.interpretation
+   cell2net.perturbation
+   cell2net.plotting
+   cell2net.prediction
+   cell2net.preprocessing
+   cell2net.tools
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   cell2net.utils

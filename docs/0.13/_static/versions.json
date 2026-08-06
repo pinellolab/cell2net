@@ -1,0 +1,13 @@
+[
+{
+    "name": "latest (0.13)",
+    "version": "0.13",
+    "url": "https://pinellolab.github.io/cell2net/docs/latest/",
+    "preferred": true
+  },
+  {
+    "name": "0.13",
+    "version": "0.13",
+    "url": "https://pinellolab.github.io/cell2net/docs/0.13/"
+  }
+]

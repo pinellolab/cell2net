@@ -1,0 +1,17 @@
+cell2net.prediction package
+===========================
+
+.. automodule:: cell2net.prediction
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   cell2net.prediction.data
+   cell2net.prediction.model
+   cell2net.prediction.module

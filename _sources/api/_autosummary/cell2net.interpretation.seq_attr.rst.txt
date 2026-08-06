@@ -1,0 +1,6 @@
+﻿cell2net.interpretation.seq\_attr
+=================================
+
+.. currentmodule:: cell2net.interpretation
+
+.. autofunction:: seq_attr

@@ -1,0 +1,7 @@
+cell2net.prediction.module package
+==================================
+
+.. automodule:: cell2net.prediction.module
+   :members:
+   :show-inheritance:
+   :undoc-members:

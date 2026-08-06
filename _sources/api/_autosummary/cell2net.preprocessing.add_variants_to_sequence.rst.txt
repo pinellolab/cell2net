@@ -1,0 +1,6 @@
+﻿cell2net.preprocessing.add\_variants\_to\_sequence
+==================================================
+
+.. currentmodule:: cell2net.preprocessing
+
+.. autofunction:: add_variants_to_sequence

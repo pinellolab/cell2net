@@ -1,0 +1,914 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta property="og:title" content="Cell2Net Model Evaluation with Correlation Analysis" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="tutorials/pbmc/04_get_correlation.html" />
+<meta property="og:site_name" content="Cell2net" />
+<meta property="og:description" content="This tutorial demonstrates how to evaluate the performance of trained Cell2Net models by analyzing prediction correlations between observed and predicted gene expression values. Overview: After tra..." />
+<meta property="og:image:width" content="1146" />
+<meta property="og:image:height" content="600" />
+<meta property="og:image" content="_images/social_previews/summary_tutorials_pbmc_04_get_correlation_1aeb2a48.png" />
+<meta property="og:image:alt" content="This tutorial demonstrates how to evaluate the performance of trained Cell2Net models by analyzing prediction correlations between observed and predicted gene expression values. Overview: After tra..." />
+<meta name="description" content="This tutorial demonstrates how to evaluate the performance of trained Cell2Net models by analyzing prediction correlations between observed and predicted gene expression values. Overview: After tra..." />
+<meta name="twitter:card" content="summary_large_image" />
+
+    <title>Cell2Net Model Evaluation with Correlation Analysis &#8212; Cell2net 0.13 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css?v=84fe55bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../../_static/documentation_options.js?v=9bec1924"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/pbmc/04_get_correlation';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.20.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://raw.githubusercontent.com/pinellolab/cell2net/main/docs/_static/versions.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.13';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Cell2Net Model Interpretation: Transcription Factor Attribution" href="05_tf_to_gene.html" />
+    <link rel="prev" title="Training Cell2net for PBMC Dataset" href="03_train_cell2net.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.13" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class=" navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Cell2net 0.13 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class=" navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../install.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../index.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/modules.html">
+    cell2net
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../references.html">
+    References
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/pinellolab/cell2net" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+          
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../install.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../index.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/modules.html">
+    cell2net
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../references.html">
+    References
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/pinellolab/cell2net" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../k562/index.html">K562</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../k562/01_pretrain_seq_encoder.html">Pretrain Sequence Encoder for K562</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/02_prepare_data.html">Prepare data for training Cell2net model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/03_train.html">Training Cell2Net models for K562</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/04_peak_to_gene.html">Peak-to-gene analysis with Cell2Net</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/05_process_p2g.html">Processing peak-to-gene links for method comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../k562/06_evaluate_p2g.html">Evaluating Peak-to-Gene Predictions with Experimental Validation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">PBMC</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_pretrain.html">Pretrain Sequence Encoder for PBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_prepare_data.html">Prepare Data for Cell2Net Training on PBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_train_cell2net.html">Training Cell2net for PBMC Dataset</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Cell2Net Model Evaluation with Correlation Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_tf_to_gene.html">Cell2Net Model Interpretation: Transcription Factor Attribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_tf_activity.html">Cell2Net Transcription Factor Activity Analysis</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../misc/index.html">Miscellaneous</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/01_create_mudata.html">in this tutorial, we show how to create mudata from 10x multiome output file</a></li>
+
+</ul>
+</details></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Tutorials</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">PBMC</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Cell2Net Model Evaluation with Correlation Analysis</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="cell2net-model-evaluation-with-correlation-analysis">
+<h1>Cell2Net Model Evaluation with Correlation Analysis<a class="headerlink" href="#cell2net-model-evaluation-with-correlation-analysis" title="Link to this heading">#</a></h1>
+<p>This tutorial demonstrates how to evaluate the performance of trained Cell2Net models by analyzing prediction correlations between observed and predicted gene expression values.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
+<p>After training Cell2Net models for individual genes, we need to systematically evaluate their performance using correlation metrics. This notebook:</p>
+<ol class="arabic simple">
+<li><p><strong>Loads Predictions</strong>: Retrieves saved predictions from trained Cell2Net models</p></li>
+<li><p><strong>Computes Correlations</strong>: Calculates Spearman correlations between true and predicted expression</p></li>
+<li><p><strong>Visualizes Performance</strong>: Creates scatter plots comparing training vs. validation correlations</p></li>
+<li><p><strong>Generates Reports</strong>: Saves detailed correlation results for downstream analysis</p></li>
+</ol>
+</section>
+<section id="statistical-framework">
+<h2>Statistical Framework<a class="headerlink" href="#statistical-framework" title="Link to this heading">#</a></h2>
+<p>We use <strong>Spearman correlation</strong> because:</p>
+<ul class="simple">
+<li><p><strong>Rank-based</strong>: Robust to outliers and non-linear transformations</p></li>
+<li><p><strong>Distribution-free</strong>: No assumptions about data normality</p></li>
+<li><p><strong>Monotonic relationships</strong>: Captures ordered relationships between variables</p></li>
+<li><p><strong>Standard metric</strong>: Widely used in genomics for expression prediction evaluation</p></li>
+</ul>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mudata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">md</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">spearmanr</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="n">md</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">pull_on_update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;mudata._core.config.set_options at 0x7fa00c2c5070&gt;
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="setup-file-paths-and-output-directory">
+<h2>2. Setup File Paths and Output Directory<a class="headerlink" href="#setup-file-paths-and-output-directory" title="Link to this heading">#</a></h2>
+<p>Define input and output directories for the correlation analysis:</p>
+<ul class="simple">
+<li><p><strong>input_data</strong>: Path to the prepared multiome dataset (from tutorial step 2)</p></li>
+<li><p><strong>in_dir</strong>: Directory containing trained Cell2Net models and predictions (from tutorial step 3)</p></li>
+<li><p><strong>out_dir</strong>: New directory for correlation analysis results</p></li>
+</ul>
+<p>This organized structure ensures:</p>
+<ul class="simple">
+<li><p><strong>Reproducibility</strong>: Clear separation of analysis steps</p></li>
+<li><p><strong>Data traceability</strong>: Easy tracking of input dependencies</p></li>
+<li><p><strong>Result organization</strong>: Systematic storage of correlation metrics and visualizations</p></li>
+</ul>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">input_data</span> <span class="o">=</span> <span class="s2">&quot;./02_prepare_data/mdata.h5mu&quot;</span>
+<span class="n">in_dir</span> <span class="o">=</span> <span class="s1">&#39;./03_train_cell2net&#39;</span>
+<span class="n">out_dir</span> <span class="o">=</span> <span class="s1">&#39;./04_get_correlation&#39;</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="load-data-and-gene-list">
+<h2>3. Load Data and Gene List<a class="headerlink" href="#load-data-and-gene-list" title="Link to this heading">#</a></h2>
+<p>Load the multiome dataset and extract the list of target genes for correlation analysis:</p>
+<ul class="simple">
+<li><p><strong>mdata</strong>: Complete multiome object with RNA/ATAC data and peak-to-gene associations</p></li>
+<li><p><strong>genes</strong>: List of genes that have trained Cell2Net models available</p></li>
+</ul>
+<p>The gene list corresponds exactly to the models trained in the previous step, ensuring consistency between training and evaluation phases. Each gene in this list has sufficient regulatory data (peak-to-gene associations) to support reliable model training and evaluation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mdata</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">read_h5mu</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span>
+<span class="n">genes</span> <span class="o">=</span> <span class="n">mdata</span><span class="o">.</span><span class="n">uns</span><span class="p">[</span><span class="s1">&#39;peak_to_gene&#39;</span><span class="p">][</span><span class="s1">&#39;gene&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="compute-correlations-for-all-genes">
+<h2>4. Compute Correlations for All Genes<a class="headerlink" href="#compute-correlations-for-all-genes" title="Link to this heading">#</a></h2>
+<p>This is the main analysis loop that processes predictions for each trained gene model and computes correlation metrics:</p>
+<section id="data-loading">
+<h3>Data Loading<a class="headerlink" href="#data-loading" title="Link to this heading">#</a></h3>
+<p>For each gene, we load the <code class="docutils literal notranslate"><span class="pre">.npz</span></code> files containing:</p>
+<ul class="simple">
+<li><p><strong>Training predictions</strong>: Model outputs on the 80% training set</p></li>
+<li><p><strong>Validation predictions</strong>: Model outputs on the 20% held-out validation set</p></li>
+<li><p><strong>True values</strong>: Actual gene expression measurements from RNA-seq</p></li>
+</ul>
+</section>
+<section id="correlation-computation">
+<h3>Correlation Computation<a class="headerlink" href="#correlation-computation" title="Link to this heading">#</a></h3>
+<p>We calculate <strong>Spearman correlation coefficients</strong> between predicted and observed expression:</p>
+<ul class="simple">
+<li><p><strong>Training correlation</strong>: Measures how well the model fits the training data</p></li>
+<li><p><strong>Validation correlation</strong>: Assesses model generalization to unseen data</p></li>
+<li><p><strong>Statistical significance</strong>: Spearman correlation provides robust, non-parametric measure</p></li>
+</ul>
+</section>
+<section id="output-generation">
+<h3>Output Generation<a class="headerlink" href="#output-generation" title="Link to this heading">#</a></h3>
+<p>For each gene, we save:</p>
+<ol class="arabic simple">
+<li><p><strong>Individual CSV files</strong>: Detailed predictions with true/predicted values for further analysis</p></li>
+<li><p><strong>Summary statistics</strong>: Training and validation correlations compiled across all genes</p></li>
+</ol>
+</section>
+<section id="performance-interpretation">
+<h3>Performance Interpretation<a class="headerlink" href="#performance-interpretation" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>High training correlation (&gt;0.7)</strong>: Model successfully learned regulatory patterns</p></li>
+<li><p><strong>Similar validation correlation</strong>: Good generalization, low overfitting</p></li>
+<li><p><strong>Low correlations (&lt;0.3)</strong>: Gene may have complex regulation not captured by current features</p></li>
+<li><p><strong>Training &gt;&gt; Validation</strong>: Potential overfitting, model may be too complex</p></li>
+</ul>
+<p>This systematic evaluation provides comprehensive assessment of Cell2Net model performance across the PBMC gene regulatory landscape.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">train_corrs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">valid_corrs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">genes</span><span class="p">:</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">in_dir</span><span class="si">}</span><span class="s1">/prediction/</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s1">.npz&#39;</span><span class="p">)</span>
+
+    <span class="n">train_pred</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;train_pred&#39;</span><span class="p">]</span>
+    <span class="n">train_true</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;train_true&#39;</span><span class="p">]</span>
+
+    <span class="n">valid_pred</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;valid_pred&#39;</span><span class="p">]</span>
+    <span class="n">valid_true</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;valid_true&#39;</span><span class="p">]</span>
+
+    <span class="c1"># save results</span>
+    <span class="n">df_train</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+        <span class="s1">&#39;true&#39;</span><span class="p">:</span> <span class="n">train_true</span><span class="p">,</span>
+        <span class="s1">&#39;pred&#39;</span><span class="p">:</span> <span class="n">train_pred</span>
+    <span class="p">})</span>
+    <span class="n">df_valid</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+        <span class="s1">&#39;true&#39;</span><span class="p">:</span> <span class="n">valid_true</span><span class="p">,</span>
+        <span class="s1">&#39;pred&#39;</span><span class="p">:</span> <span class="n">valid_pred</span>
+    <span class="p">})</span>
+
+    <span class="n">df_train</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span>
+    <span class="n">df_valid</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;valid&#39;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_train</span><span class="p">,</span> <span class="n">df_valid</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">out_dir</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s1">.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># compute correlation using scipy</span>
+    <span class="n">train_corr</span> <span class="o">=</span> <span class="n">spearmanr</span><span class="p">(</span><span class="n">train_true</span><span class="p">,</span> <span class="n">train_pred</span><span class="p">)</span><span class="o">.</span><span class="n">correlation</span>
+    <span class="n">valid_corr</span> <span class="o">=</span> <span class="n">spearmanr</span><span class="p">(</span><span class="n">valid_true</span><span class="p">,</span> <span class="n">valid_pred</span><span class="p">)</span><span class="o">.</span><span class="n">correlation</span>
+
+    <span class="n">train_corrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">train_corr</span><span class="p">)</span>
+    <span class="n">valid_corrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">valid_corr</span><span class="p">)</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+    <span class="s1">&#39;gene&#39;</span><span class="p">:</span> <span class="n">genes</span><span class="p">,</span>
+    <span class="s1">&#39;train_corr&#39;</span><span class="p">:</span> <span class="n">train_corrs</span><span class="p">,</span>
+    <span class="s1">&#39;valid_corr&#39;</span><span class="p">:</span> <span class="n">valid_corrs</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="visualize-model-performance">
+<h2>5. Visualize Model Performance<a class="headerlink" href="#visualize-model-performance" title="Link to this heading">#</a></h2>
+<p>Create a comprehensive scatter plot to visualize Cell2Net model performance across all genes:</p>
+<section id="plot-elements">
+<h3>Plot Elements<a class="headerlink" href="#plot-elements" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>X-axis</strong>: Training set Spearman correlations - how well models fit training data</p></li>
+<li><p><strong>Y-axis</strong>: Validation set Spearman correlations - how well models generalize</p></li>
+<li><p><strong>Diagonal line</strong>: Perfect training-validation agreement (y = x)</p></li>
+<li><p><strong>Data points</strong>: Each point represents one gene’s model performance</p></li>
+</ul>
+</section>
+<section id="id1">
+<h3>Performance Interpretation<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<p><strong>Ideal Performance (Upper Right)</strong>:</p>
+<ul class="simple">
+<li><p>High training and validation correlations (&gt;0.6)</p></li>
+<li><p>Points near diagonal line indicate good generalization</p></li>
+<li><p>These genes have strong, learnable regulatory patterns</p></li>
+</ul>
+<p><strong>Overfitting (Below Diagonal)</strong>:</p>
+<ul class="simple">
+<li><p>Training correlation &gt; Validation correlation</p></li>
+<li><p>Models learned training-specific noise</p></li>
+<li><p>May need regularization or simpler architecture</p></li>
+</ul>
+<p><strong>Underfitting (Lower Left)</strong>:</p>
+<ul class="simple">
+<li><p>Low correlations on both training and validation</p></li>
+<li><p>Models failed to capture regulatory relationships</p></li>
+<li><p>May need more complex features or longer training</p></li>
+</ul>
+<p><strong>Well-Regulated Genes (Consistent Performance)</strong>:</p>
+<ul class="simple">
+<li><p>Similar training and validation correlations</p></li>
+<li><p>Reliable regulatory predictions</p></li>
+<li><p>Good candidates for biological interpretation</p></li>
+</ul>
+<p>This visualization provides immediate assessment of model quality and helps identify genes with reliable regulatory predictability in the PBMC immune system.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># plot the correlations</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;train_corr&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;valid_corr&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Spearman Correlation: Training vs Validation&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Training Set Spearman Correlation&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Validation Set Spearman Correlation&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;r--&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/202a100102a5c5cc6ecb2002bbaac8e47225ab7c608d6b1aaaddeeaeacfa8674.png" src="../../_images/202a100102a5c5cc6ecb2002bbaac8e47225ab7c608d6b1aaaddeeaeacfa8674.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="save-correlation-summary">
+<h2>6. Save Correlation Summary<a class="headerlink" href="#save-correlation-summary" title="Link to this heading">#</a></h2>
+<p>Save the comprehensive correlation analysis results to CSV format for downstream analysis and reporting:</p>
+<section id="applications-of-saved-results">
+<h3>Applications of Saved Results<a class="headerlink" href="#applications-of-saved-results" title="Link to this heading">#</a></h3>
+<p><strong>Quality Control</strong>:</p>
+<ul class="simple">
+<li><p>Identify genes with poor predictability for exclusion from downstream analysis</p></li>
+<li><p>Assess overall Cell2Net performance across the PBMC transcriptome</p></li>
+<li><p>Compare performance across different cell types or conditions</p></li>
+</ul>
+<p><strong>Biological Discovery</strong>:</p>
+<ul class="simple">
+<li><p>High-correlation genes likely have strong regulatory control mechanisms</p></li>
+<li><p>Low-correlation genes may represent complex regulatory networks or technical limitations</p></li>
+<li><p>Performance patterns may reveal regulatory complexity across immune cell programs</p></li>
+</ul>
+<p><strong>Method Comparison</strong>:</p>
+<ul class="simple">
+<li><p>Benchmark Cell2Net against other gene expression prediction methods</p></li>
+<li><p>Evaluate impact of different feature sets or model architectures</p></li>
+<li><p>Assess improvement from pre-training and transfer learning approaches</p></li>
+</ul>
+<p><strong>Downstream Analysis</strong>:</p>
+<ul class="simple">
+<li><p>Prioritize high-confidence predictions for regulatory network construction</p></li>
+<li><p>Filter results for transcription factor analysis and motif enrichment</p></li>
+<li><p>Select reliable predictions for experimental validation studies</p></li>
+</ul>
+<p>This systematic evaluation provides the foundation for interpreting Cell2Net results and guides subsequent regulatory genomics analyses.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">out_dir</span><span class="si">}</span><span class="s1">/gene_correlation.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="03_train_cell2net.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Training Cell2net for PBMC Dataset</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="05_tf_to_gene.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Cell2Net Model Interpretation: Transcription Factor Attribution</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#statistical-framework">Statistical Framework</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#setup-file-paths-and-output-directory">2. Setup File Paths and Output Directory</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-data-and-gene-list">3. Load Data and Gene List</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compute-correlations-for-all-genes">4. Compute Correlations for All Genes</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-loading">Data Loading</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#correlation-computation">Correlation Computation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-generation">Output Generation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#performance-interpretation">Performance Interpretation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualize-model-performance">5. Visualize Model Performance</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#plot-elements">Plot Elements</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Performance Interpretation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#save-correlation-summary">6. Save Correlation Summary</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#applications-of-saved-results">Applications of Saved Results</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/pinellolab/cell2net/edit/main/tutorials/pbmc/04_get_correlation.ipynb">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Zhijian Li..
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.20.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

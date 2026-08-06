@@ -1,0 +1,6 @@
+﻿cell2net.preprocessing.filter\_motifs\_by\_genes
+================================================
+
+.. currentmodule:: cell2net.preprocessing
+
+.. autofunction:: filter_motifs_by_genes

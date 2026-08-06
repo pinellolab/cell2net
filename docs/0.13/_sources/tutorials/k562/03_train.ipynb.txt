@@ -1,0 +1,426 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "37ba77a5",
+   "metadata": {},
+   "source": [
+    "# Training Cell2Net models for K562\n",
+    "\n",
+    "This tutorial demonstrates how to train Cell2Net models for predicting gene expression from chromatin accessibility data in K562 cells. We'll leverage a pretrained sequence encoder to improve model performance and training efficiency."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "4897a4b1-9002-4f4a-8440-70191cd395ed",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:25.141303Z",
+     "iopub.status.busy": "2025-11-21T01:30:25.141018Z",
+     "iopub.status.idle": "2025-11-21T01:30:30.035973Z",
+     "shell.execute_reply": "2025-11-21T01:30:30.035526Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<mudata._core.config.set_options at 0x7ff16e7dede0>"
+      ]
+     },
+     "execution_count": 1,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import warnings\n",
+    "warnings.filterwarnings(\"ignore\")\n",
+    "\n",
+    "import os\n",
+    "import mudata as md\n",
+    "import cell2net as cn\n",
+    "import torch\n",
+    "import seaborn as sns\n",
+    "import matplotlib.pyplot as plt\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "md.set_options(pull_on_update=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "0a6daf1e",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:30.037599Z",
+     "iopub.status.busy": "2025-11-21T01:30:30.037130Z",
+     "iopub.status.idle": "2025-11-21T01:30:30.040310Z",
+     "shell.execute_reply": "2025-11-21T01:30:30.039961Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'0.13'"
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "cn.__version__"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9a9fd554",
+   "metadata": {},
+   "source": [
+    "## Setup Directories and Paths\n",
+    "\n",
+    "We define input and output paths for this training session. The multiome data should be prepared from the previous tutorial (02_prepare_data)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "5a17f577",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:30.041648Z",
+     "iopub.status.busy": "2025-11-21T01:30:30.041350Z",
+     "iopub.status.idle": "2025-11-21T01:30:30.045895Z",
+     "shell.execute_reply": "2025-11-21T01:30:30.045544Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "input_data = \"./02_prepare_data/mdata.h5mu\"\n",
+    "out_dir = './03_train'\n",
+    "\n",
+    "os.makedirs(out_dir, exist_ok=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5f1732e1",
+   "metadata": {},
+   "source": [
+    "## Load Data and Extract Target Genes\n",
+    "\n",
+    "Load the preprocessed multiome data and extract the list of genes that have valid peak-to-gene associations. These will be our modeling targets."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "436cb497",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:30.047199Z",
+     "iopub.status.busy": "2025-11-21T01:30:30.046907Z",
+     "iopub.status.idle": "2025-11-21T01:30:39.327538Z",
+     "shell.execute_reply": "2025-11-21T01:30:39.326911Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "mdata = md.read_h5mu(input_data)\n",
+    "genes = mdata.uns['peak_to_gene']['gene'].unique().tolist()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9e575026",
+   "metadata": {},
+   "source": [
+    "Let's check how many genes we'll be training models for:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "be7e1897-4948-4bc5-ba89-97f16a314bfb",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:39.329238Z",
+     "iopub.status.busy": "2025-11-21T01:30:39.328984Z",
+     "iopub.status.idle": "2025-11-21T01:30:39.332284Z",
+     "shell.execute_reply": "2025-11-21T01:30:39.331931Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "1608"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(genes)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "93eec6ee",
+   "metadata": {},
+   "source": [
+    "## Create Train/Validation Split\n",
+    "\n",
+    "We split the cells into training (80%) and validation (20%) sets to properly evaluate model performance and prevent overfitting."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "47692382",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:39.333636Z",
+     "iopub.status.busy": "2025-11-21T01:30:39.333341Z",
+     "iopub.status.idle": "2025-11-21T01:30:39.336316Z",
+     "shell.execute_reply": "2025-11-21T01:30:39.335961Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "train_idx, valid_idx = train_test_split(\n",
+    "    mdata.obs_names.values.tolist(),\n",
+    "    train_size=0.8,\n",
+    "    random_state=42)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "6175e761",
+   "metadata": {},
+   "source": [
+    "## Load Pretrained Sequence Encoder\n",
+    "\n",
+    "We load the pretrained sequence encoder weights from the first tutorial. This transfer learning approach helps models converge faster and achieve better performance by leveraging learned sequence-to-accessibility patterns."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "d8a382a7",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:39.337612Z",
+     "iopub.status.busy": "2025-11-21T01:30:39.337320Z",
+     "iopub.status.idle": "2025-11-21T01:30:39.345616Z",
+     "shell.execute_reply": "2025-11-21T01:30:39.345262Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "pretrained_model_path = \"./pretrained_seq2acc.pth\"\n",
+    "pretrained_state_dict = torch.load(pretrained_model_path, map_location=\"cpu\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1f7fd706",
+   "metadata": {},
+   "source": [
+    "## Setup Output Directories\n",
+    "\n",
+    "Create directories to organize our training outputs:\n",
+    "- `model/`: Trained model checkpoints\n",
+    "- `plot/`: Training curves and evaluation plots  \n",
+    "- `prediction/`: Numerical results and predictions"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "c82f5fb5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:39.346959Z",
+     "iopub.status.busy": "2025-11-21T01:30:39.346658Z",
+     "iopub.status.idle": "2025-11-21T01:30:39.356133Z",
+     "shell.execute_reply": "2025-11-21T01:30:39.355782Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "os.makedirs(f\"{out_dir}/model\", exist_ok=True)\n",
+    "os.makedirs(f\"{out_dir}/plot\", exist_ok=True)\n",
+    "os.makedirs(f\"{out_dir}/prediction\", exist_ok=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bfd6827b",
+   "metadata": {},
+   "source": [
+    "## Train Cell2Net Models\n",
+    "\n",
+    "This is the main training loop where we:\n",
+    "\n",
+    "1. **Initialize models** for each gene with the Cell2Net architecture\n",
+    "2. **Load pretrained weights** into the sequence encoder component\n",
+    "3. **Train models** for 40 epochs with early stopping based on validation loss\n",
+    "4. **Evaluate performance** on both training and validation sets\n",
+    "5. **Generate visualization** showing loss curves and prediction accuracy\n",
+    "6. **Save results** including model checkpoints, plots, and numerical predictions\n",
+    "\n",
+    "Note that it usually takes 1-2 minutes to train a model for an individual gene, so depending on how many genes you want model,\n",
+    "the total training training time can be a few hours."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "41f000b1",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-11-21T01:30:39.357939Z",
+     "iopub.status.busy": "2025-11-21T01:30:39.357653Z",
+     "iopub.status.idle": "2025-11-21T01:32:09.797023Z",
+     "shell.execute_reply": "2025-11-21T01:32:09.796489Z"
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Training model for gene: PLEKHN1\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "2025-11-21 01:30:41 INFO     Using provided index for training and validation\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "2025-11-21 01:32:08 INFO     Training finished\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "2025-11-21 01:32:08 INFO     Find best model at epoch 5 with valid correation  0.597\n"
+     ]
+    }
+   ],
+   "source": [
+    "# We only train Cell2net for one gene to save time\n",
+    "for gene in genes[:1]:    \n",
+    "    print('Training model for gene:', gene)\n",
+    "\n",
+    "    cn.utils.set_random_seed(42)\n",
+    "    model = cn.pd.model.Cell2Net(mdata=mdata,\n",
+    "                                 gene=gene, \n",
+    "                                 covariates=['total_counts_rna_log', 'total_counts_atac_log'])\n",
+    "\n",
+    "    # load pretrained weights for the sequence encoder\n",
+    "    model.module.seq_encoder.load_state_dict(pretrained_state_dict)\n",
+    "\n",
+    "    model.train(max_epochs=40, device_name='cuda:1', \n",
+    "                batch_size=16, train_idx=train_idx, \n",
+    "                valid_idx=valid_idx, \n",
+    "                num_workers=4,\n",
+    "                verbose=False)\n",
+    "\n",
+    "    model.save(dir_path=f\"{out_dir}/model\")\n",
+    "\n",
+    "    # set the model with the best checkpoint\n",
+    "    model.module.load_state_dict(model.check_point)\n",
+    "\n",
+    "    # Evaluate the model for training and validation dataset\n",
+    "    train_pred = model.predict(model.mdata[train_idx])\n",
+    "    train_true = model.mdata[train_idx][\"rna\"].layers[\"counts\"].todense().A1\n",
+    "\n",
+    "    valid_pred = model.predict(model.mdata[valid_idx])\n",
+    "    valid_true = model.mdata[valid_idx][\"rna\"].layers[\"counts\"].todense().A1\n",
+    "\n",
+    "    df_train = pd.DataFrame({'true': train_true, 'pred': train_pred, 'data': 'train'})\n",
+    "    df_valid = pd.DataFrame({'true': valid_true, 'pred': valid_pred, 'data': 'valid'})\n",
+    "\n",
+    "    df_train['true'] = np.log1p(df_train['true'])\n",
+    "    df_valid['true'] = np.log1p(df_valid['true'])\n",
+    "    df_train['pred'] = np.log1p(df_train['pred'])\n",
+    "    df_valid['pred'] = np.log1p(df_valid['pred'])\n",
+    "\n",
+    "    fig, axes = plt.subplots(1, 2, figsize=(8, 4))\n",
+    "\n",
+    "    sns.scatterplot(data=df_train, x='true', y='pred', ax=axes[0], label='train')\n",
+    "    sns.scatterplot(data=df_valid, x='true', y='pred', ax=axes[1], label='valid')\n",
+    "\n",
+    "    axes[0].set_xlabel(\"Observation (log1p)\")\n",
+    "    axes[0].set_ylabel(\"Prediction (log1p)\")\n",
+    "    axes[1].set_xlabel(\"Observation (log1p)\")\n",
+    "    axes[1].set_ylabel(\"Prediction (log1p)\")\n",
+    "\n",
+    "    # save figure\n",
+    "    plt.savefig(f'{out_dir}/plot/{gene}.png', dpi=300)\n",
+    "    plt.close()\n",
+    "\n",
+    "    np.savez(f'{out_dir}/prediction/{gene}.npz', \n",
+    "             best_valid_corr=model.best_valid_corr,\n",
+    "             train_pred=train_pred,\n",
+    "             train_true=train_true,\n",
+    "             valid_pred=valid_pred,\n",
+    "             valid_true=valid_true)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2dd18dee",
+   "metadata": {},
+   "source": [
+    "## Next Steps\n",
+    "\n",
+    "After training is complete, you can:\n",
+    "\n",
+    "1. **Analyze model performance** by examining the correlation scores and loss curves\n",
+    "2. **Compare different genes** to identify which are most predictable from chromatin accessibility\n",
+    "3. **Perform model interpretation** using attention weights and feature importance\n",
+    "\n",
+    "The trained models and results are saved in the `03_train/` directory and can be loaded for downstream analysis and biological interpretation."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "zl_cell2net",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.10"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

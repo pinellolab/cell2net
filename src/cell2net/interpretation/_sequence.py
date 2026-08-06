@@ -313,8 +313,7 @@ def saturation_mutagenesis_with_genotype(
     logfc: bool = False,
     smoothing: bool = True,
     window_size: int = 3,
-    return_seq: bool = False,
-) -> np.ndarray | tuple[np.ndarray, np.ndarray] | None:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
     if isinstance(peak, int):
         peak_idx = peak
     elif isinstance(peak, str):
@@ -425,10 +424,305 @@ def saturation_mutagenesis_with_genotype(
         ism_scores_1 = ism_scores_1 * ref_seq_encode_1
         ism_scores_2 = ism_scores_2 * ref_seq_encode_2
 
-    if return_seq:
-        return ism_scores_1, ref_seq_encode_1, ism_scores_2, ref_seq_encode_2
+    return ism_scores_1, ref_seq_encode_1, ism_scores_2, ref_seq_encode_2
+
+
+def saturation_mutagenesis_with_genotype_v2(
+    model: Cell2NetWithGenotype,
+    peak: int | str = None,
+    snp_pos: int | None = None,
+    window: int = 20,
+    coord: str = "genomic",
+    rna_mod: str = "rna",
+    atac_mod: str = "atac",
+    batch_size: int = 32,
+    num_workers: int = 1,
+    multiply_by_inputs: bool = True,
+    logfc: bool = False,
+    smoothing: bool = True,
+    window_size: int = 3,
+    return_positions: bool = False,
+):
+    """In-silico saturation mutagenesis for one peak, on both haplotypes.
+
+    Parameters
+    ----------
+    peak : peak index (int) or peak name (str) in `mdata[atac_mod].var`.
+    snp_pos : anchor position. Only bases within `window` of the anchor are
+        mutated, which is what makes a per-variant scan affordable. None
+        scans the whole peak (the previous behaviour).
+    window : half-width in bp. The scanned span is
+        [anchor - window, anchor + window], i.e. 2 * window + 1 positions.
+    coord : "genomic" if `snp_pos` is a genome coordinate, in which case the
+        peak's `start` column is subtracted to get the offset into the
+        sequence; "offset" if `snp_pos` is already 0-based within the sequence.
+    return_positions : also return the array of scanned offsets.
+
+    Returns
+    -------
+    (ism_scores_1, ref_seq_encode_1, ism_scores_2, ref_seq_encode_2), each of
+    shape (4, L). Positions outside the scanned window are 0. When
+    `return_positions` is True, the scanned offsets are appended.
+    """
+    import numpy as np
+    from tqdm import tqdm
+
+    # ---- resolve the peak identifier --------------------------------------
+    var_index = model.mdata[atac_mod].var.index
+    if isinstance(peak, (int, np.integer)):
+        peak_idx = int(peak)
+        peak_name = var_index[peak_idx]
+    elif isinstance(peak, str):
+        peak_name = peak
+        peak_idx = var_index.get_loc(peak)
     else:
-        return ism_scores_1, ism_scores_2
+        logger.error("Invalid peak input, must be a single peak index or peak name")
+        return None
+
+    logger.info(f"Saturation mutagenesis for peak {peak_name} (index {peak_idx})")
+
+    # ---- pull the sequences for this peak ---------------------------------
+    # Filter on the resolved name: the original code filtered on `peak`, which
+    # silently returned an empty frame whenever an integer index was passed.
+    seq_table = model.mdata[atac_mod].uns["personal_genome_seq"]
+    df_seq = seq_table[seq_table["peak"] == peak_name]
+    if df_seq.empty:
+        logger.error(f"No sequence entries found for peak {peak_name}")
+        return None
+
+    # assert df_seq["seq_1"].nunique() == 1, "All seq_1 for a peak should be identical"
+    # assert df_seq["seq_2"].nunique() == 1, "All seq_2 for a peak should be identical"
+
+    ref_seq_1 = df_seq["seq_1"].iat[0]
+    ref_seq_2 = df_seq["seq_2"].iat[0]
+    assert len(ref_seq_1) == len(ref_seq_2), "seq_1 and seq_2 must be the same length"
+    seq_len = len(ref_seq_1)
+
+    # ---- work out which positions to scan ---------------------------------
+    if snp_pos is None:
+        positions = np.arange(seq_len)
+        anchor = None
+    else:
+        if coord == "genomic":
+            peak_start = int(df_seq["start"].iat[0])
+            anchor = int(snp_pos) - peak_start
+        elif coord == "offset":
+            anchor = int(snp_pos)
+        else:
+            raise ValueError("coord must be 'genomic' or 'offset'")
+
+        if not 0 <= anchor < seq_len:
+            raise ValueError(
+                f"anchor {anchor} falls outside the peak sequence "
+                f"(length {seq_len}); check snp_pos and the `coord` setting"
+            )
+
+        lo = max(0, anchor - window)
+        hi = min(seq_len, anchor + window + 1)
+        positions = np.arange(lo, hi)
+        logger.info(
+            f"Anchored at offset {anchor}; scanning [{lo}, {hi}) "
+            f"= {len(positions)} of {seq_len} bp"
+        )
+
+    # ---- reference prediction, computed once ------------------------------
+    logger.info("Predicting expression using reference sequences")
+    pred_ref = model.predict(
+        model.mdata, 
+        rna_mod=rna_mod, 
+        atac_mod=atac_mod,
+        batch_size=batch_size, 
+        num_workers=num_workers,
+    )
+    mean_ref = float(np.mean(pred_ref))
+
+    bases = ("A", "C", "G", "T")
+
+    def _scan(ref_seq: str, col: str) -> np.ndarray:
+        """Mutate `col` in place position by position; always restore it."""
+        scores = np.zeros(seq_len, dtype=float)
+        try:
+            for i in tqdm(positions, desc=f"ISM {col}"):
+                ref_base = ref_seq[i]
+                acc, n_alt = 0.0, 0
+                for alt in bases:
+                    if alt == ref_base:
+                        continue
+                    alt_seq = ref_seq[:i] + alt + ref_seq[i + 1:]
+                    seq_table.loc[df_seq.index, col] = alt_seq
+                    pred_alt = model.predict(
+                        model.mdata, 
+                        rna_mod=rna_mod, 
+                        atac_mod=atac_mod,
+                        batch_size=batch_size, 
+                        num_workers=num_workers,
+                    )
+                    acc += float(np.mean(pred_alt))
+                    n_alt += 1
+
+                mean_alt = acc / n_alt
+                if logfc:
+                    # Guard against non-positive means, which log2 cannot take
+                    if mean_ref <= 0 or mean_alt <= 0:
+                        scores[i] = np.nan
+                    else:
+                        scores[i] = np.log2(mean_ref / mean_alt)
+                else:
+                    scores[i] = mean_ref - mean_alt
+        finally:
+            # Restore even if prediction raises, otherwise mdata stays corrupted
+            seq_table.loc[df_seq.index, col] = ref_seq
+        return scores
+
+    logger.info("Predicting expression using alternative sequences")
+    ism_scores_1 = _scan(ref_seq_1, "seq_1")
+    ism_scores_2 = _scan(ref_seq_2, "seq_2")
+
+    # ---- smoothing, restricted to the scanned span ------------------------
+    if smoothing and window_size > 1:
+        kernel = np.ones(window_size) / window_size
+        lo, hi = int(positions[0]), int(positions[-1]) + 1
+        for scores in (ism_scores_1, ism_scores_2):
+            # Convolving the full array would drag the zero padding outside the
+            # window into the edges of the real signal
+            scores[lo:hi] = np.convolve(scores[lo:hi], kernel, mode="same")
+
+    # ---- broadcast to (4, L) and mask to the reference base ---------------
+    ism_scores_1 = np.tile(ism_scores_1, (4, 1))
+    ism_scores_2 = np.tile(ism_scores_2, (4, 1))
+
+    ref_seq_encode_1 = seq_to_one_hot(ref_seq_1).transpose()
+    ref_seq_encode_2 = seq_to_one_hot(ref_seq_2).transpose()
+    if multiply_by_inputs:
+        ism_scores_1 = ism_scores_1 * ref_seq_encode_1
+        ism_scores_2 = ism_scores_2 * ref_seq_encode_2
+
+    out = (ism_scores_1, ref_seq_encode_1, ism_scores_2, ref_seq_encode_2)
+    return out + (positions,) if return_positions else out
+
+# def saturation_mutagenesis_with_genotype_v2(
+#     model: Cell2NetWithGenotype,
+#     peak: int | str = None,
+#     rna_mod: str = "rna",
+#     atac_mod: str = "atac",
+#     batch_size: int = 32,
+#     num_workers: int = 1,
+#     multiply_by_inputs: bool = True,
+#     logfc: bool = False,
+#     smoothing: bool = True,
+#     window_size: int = 3,
+# ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
+#     if isinstance(peak, int):
+#         peak_idx = peak
+#     elif isinstance(peak, str):
+#         peak_idx = model.mdata[atac_mod].var.index.get_loc(peak)
+#     else:
+#         logger.error(
+#             "Invalid peak input, must be a single peak index or a single peak name"
+#         )
+#         return None
+
+#     logger.info(f"Compute saturation mutagenesis for peak {peak_idx}")
+
+#     logger.info("Predicting expression using reference sequence")
+#     pred_ref = model.predict(model.mdata,
+#                              rna_mod=rna_mod,
+#                              atac_mod=atac_mod,
+#                              batch_size=batch_size,
+#                              num_workers=num_workers)
+
+#     # get reference sequence for the peak
+#     df_seq = model.mdata[atac_mod].uns["personal_genome_seq"]
+#     df_seq = df_seq[df_seq['peak'] == peak]
+
+#     # ensure all seq_1 are the same
+#     assert len(df_seq['seq_1'].unique()) == 1, "All seq_1 should be the same"
+#     assert len(df_seq['seq_2'].unique()) == 1, "All seq_2 should be the same"
+
+#     ref_seq_1 = df_seq['seq_1'].values[0]
+#     ref_seq_2 = df_seq['seq_2'].values[0]
+
+#     # ensure seq_1 and seq_2 are the same length
+#     assert len(ref_seq_1) == len(ref_seq_2), "seq_1 and seq_2 should be the same length"
+
+#     logger.info("Predicting expression using alternative sequences")
+#     bases = ['A', 'C', 'G', 'T']
+#     ism_scores_1 = []
+#     for i in tqdm(range(len(ref_seq_1))):
+#         pred_alt = np.zeros(model.mdata.n_obs)
+
+#         # compute predictions for mutated sequence
+#         for alt in bases:
+#             if alt != ref_seq_1[i]:
+#                 alt_seq = ref_seq_1[:i] + alt + ref_seq_1[i+1:]
+
+#                 # replace the sequence in mdata
+#                 model.mdata[atac_mod].uns['personal_genome_seq'].loc[df_seq.index, 'seq_1'] = alt_seq
+#                 pred_alt += model.predict(model.mdata,
+#                                           rna_mod=rna_mod,
+#                                           atac_mod=atac_mod,
+#                                           batch_size=batch_size,
+#                                           num_workers=num_workers)
+
+#         # average predictions for the alternative base
+#         pred_alt /= (len(bases) - 1)
+
+#         # compute the effect size across all cells
+#         if logfc:
+#             ism_scores_1.append(np.log2(np.mean(pred_ref) / np.mean(pred_alt)))
+#         else:
+#             ism_scores_1.append(np.mean(pred_ref - pred_alt))
+
+#     # restore the original sequence
+#     model.mdata[atac_mod].uns['personal_genome_seq'].loc[df_seq.index, 'seq_1'] = ref_seq_1
+
+#     ism_scores_2 = []
+#     for i in tqdm(range(len(ref_seq_2))):
+#         pred_alt = np.zeros(model.mdata.n_obs)
+
+#         # compute predictions for mutated sequence
+#         for alt in bases:
+#             if alt != ref_seq_2[i]:
+#                 alt_seq = ref_seq_2[:i] + alt + ref_seq_2[i+1:]
+
+#                 # replace the sequence in mdata
+#                 model.mdata[atac_mod].uns['personal_genome_seq'].loc[df_seq.index, 'seq_2'] = alt_seq
+#                 pred_alt += model.predict(model.mdata,
+#                                           rna_mod=rna_mod,
+#                                           atac_mod=atac_mod,
+#                                           batch_size=batch_size,
+#                                           num_workers=num_workers)
+
+#         # average predictions for the alternative base
+#         pred_alt /= (len(bases) - 1)
+
+#         # compute the effect size across all cells
+#         if logfc:
+#             ism_scores_2.append(np.log2(np.mean(pred_ref) / np.mean(pred_alt)))
+#         else:
+#             ism_scores_2.append(np.mean(pred_ref - pred_alt))
+
+#     # restore the original sequence
+#     model.mdata[atac_mod].uns['personal_genome_seq'].loc[df_seq.index, 'seq_2'] = ref_seq_2
+
+#     ism_scores_1 = np.array(ism_scores_1)
+#     ism_scores_2 = np.array(ism_scores_2)
+
+#     # if smoothing is needed, we can use a simple moving average
+#     if smoothing:
+#         ism_scores_1 = np.convolve(ism_scores_1, np.ones(window_size)/window_size, mode='same')
+#         ism_scores_2 = np.convolve(ism_scores_2, np.ones(window_size)/window_size, mode='same')
+
+#     ism_scores_1 = np.tile(ism_scores_1, (4, 1))
+#     ism_scores_2 = np.tile(ism_scores_2, (4, 1))
+
+#     ref_seq_encode_1 = seq_to_one_hot(ref_seq_1).transpose()
+#     ref_seq_encode_2 = seq_to_one_hot(ref_seq_2).transpose()
+#     if multiply_by_inputs:
+#         ism_scores_1 = ism_scores_1 * ref_seq_encode_1
+#         ism_scores_2 = ism_scores_2 * ref_seq_encode_2
+
+#     return ism_scores_1, ref_seq_encode_1, ism_scores_2, ref_seq_encode_2
 
 
 # def saturation_mutagenesis_v2(

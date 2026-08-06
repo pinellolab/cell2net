@@ -616,6 +616,11 @@ def add_variants_to_sequence(
 
     df_seq = df_seq.drop(columns=["start"])
     df_seq = df_seq.sort_values(by=["peak", "donor"]).reset_index(drop=True)
+    df_seq["chrom"] = df_seq["peak"].str.split("-").str[0]
+    df_seq["start"] = df_seq["peak"].str.split("-").str[1]
+    df_seq["end"] = df_seq["peak"].str.split("-").str[2]
+
+    df_seq = df_seq[["peak", "chrom", "start", "end", "donor", "seq_1", "seq_2"]]
 
     adata.uns[personal_genome_seq] = df_seq
     logger.info("Adding variants finished!")

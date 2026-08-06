@@ -517,8 +517,8 @@ def saturation_mutagenesis_with_genotype_v2(
                 f"(length {seq_len}); check snp_pos and the `coord` setting"
             )
 
-        lo = max(0, anchor - window)
-        hi = min(seq_len, anchor + window + 1)
+        lo = max(0, anchor - window - 1)
+        hi = min(seq_len, anchor + window)
         positions = np.arange(lo, hi)
         logger.info(
             f"Anchored at offset {anchor}; scanning [{lo}, {hi}) "
